@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  dovi-detector:
+    build: .
+    container_name: dovi-detector
+    ports:
+      - "2367:2367"
+    volumes:
+      - ./media:/media
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - MEDIA_PATH=/media
+      - AUTO_REFRESH_INTERVAL=60
+      - RPU_INFO_MAX_LENGTH=500
+      - FILE_WRITE_DELAY=5
