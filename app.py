@@ -143,6 +143,60 @@ def get_video_resolution(video_file):
         print(f"Error getting resolution: {e}")
     return "Unknown"
 
+def get_audio_codec(video_file):
+    """Get audio codec, preferring German (ger/deu) tracks"""
+    try:
+        cmd = [
+            'ffprobe', '-v', 'error',
+            '-select_streams', 'a',
+            '-show_entries', 'stream=index,codec_name:stream_tags=language',
+            '-of', 'json',
+            video_file
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            if 'streams' in data and len(data['streams']) > 0:
+                # Try to find German audio track first
+                german_track = None
+                first_track = None
+                
+                for stream in data['streams']:
+                    codec = stream.get('codec_name', 'Unknown')
+                    tags = stream.get('tags', {})
+                    language = tags.get('language', '').lower()
+                    
+                    if first_track is None:
+                        first_track = codec
+                    
+                    if language in ['ger', 'deu', 'de']:
+                        german_track = codec
+                        break
+                
+                # Return German track if found, otherwise first track
+                codec_name = german_track if german_track else first_track
+                
+                # Format codec name to be more readable
+                codec_map = {
+                    'aac': 'AAC',
+                    'ac3': 'AC3 (Dolby Digital)',
+                    'eac3': 'EAC3 (Dolby Digital Plus)',
+                    'truehd': 'TrueHD (Dolby TrueHD)',
+                    'dts': 'DTS',
+                    'dca': 'DTS',
+                    'flac': 'FLAC',
+                    'mp3': 'MP3',
+                    'opus': 'Opus',
+                    'vorbis': 'Vorbis',
+                    'pcm_s16le': 'PCM',
+                    'pcm_s24le': 'PCM 24-bit'
+                }
+                
+                return codec_map.get(codec_name, codec_name.upper())
+    except Exception as e:
+        print(f"Error getting audio codec: {e}")
+    return "Unknown"
+
 def parse_dovi_info(info_output):
     """Parse dovi_tool info output to extract profile and enhancement layer type"""
     profile = None
@@ -209,6 +263,9 @@ def scan_video_file(file_path):
         # Get resolution
         resolution = get_video_resolution(file_path)
         
+        # Get audio codec
+        audio_codec = get_audio_codec(file_path)
+        
         # Store result
         file_info = {
             'filename': os.path.basename(file_path),
@@ -216,6 +273,7 @@ def scan_video_file(file_path):
             'profile': profile,
             'el_type': el_type if el_type else 'Unknown',
             'resolution': resolution,
+            'audio_codec': audio_codec,
             'rpu_info': info_output[:RPU_INFO_MAX_LENGTH] if info_output else ''
         }
         
@@ -525,6 +583,11 @@ HTML_TEMPLATE = '''
             font-weight: bold;
         }
         
+        .audio-codec {
+            color: #e0e0e0;
+            font-size: 0.9em;
+        }
+        
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -629,6 +692,10 @@ HTML_TEMPLATE = '''
                 font-size: 0.9em;
             }
             
+            .audio-codec {
+                font-size: 0.75em;
+            }
+            
             .rpu-info {
                 max-width: 150px;
                 font-size: 0.75em;
@@ -717,6 +784,7 @@ HTML_TEMPLATE = '''
                     <th>DV Profile</th>
                     <th>Enhancement Layer</th>
                     <th>Auflösung</th>
+                    <th>Audio Codec</th>
                     <th>RPU Info</th>
                 </tr>
             </thead>
@@ -731,6 +799,7 @@ HTML_TEMPLATE = '''
                         </span>
                     </td>
                     <td class="resolution">{{ file.resolution }}</td>
+                    <td class="audio-codec">{{ file.audio_codec }}</td>
                     <td class="rpu-info" title="{{ file.rpu_info }}">{{ file.rpu_info[:100] }}</td>
                 </tr>
                 {% endfor %}
