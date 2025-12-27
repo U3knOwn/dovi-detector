@@ -60,10 +60,11 @@ def save_database():
         print(f"Error saving database: {e}")
 
 def extract_hevc_stream(video_file, output_file):
-    """Extract HEVC stream from video file using ffmpeg"""
+    """Extract HEVC stream from video file using ffmpeg (first 3 seconds only)"""
     try:
         cmd = [
             'ffmpeg', '-i', video_file,
+            '-t', '3',  # Extract only first 3 seconds
             '-map', '0:v:0',
             '-c', 'copy',
             '-bsf:v', 'hevc_mp4toannexb',
