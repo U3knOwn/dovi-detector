@@ -6,7 +6,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string, jsonify, request
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -333,7 +333,14 @@ HTML_TEMPLATE = '''
             font-size: 1.2em;
         }
         
-        #scanButton {
+        .button-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        #scanButton, #scanFileButton {
             background: linear-gradient(135deg, #4ecca3 0%, #3da88a 100%);
             color: #1e1e2e;
             border: none;
@@ -346,15 +353,36 @@ HTML_TEMPLATE = '''
             box-shadow: 0 4px 6px rgba(78, 204, 163, 0.3);
         }
         
-        #scanButton:hover:not(:disabled) {
+        #scanButton:hover:not(:disabled), #scanFileButton:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 12px rgba(78, 204, 163, 0.4);
         }
         
-        #scanButton:disabled {
+        #scanButton:disabled, #scanFileButton:disabled {
             background: #555;
             cursor: not-allowed;
             box-shadow: none;
+        }
+        
+        #fileSelect {
+            background: rgba(0, 0, 0, 0.3);
+            color: #e0e0e0;
+            border: 2px solid #4ecca3;
+            padding: 10px 15px;
+            font-size: 1em;
+            border-radius: 10px;
+            cursor: pointer;
+            min-width: 300px;
+            max-width: 500px;
+        }
+        
+        #fileSelect option {
+            background: #2d2d44;
+            color: #e0e0e0;
+        }
+        
+        #fileSelect option:disabled {
+            color: #666;
         }
         
         .loading {
@@ -507,13 +535,25 @@ HTML_TEMPLATE = '''
             <div class="stats">
                 Gescannte Medien: <strong id="fileCount">{{ file_count }}</strong>
             </div>
-            <div>
+            <div class="button-group">
                 <div class="loading" id="loadingIndicator">
                     <div class="spinner"></div>
                     <span>Scanne Dateien...</span>
                 </div>
                 <button id="scanButton" onclick="startManualScan()">
-                    🔍 Nicht gescannte Medien scannen
+                    🔍 Alle nicht gescannten Medien scannen
+                </button>
+            </div>
+        </div>
+        
+        <div class="controls" style="margin-top: 10px;">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <label for="fileSelect" style="color: #a0a0a0;">Einzelne Datei scannen:</label>
+                <select id="fileSelect">
+                    <option value="">-- Datei auswählen --</option>
+                </select>
+                <button id="scanFileButton" onclick="scanSelectedFile()" disabled>
+                    ▶️ Ausgewählte Datei scannen
                 </button>
             </div>
         </div>
@@ -603,6 +643,97 @@ HTML_TEMPLATE = '''
             });
         }
         
+        function loadFileList() {
+            fetch('/get_files')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('fileSelect');
+                        // Clear existing options except first
+                        select.innerHTML = '<option value="">-- Datei auswählen --</option>';
+                        
+                        // Add files to dropdown
+                        data.files.forEach(file => {
+                            const option = document.createElement('option');
+                            option.value = file.path;
+                            option.textContent = file.name + (file.scanned ? ' ✓' : '');
+                            if (file.scanned) {
+                                option.style.color = '#4ecca3';
+                            }
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading file list:', error);
+                });
+        }
+        
+        function scanSelectedFile() {
+            const select = document.getElementById('fileSelect');
+            const filePath = select.value;
+            
+            if (!filePath) {
+                return;
+            }
+            
+            const button = document.getElementById('scanFileButton');
+            const loading = document.getElementById('loadingIndicator');
+            const message = document.getElementById('message');
+            
+            // Disable button and show loading
+            button.disabled = true;
+            loading.classList.add('active');
+            message.style.display = 'none';
+            
+            // Make AJAX request to scan specific file
+            fetch('/scan_file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ file_path: filePath })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                loading.classList.remove('active');
+                button.disabled = false;
+                
+                // Show message
+                message.className = 'message';
+                if (data.success) {
+                    message.classList.add('success');
+                    message.textContent = '✓ ' + data.message;
+                    
+                    // Reload file list and page
+                    loadFileList();
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    message.classList.add('info');
+                    message.textContent = 'ℹ ' + data.message;
+                }
+                message.style.display = 'block';
+            })
+            .catch(error => {
+                loading.classList.remove('active');
+                button.disabled = false;
+                message.className = 'message';
+                message.style.display = 'block';
+                message.textContent = '✗ Fehler beim Scannen: ' + error;
+            });
+        }
+        
+        // Enable/disable scan file button based on selection
+        document.getElementById('fileSelect').addEventListener('change', function() {
+            document.getElementById('scanFileButton').disabled = !this.value;
+        });
+        
+        // Load file list on page load
+        loadFileList();
+        
         // Auto-refresh every configured interval to show new automatically scanned files
         setTimeout(() => {
             location.reload();
@@ -654,6 +785,76 @@ def manual_scan():
             'error': str(e)
         }), 500
 
+@app.route('/get_files', methods=['GET'])
+def get_files():
+    """Get list of available video files for dropdown selection"""
+    try:
+        all_files = []
+        for root, dirs, files in os.walk(MEDIA_PATH):
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext in SUPPORTED_FORMATS:
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, MEDIA_PATH)
+                    is_scanned = file_path in scanned_paths
+                    all_files.append({
+                        'path': file_path,
+                        'name': relative_path,
+                        'scanned': is_scanned
+                    })
+        
+        # Sort by name
+        all_files.sort(key=lambda x: x['name'])
+        
+        return jsonify({
+            'success': True,
+            'files': all_files
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/scan_file', methods=['POST'])
+def scan_single_file():
+    """Endpoint to scan a specific file"""
+    try:
+        data = request.get_json()
+        file_path = data.get('file_path')
+        
+        if not file_path:
+            return jsonify({
+                'success': False,
+                'error': 'No file path provided'
+            }), 400
+        
+        if not os.path.exists(file_path):
+            return jsonify({
+                'success': False,
+                'error': 'File not found'
+            }), 404
+        
+        # Scan the file
+        result = scan_video_file(file_path)
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'message': f'File scanned successfully',
+                'file_info': result
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'File was not Profile 7 or already scanned'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 def main():
     """Main application entry point"""
     print("Starting Dolby Vision Profile 7 Scanner")
@@ -664,10 +865,8 @@ def main():
     # Start file observer in background
     observer = start_file_observer()
     
-    # Perform initial scan in background thread
-    print("Starting initial scan...")
-    scan_thread = threading.Thread(target=background_scan_new_files, daemon=True)
-    scan_thread.start()
+    # NOTE: Initial scan removed - user must manually trigger first scan via button
+    print("Ready. Use the scan button in the web interface to start scanning.")
     
     # Start Flask app
     try:
