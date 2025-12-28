@@ -528,7 +528,7 @@ def get_audio_codec(video_file):
             # Check format_commercial, format_name, format_additional, and title
             if ('DTS:X' in format_commercial or 'DTS-X' in format_commercial or 
                 'DTS XLL X' in format_name or 'XLL X' in format_name or
-                'X' in format_additional or 'DTS:X' in format_additional or
+                'DTS:X' in format_additional or
                 'DTS:X' in title or 'DTS-X' in title):
                 if is_imax:
                     return f'DTS:X (IMAX){channel_suffix}'
