@@ -771,7 +771,7 @@ class MediaFileHandler(FileSystemEventHandler):
         ext = os.path.splitext(file_path)[1].lower()
         
         if ext in SUPPORTED_FORMATS:
-            print(f"File deleted detected: {file_path}")
+            print(f"File deletion detected: {file_path}")
             with scan_lock:
                 if file_path in scanned_files:
                     del scanned_files[file_path]
@@ -824,7 +824,7 @@ def manual_scan():
                 print(f"Error scanning {file_path}: {e}")
         
         final_count = len(scanned_files)
-        new_count = final_count - initial_count + removed_count
+        new_count = final_count - initial_count
         
         return jsonify({
             'success': True,
