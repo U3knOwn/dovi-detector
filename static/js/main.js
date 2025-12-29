@@ -147,7 +147,6 @@ function startManualScan() {
         message.textContent = t('messages.scanError', { error: getErrorMessage(error) });
     });
 }
-}
 
 function loadFileList() {
     fetch('/get_files')
@@ -156,7 +155,7 @@ function loadFileList() {
             if (data.success) {
                 const select = document.getElementById('fileSelect');
                 // Build options array
-                const options = [`<option value="" data-i18n="select.fileSelect">${t('select.fileSelect')}</option>`];
+                const options = [`<option value="">${t('select.fileSelect')}</option>`];
                 
                 // Add files to dropdown
                 data.files.forEach(file => {
