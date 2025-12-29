@@ -99,7 +99,7 @@ function startManualScan() {
     const buttonText = document.getElementById('scanButtonText');
     const message = document.getElementById('message');
 
-    // Button deaktivieren + blauer Hintergrund
+    // Disable button + blue background
     button.disabled = true;
     button.classList.add('scanning');
     buttonText.textContent = t('scanning');
@@ -318,7 +318,7 @@ function getProfileRank(hdrFormat, hdrDetail, elType) {
 
 function getFilenameFromRow(row) {
     // Try multiple places: title attribute, .poster-title, .filename-fallback
-    const td = row.querySelector('td[data-label="Poster / Dateiname"]');
+    const td = row.querySelector('td[data-label-i18n="table_header_poster"]');
     if (!td) return '';
     // title attribute on td
     if (td.getAttribute('title')) return td.getAttribute('title').trim();
