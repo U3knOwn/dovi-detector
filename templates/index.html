@@ -8,50 +8,47 @@
 </head>
 <body>
     <div class="container">
-<header>
-    <h1>🎞️ <span data-i18n="title"></span></h1>
-</header>
-<div class="controls">
-    <!-- Linke Gruppe: Suche + Scan Buttons -->
-    <div class="left-group">
-        <div class="search-container">
-            <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder">
+        <header>
+            <h1>🎞️ <span data-i18n="title"></span></h1>
+        </header>
+
+        <div class="controls">
+            <!-- Linke Gruppe: Suche + Scan Buttons -->
+            <div class="left-group">
+                <div class="search-container">
+                    <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder">
+                </div>
+
+                <button id="scanButton" onclick="startManualScan()">
+                    🔍 <span id="scanButtonText" data-i18n="scan_all_button"></span>
+                </button>
+
+                <div id="loadingIndicator" class="loading">
+                    <div class="spinner"></div>
+                    <span data-i18n="scanning"></span>
+                </div>
+            </div>
+
+            <!-- Rechte Gruppe: Datei + Sortierung -->
+            <div class="right-group">
+                <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
+                    ▶️ <span data-i18n="scan_file_button"></span>
+                </button>
+
+                <select id="fileSelect">
+                    <option value="" data-i18n="select_file"></option>
+                </select>
+
+                <select id="sortSelect" data-aria-label-i18n="sort_label" aria-label="Sortierung auswählen">
+                    <option value="filename" data-i18n="sort_by_filename"></option>
+                    <option value="profile" data-i18n="sort_by_profile"></option>
+                    <option value="audio" data-i18n="sort_by_audio"></option>
+                </select>
+            </div>
         </div>
 
-        <button id="scanButton" onclick="startManualScan()">
-            🔍 <span id="scanButtonText" data-i18n="scan_all_button"></span>
-        </button>
-
-        <div id="loadingIndicator" class="loading">
-            <div class="spinner"></div>
-            <span data-i18n="scanning"></span>
-        </div>
-
-        <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
-            ▶️ <span data-i18n="scan_file_button"></span>
-        </button>
-    </div>
-
-    <!-- Rechte Gruppe: Datei + Sortierung -->
-    <div class="right-group">
-        <select id="fileSelect">
-            <option value="" data-i18n="select_file"></option>
-        </select>
-
-        <select id="sortSelect" data-aria-label-i18n="sort_label" aria-label="Sortierung auswählen">
-            <option value="filename" data-i18n="sort_by_filename"></option>
-            <option value="profile" data-i18n="sort_by_profile"></option>
-            <option value="audio" data-i18n="sort_by_audio"></option>
-        </select>
-    </div>
-</div>
-
-
-
-
-
-        
         <div id="message" class="message"></div>
+
         {% if files %}
         <table id="mediaTable">
             <thead>
@@ -80,8 +77,8 @@
                         <span class="filename-fallback">{{ file.filename }}</span>
                         {% endif %}
                     </td>
+
                     <td data-label-i18n="table_header_hdr" data-label="HDR Format">
-                        {# Wenn Dolby Vision und el_type vorhanden -> ein kombiniertes Badge #}
                         {% if file.hdr_format == 'Dolby Vision' and file.el_type %}
                         <span class="hdr-badge hdr-dolby-vision el-{{ file.el_type.lower() }}">
                             {{ file.hdr_detail }} {{ file.el_type }}
@@ -97,6 +94,7 @@
                         {% endif %}
                         {% endif %}
                     </td>
+
                     <td data-label-i18n="table_header_resolution" data-label="Auflösung">
                         {% if 'x' in file.resolution and file.resolution not in ['2160p', '1080p', '720p', '480p', '1440p', '4320p', '768p'] %}
                             {% set resolution_class = 'unknown' %}
@@ -107,6 +105,7 @@
                             {{ file.resolution }}
                         </span>
                     </td>
+
                     <td data-label-i18n="table_header_audio" data-label="Audiocodec">
                         {% set audio_class = 'unknown' %}
                         {% if 'TrueHD' in file.audio_codec and 'Atmos' in file.audio_codec %}
@@ -143,22 +142,25 @@
         {% else %}
         <div class="empty-state">
             <h2 data-i18n="empty_title">Keine Medien gefunden</h2>
-            <p data-i18n-html="empty_description">Lege Videodateien in den Ordner <code>media/</code>, um sie automatisch scannen zu lassen.</p>
+            <p data-i18n-html="empty_description">
+                Lege Videodateien in den Ordner <code>media/</code>, um sie automatisch scannen zu lassen.
+            </p>
         </div>
         {% endif %}
-		
-<div class="controls" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-    <div class="stats">
-        <strong id="fileCount">{{ file_count }} <span data-i18n="media_count"></span></strong>
-    </div>
-    <div class="language-switcher">
-        <select id="languageDropdown" onchange="setLanguage(this.value)">
-            <option value="de" selected>🇩🇪 DE</option>
-            <option value="en">🇬🇧 EN</option>
-        </select>
-    </div>
-</div>
 
+        <div class="controls" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="stats">
+                <strong id="fileCount">{{ file_count }} <span data-i18n="media_count"></span></strong>
+            </div>
+            <div class="language-switcher">
+                <select id="languageDropdown" onchange="setLanguage(this.value)">
+                    <option value="de" selected>🇩🇪 DE</option>
+                    <option value="en">🇬🇧 EN</option>
+                </select>
+            </div>
+        </div>
+
+    </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

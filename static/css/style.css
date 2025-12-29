@@ -123,12 +123,10 @@ h1 {
     flex-wrap: wrap;
 }
 
-/* Button initial verstecken */
 #scanFileButton.hidden {
     display: none;
 }
 
-/* Oder mit Animation */
 #scanFileButton {
     transition: opacity 0.2s ease, visibility 0.2s ease;
 }
@@ -223,14 +221,12 @@ tbody tr:hover {
     color: white;
 }
 
-/* Specific colors for combined Dolby Vision + EL badges */
 .hdr-dolby-vision.el-fel {
-    /* FEL: different color (e.g., turquoise -> blue) */
     background: linear-gradient(135deg, #06b6d4 0%, #1283c7 100%);
     color: white;
 }
+
 .hdr-dolby-vision.el-mel {
-    /* MEL: different color (e.g., orange -> red) */
     background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
     color: white;
 }
@@ -279,7 +275,6 @@ tbody tr:hover {
     color: white;
 }
 
-/* Resolution badge styles */
 .resolution-badge {
     display: inline-block;
     padding: 5px 12px;
@@ -333,7 +328,6 @@ tbody tr:hover {
     color: #999;
 }
 
-/* Audio codec badge styles */
 .audio-badge {
     display: inline-block;
     padding: 5px 12px;
@@ -402,7 +396,6 @@ tbody tr:hover {
     color: #999;
 }
 
-/* Kept for backward compatibility */
 .resolution {
     color: #4ecca3;
 }
@@ -455,16 +448,12 @@ tbody tr:hover {
     margin-bottom: 10px;
 }
 
-/* -----------------------------
-   Improved styles for dropdowns
-   ----------------------------- */
 .select-enhanced {
     position: relative;
     display: inline-block;
     vertical-align: middle;
 }
 
-/* Search container styling */
 .search-container {
     display: flex;
     align-items: center;
@@ -503,13 +492,12 @@ tbody tr:hover {
     color: rgba(230, 238, 246, 0.5);
 }
 
-/* General Select styling (for #fileSelect and #sortSelect) */
 #fileSelect,
 #sortSelect {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-color: #1f2937; /* dark */
+    background-color: #1f2937;
     color: #e6eef6;
     border: 1px solid rgba(255,255,255,0.06);
     padding: 10px 10px 10px 10px;
@@ -523,7 +511,6 @@ tbody tr:hover {
     text-align: center;
 }
 
-/* Placement / Size adjustment in the control bar */
 .controls select#fileSelect {
     width: 220px;
 }
@@ -532,7 +519,6 @@ tbody tr:hover {
     width: 220px;
 }
 
-/* Hover / Focus Effects */
 #fileSelect:hover,
 #sortSelect:hover {
     transform: translateY(-1px);
@@ -542,11 +528,10 @@ tbody tr:hover {
 #fileSelect:focus,
 #sortSelect:focus {
     outline: none;
-    border-color: rgba(99,102,241,0.9); /* violet accent */
+    border-color: rgba(99,102,241,0.9);
     box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
 }
 
-/* Disabled state */
 #fileSelect:disabled,
 #sortSelect:disabled {
     opacity: 0.55;
@@ -555,17 +540,13 @@ tbody tr:hover {
     box-shadow: none;
 }
 
-/* -----------------------------
-   Unified button styling (same look as dropdowns)
-   ----------------------------- */
-
 #scanButton,
 #scanFileButton,
 .button-group button {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-color: #1f2937; /* dark (same base color as selects) */
+    background-color: #1f2937;
     color: #e6eef6;
     border: 1px solid rgba(255,255,255,0.06);
     padding: 10px 16px;
@@ -583,7 +564,6 @@ tbody tr:hover {
 	width: 220px;
 }
 
-/* Optional: scale small icons or emojis inside buttons */
 #scanButton img,
 #scanFileButton img,
 .button-group button img {
@@ -592,7 +572,6 @@ tbody tr:hover {
     display: inline-block;
 }
 
-/* Hover / Focus Effects (Match Select) */
 #scanButton:hover,
 #scanFileButton:hover,
 .button-group button:hover {
@@ -604,11 +583,10 @@ tbody tr:hover {
 #scanFileButton:focus,
 .button-group button:focus {
     outline: none;
-    border-color: rgba(99,102,241,0.9); /* violet accent */
+    border-color: rgba(99,102,241,0.9);
     box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
 }
 
-/* Disabled state */
 #scanButton:disabled,
 #scanFileButton:disabled,
 .button-group button:disabled {
@@ -618,9 +596,8 @@ tbody tr:hover {
     box-shadow: none;
 }
 
-/* Special styling for the loading indicator (hidden by default) */
 .loading {
-    display: none;  /* IMPORTANT: hidden when not active */
+    display: none;
     align-items: center;
     gap: 10px;
     background-color: transparent;
@@ -629,15 +606,13 @@ tbody tr:hover {
     border-radius: 10px;
 }
 
-/* Wenn loading aktiv ist, soll es sichtbar sein */
 .loading.active {
-    display: inline-flex;  /* Nur sichtbar wenn .active */
+    display: inline-flex;
     background-color: rgba(255,255,255,0.02);
     border: 1px solid rgba(255,255,255,0.03);
     box-shadow: 0 4px 10px rgba(2,6,23,0.35);
 }
 
-/* Spinner: smaller and high contrast */
 .loading .spinner {
     width: 16px;
     height: 16px;
@@ -647,32 +622,27 @@ tbody tr:hover {
     animation: spin 0.9s linear infinite;
 }
 
-/* Animation */
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
 
-/* Mobile Version: alles untereinander */
 @media (max-width: 600px) {
     .controls {
         flex-direction: column;
-        align-items: stretch; /* volle Breite */
+        align-items: stretch;
     }
-
     .left-group, .right-group {
         flex-direction: column;
-        align-items: stretch; /* Elemente nehmen volle Breite */
+        align-items: stretch;
         gap: 10px;
     }
-
     .search-container input,
     .button-group button,
     .right-group select {
-        width: 100%; /* Vollbreite auf Mobil */
+        width: 100%;
     }
 }
 
-/* Responsive adjustments */
 @media screen and (max-width: 640px) {
     #scanButton,
     #scanFileButton,
@@ -680,13 +650,11 @@ tbody tr:hover {
         width: 100%;
         justify-content: center;
     }
-
     .controls {
         gap: 10px;
     }
 }
 
-/* Smaller screens: responsive widths */
 @media screen and (max-width: 640px) {
     #fileSelect {
         width: 100%;
@@ -702,67 +670,49 @@ tbody tr:hover {
     }
 }
 
-/* Mobile responsive styles for screens under 768px */
-/* Mobile responsive styles for screens under 768px */
 @media screen and (max-width: 768px) {
     body {
         padding: 10px;
     }
-    
     h1 {
         font-size: 1.8em;
     }
-    
     .controls {
         flex-direction: column;
-        width: 100%; /* sicherstellen, dass Controls die volle Breite haben */
+        width: 100%;
     }
-    
     .stats {
         width: 100%;
         text-align: center;
     }
-    
     .button-group {
         width: 100%;
         flex-direction: column;
     }
-    
-    /* Alle Selects auf volle Breite */
     .controls select#fileSelect,
     .controls select#sortSelect {
-        width: 100% !important; /* überschreibt die feste Breite */
+        width: 100% !important;
         max-width: 100%;
     }
-
-    /* Buttons auf mobile Breite */
     #scanButton,
 	#fileSelect,
     #scanFileButton,
     .button-group button {
         width: 100%;
     }
-	
-	/* Hide button - globally with !important so it works everywhere */
 	#scanFileButton.hidden {
 		display: none !important;
 	}
-    
-    /* Hide table headers on mobile */
     thead {
         display: none;
     }
-    
-    /* Display table as cards on mobile */
     table {
         border: none;
         background: transparent;
     }
-    
     tbody {
         display: block;
     }
-    
     tr {
         display: block;
         margin-bottom: 15px;
@@ -770,11 +720,9 @@ tbody tr:hover {
         border-radius: 10px;
         padding: 15px;
     }
-    
     tr:hover {
         background: rgba(78, 204, 163, 0.1);
     }
-    
     td {
         display: block;
         text-align: left;
@@ -785,7 +733,6 @@ tbody tr:hover {
         word-break: break-word;
         overflow-wrap: break-word;
     }
-    
     td:before {
         content: attr(data-label);
         position: absolute;
@@ -797,121 +744,92 @@ tbody tr:hover {
         text-transform: uppercase;
         font-size: 0.85em;
     }
-    
-    /* Hide labels for HDR Format, Resolution, and Audio Codec */
     td[data-label="HDR Format"]:before,
     td[data-label="Auflösung"]:before,
     td[data-label="Audiocodec"]:before {
         display: none;
     }
-    
-    /* Center content for cells without labels */
     td[data-label="HDR Format"],
     td[data-label="Auflösung"],
     td[data-label="Audiocodec"] {
         text-align: center;
         padding-left: 0;
     }
-    
-    /* Special handling for poster cell - centered and full-width */
     td:first-child {
         padding-top: 0;
         padding-left: 0;
         text-align: center;
     }
-    
     td:first-child:before {
         display: none;
     }
-    
     td:last-child {
         padding-bottom: 0;
     }
-    
-    /* Mobile poster container - full width and centered */
     .poster-container {
         width: 100%;
         align-items: center;
         gap: 10px;
         margin-bottom: 15px;
     }
-    
     .poster-title {
         max-width: 100%;
         font-size: 1em;
     }
-    
-    /* Responsive poster images on mobile */
     .poster-img {
         max-height: 200px;
         max-width: 100%;
         width: auto;
     }
-    
-    /* Mobile badge sizing */
     .resolution-badge, .audio-badge {
         font-size: 0.8em;
         padding: 4px 8px;
     }
 }
 
-/* Mobile landscape mode (screens wider than tall, under 768px height) */
 @media screen and (max-height: 768px) and (orientation: landscape) {
     body {
         padding: 5px;
     }
-    
     h1 {
         font-size: 1.5em;
     }
-    
     .subtitle {
         font-size: 0.9em;
     }
-    
     header {
         padding: 10px;
         margin-bottom: 15px;
     }
-    
     .controls {
         padding: 10px;
     }
-    
     table {
         font-size: 0.9em;
     }
-    
     th, td {
         padding: 8px;
     }
-    
-    /* Smaller posters in landscape mode */
     .poster-img {
         max-height: 150px;
     }
-    
     .hdr-badge, .el-badge {
         font-size: 0.8em;
         padding: 4px 8px;
     }
-    
     .resolution-badge, .audio-badge {
         font-size: 0.8em;
         padding: 4px 8px;
     }
 }
 
-/* Accessibility: Respect user preference for reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .poster-img {
         transition: none;
     }
-    
     .poster-img:hover {
         transform: none;
     }
-    
     .spinner {
         animation: none;
     }
