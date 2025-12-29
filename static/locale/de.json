@@ -7,6 +7,7 @@
   "scan_file_button": "Datei scannen",
   "sort_by_filename": "Nach Dateiname",
   "sort_by_profile": "Nach Medienformat",
+  "sort_by_audio": "Nach Tonspur",
   "sort_label": "Sortierung auswählen",
   "table_header_poster": "Poster / Dateiname",
   "table_header_hdr": "HDR Format",
