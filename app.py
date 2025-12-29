@@ -25,6 +25,7 @@ MEDIA_PATH = os.environ.get('MEDIA_PATH', '/media')
 DATA_DIR = '/app/data'
 TEMP_DIR = '/app/temp'
 DB_FILE = os.path.join(DATA_DIR, 'scanned_files.json')
+POSTER_CACHE_DIR = os.path.join(DATA_DIR, 'posters')
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 
 # Compiled regex patterns for better performance
@@ -74,6 +75,7 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(TEMPLATES_DIR, exist_ok=True)
 os.makedirs(CSS_DIR, exist_ok=True)
 os.makedirs(JS_DIR, exist_ok=True)
+os.makedirs(POSTER_CACHE_DIR, exist_ok=True)
 
 def download_static_files():
     """Download missing static files from GitHub"""
@@ -300,6 +302,55 @@ def get_tmdb_poster(filename):
     return None, None
 
 
+def download_and_cache_poster(poster_url, cache_filename):
+    """Download poster image and cache it locally"""
+    if not poster_url:
+        return None
+    
+    cache_path = os.path.join(POSTER_CACHE_DIR, cache_filename)
+    
+    # Check if already cached
+    if os.path.exists(cache_path):
+        print(f"  [CACHE] Poster already cached: {cache_filename}")
+        return f'/poster/{cache_filename}'
+    
+    try:
+        print(f"  [CACHE] Downloading poster: {poster_url}")
+        response = requests.get(poster_url, timeout=10)
+        if response.status_code == 200:
+            # Save to cache
+            with open(cache_path, 'wb') as f:
+                f.write(response.content)
+            print(f"  [CACHE] Poster cached: {cache_filename}")
+            return f'/poster/{cache_filename}'
+    except requests.exceptions.Timeout:
+        print(f"  [CACHE] Timeout downloading poster")
+    except requests.exceptions.RequestException as e:
+        print(f"  [CACHE] Error downloading poster: {e}")
+    except Exception as e:
+        print(f"  [CACHE] Unexpected error caching poster: {e}")
+    
+    # Return original URL as fallback
+    return poster_url
+
+
+def get_cached_poster_path(tmdb_id, poster_url):
+    """Get cached poster path or download and cache it"""
+    if not poster_url:
+        return None
+    
+    # Generate cache filename from TMDB ID or URL
+    if tmdb_id:
+        cache_filename = f"tmdb_{tmdb_id}.jpg"
+    else:
+        # Extract filename from URL
+        import hashlib
+        url_hash = hashlib.md5(poster_url.encode()).hexdigest()
+        cache_filename = f"poster_{url_hash}.jpg"
+    
+    return download_and_cache_poster(poster_url, cache_filename)
+
+
 def load_database():
     """Load previously scanned files from database"""
     global scanned_files, scanned_paths
@@ -314,6 +365,32 @@ def load_database():
         print(f"Error loading database: {e}")
         scanned_files = {}
         scanned_paths = set()
+
+def migrate_poster_urls_to_cache():
+    """Migrate existing TMDB poster URLs to cached versions"""
+    global scanned_files
+    
+    if not TMDB_API_KEY or not REQUESTS_AVAILABLE:
+        return
+    
+    migrated_count = 0
+    with scan_lock:
+        for file_path, file_info in scanned_files.items():
+            poster_url = file_info.get('poster_url')
+            tmdb_id = file_info.get('tmdb_id')
+            
+            # Check if poster URL is a TMDB URL (not cached)
+            if poster_url and poster_url.startswith('https://image.tmdb.org'):
+                print(f"  [MIGRATION] Caching poster for: {file_info.get('filename')}")
+                cached_path = get_cached_poster_path(tmdb_id, poster_url)
+                if cached_path and cached_path.startswith('/poster/'):
+                    file_info['poster_url'] = cached_path
+                    migrated_count += 1
+        
+        if migrated_count > 0:
+            save_database()
+            print(f"✓ Migrated {migrated_count} poster(s) to cache")
+
 
 def save_database():
     """Save scanned files to database"""
@@ -867,6 +944,11 @@ def scan_video_file(file_path):
     # Get TMDB poster
     filename = os.path.basename(file_path)
     tmdb_id, poster_url = get_tmdb_poster(filename)
+    
+    # Cache the poster if we got a URL
+    cached_poster_path = None
+    if poster_url:
+        cached_poster_path = get_cached_poster_path(tmdb_id, poster_url)
 
     file_info = {
         'filename': filename,
@@ -878,7 +960,7 @@ def scan_video_file(file_path):
         'resolution': resolution,
         'audio_codec': audio_codec,
         'tmdb_id': tmdb_id,
-        'poster_url': poster_url
+        'poster_url': cached_poster_path if cached_poster_path else poster_url
     }
 
     with scan_lock:
@@ -1109,6 +1191,20 @@ def update_assets():
             'error': str(e)
         }), 500
 
+@app.route('/poster/<filename>')
+def serve_poster(filename):
+    """Serve cached poster images"""
+    try:
+        poster_path = os.path.join(POSTER_CACHE_DIR, filename)
+        if os.path.exists(poster_path):
+            from flask import send_file
+            return send_file(poster_path, mimetype='image/jpeg')
+        else:
+            return "Poster not found", 404
+    except Exception as e:
+        print(f"Error serving poster {filename}: {e}")
+        return "Error serving poster", 500
+
 def main():
     """Main application entry point"""
     print("=" * 50)
@@ -1125,6 +1221,11 @@ def main():
     
     # Load existing database
     load_database()
+    
+    # Migrate existing poster URLs to cached versions
+    if TMDB_API_KEY:
+        print("Migrating poster URLs to cache...")
+        migrate_poster_urls_to_cache()
     
     # Clean up database for non-existent files
     removed_count = cleanup_database()

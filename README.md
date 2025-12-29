@@ -146,6 +146,11 @@ TMDB_API_KEY=your_api_key_here
 - Include `{tmdb-12345}` in your filename (e.g., `Movie Name {tmdb-12345}.mkv`)
 - If no TMDB ID is found, the app will search TMDB by the extracted movie name
 
+**Poster Caching:**
+- Poster images are automatically downloaded and cached in `/app/data/posters/`
+- Cached posters are reused on subsequent page loads, reducing bandwidth and load times
+- Existing posters are migrated to cache on application startup
+
 **Without TMDB API Key:**
 - The app will still work normally, displaying filenames instead of posters
 
