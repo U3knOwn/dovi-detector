@@ -380,6 +380,37 @@ function sortTableByFilename() {
     rows.forEach(r => tbody.appendChild(r));
 }
 
+function getAudioCodecFromRow(row) {
+    // Get audio codec from the audio cell
+    const audioCell = row.querySelector('td.audio-codec');
+    if (!audioCell) return '';
+    return audioCell.textContent.trim();
+}
+
+function sortTableByAudio() {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aAudio = getAudioCodecFromRow(a).toLowerCase();
+        const bAudio = getAudioCodecFromRow(b).toLowerCase();
+        
+        if (aAudio < bAudio) return -1;
+        if (aAudio > bAudio) return 1;
+        
+        // If same audio codec, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
 function applySort(mode) {
     if (!mode) mode = localStorage.getItem('dovi_sort_mode') || 'filename';
     const select = document.getElementById('sortSelect');
@@ -387,6 +418,8 @@ function applySort(mode) {
 
     if (mode === 'profile') {
         sortTableByProfile();
+    } else if (mode === 'audio') {
+        sortTableByAudio();
     } else {
         sortTableByFilename();
     }
