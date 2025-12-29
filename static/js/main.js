@@ -63,6 +63,21 @@ function updatePageTranslations() {
         option.textContent = t(key);
     });
     
+    // Update data-label attributes in table cells
+    document.querySelectorAll('td[data-label]').forEach(td => {
+        const label = td.getAttribute('data-label');
+        // Map label to translation key
+        const labelMap = {
+            'Poster / Dateiname': 'table.posterFilename',
+            'HDR Format': 'table.hdrFormat',
+            'Auflösung': 'table.resolution',
+            'Audiocodec': 'table.audioCodec'
+        };
+        if (labelMap[label]) {
+            td.setAttribute('data-label', t(labelMap[label]));
+        }
+    });
+    
     // Update language button
     const langBtn = document.getElementById('currentLang');
     if (langBtn) {
@@ -139,8 +154,13 @@ function loadFileList() {
         .then(data => {
             if (data.success) {
                 const select = document.getElementById('fileSelect');
-                // Clear existing options except first
-                select.innerHTML = '<option value="">-- Datei auswählen --</option>';
+                // Clear existing options and add translated placeholder
+                const placeholderOption = document.createElement('option');
+                placeholderOption.value = '';
+                placeholderOption.textContent = t('select.fileSelect');
+                placeholderOption.setAttribute('data-i18n', 'select.fileSelect');
+                select.innerHTML = '';
+                select.appendChild(placeholderOption);
                 
                 // Add files to dropdown
                 data.files.forEach(file => {
