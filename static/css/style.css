@@ -837,6 +837,12 @@ tbody tr:hover {
         max-width: 100%;
         width: auto;
     }
+    
+    /* Mobile badge sizing */
+    .resolution-badge, .audio-badge {
+        font-size: 0.8em;
+        padding: 4px 8px;
+    }
 }
 
 /* Mobile landscape mode (screens wider than tall, under 768px height) */
@@ -880,14 +886,6 @@ tbody tr:hover {
         padding: 4px 8px;
     }
     
-    .resolution-badge, .audio-badge {
-        font-size: 0.8em;
-        padding: 4px 8px;
-    }
-}
-
-/* Mobile responsiveness for badges on smaller screens */
-@media (max-width: 768px) {
     .resolution-badge, .audio-badge {
         font-size: 0.8em;
         padding: 4px 8px;
