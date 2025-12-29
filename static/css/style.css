@@ -325,7 +325,7 @@ tbody tr:hover {
 
 .resolution-unknown {
     background: #444;
-    color: #999;
+    color: white;
 }
 
 .audio-badge {
@@ -393,7 +393,7 @@ tbody tr:hover {
 
 .audio-unknown {
     background: #444;
-    color: #999;
+    color: white;
 }
 
 .resolution {
