@@ -11,31 +11,35 @@
         <header>
             <h1>🎬 <span data-i18n="title">DoVi Detector</span></h1>
             <div class="language-switcher">
-                <span data-i18n="language">Sprache</span>: 
                 <button id="langDe" class="lang-btn active" onclick="setLanguage('de')">🇩🇪 DE</button>
                 <button id="langEn" class="lang-btn" onclick="setLanguage('en')">🇬🇧 EN</button>
             </div>
         </header>
         
-        <div class="controls">
-            <div class="stats">
-                <span data-i18n="media_count">Medien</span>: <strong id="fileCount">{{ file_count }}</strong>
-            </div>
-            <div class="button-group">
-                <div class="loading" id="loadingIndicator">
-                    <div class="spinner"></div>
-                    <span data-i18n="scanning">Scanne...</span>
-                </div>
-                <button id="scanButton" onclick="startManualScan()">
-                    🔍 <span data-i18n="scan_all_button">Alle Medien scannen</span>
-                </button>
-            </div>
-        </div>
-        
         <div class="controls" style="margin-top: 10px;">
             <!-- Linke Seite: Suchleiste -->
             <div class="search-container">
                 <input type="text" id="searchInput" placeholder="Suchen..." data-i18n-placeholder="search_placeholder">
+            </div>
+			
+            <div class="button-group">
+                <button id="scanButton" onclick="startManualScan()">
+                    🔍 <span id="scanButtonText" data-i18n="scan_all_button">Alle Medien scannen</span>
+                </button>
+
+                <div id="loadingIndicator" class="loading">
+                    <div class="spinner"></div>
+                    <span data-i18n="scanning">Scanne...</span>
+                </div>
+            </div>
+			
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <select id="fileSelect">
+                    <option value="" data-i18n="select_file">-- Datei auswählen --</option>
+                </select>
+                <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
+                    ▶️ <span data-i18n="scan_file_button">Datei scannen</span>
+                </button>
             </div>
             
             <!-- Rechte Seite: Sortierung -->
@@ -48,20 +52,7 @@
             </div>
         </div>
         
-        <div class="controls" style="margin-top: 10px;">
-            <!-- Datei-Scan -->
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <select id="fileSelect">
-                    <option value="" data-i18n="select_file">-- Datei auswählen --</option>
-                </select>
-                <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
-                    ▶️ <span data-i18n="scan_file_button">Datei scannen</span>
-                </button>
-            </div>
-        </div>
-        
         <div id="message" class="message"></div>
-        
         {% if files %}
         <table id="mediaTable">
             <thead>
@@ -119,6 +110,12 @@
             <p data-i18n-html="empty_description">Lege Videodateien in den Ordner <code>media/</code>, um sie automatisch scannen zu lassen.</p>
         </div>
         {% endif %}
+		
+        <div class="controls" style="margin-top: 10px;">
+            <div class="stats">
+                <strong id="fileCount">{{ file_count }} <span data-i18n="media_count">Dateien</span></strong>
+            </div>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

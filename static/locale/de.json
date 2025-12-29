@@ -1,6 +1,6 @@
 {
   "title": "DoVi Detector",
-  "media_count": "Medien",
+  "media_count": "Dateien",
   "scanning": "Scanne...",
   "scan_all_button": "Alle Medien scannen",
   "select_file": "-- Datei auswählen --",
@@ -19,6 +19,5 @@
   "no_new_files": "Keine neuen Dateien gefunden.",
   "scan_error": "Fehler beim Scannen",
   "file_scan_error": "Fehler beim Scannen der Datei",
-  "language": "Sprache",
   "search_placeholder": "Suchen..."
 }

@@ -96,49 +96,47 @@ async function initLanguage() {
 
 function startManualScan() {
     const button = document.getElementById('scanButton');
-    const loading = document.getElementById('loadingIndicator');
+    const buttonText = document.getElementById('scanButtonText');
     const message = document.getElementById('message');
-    
-    // Disable button and show loading
+
+    // Button deaktivieren + blauer Hintergrund
     button.disabled = true;
-    loading.classList.add('active');
-    message.style.display = 'none';
-    
-    // Make AJAX request to scan endpoint
-    fetch('/scan', {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Hide loading
-        loading.classList.remove('active');
-        button.disabled = false;
-        
-        // Show message
-        message.className = 'message';
-        if (data.new_files > 0) {
-            message.classList.add('success');
-            message.textContent = `✓ ${t('scan_complete', { count: data.new_files })}`;
-        } else {
-            message.classList.add('info');
-            message.textContent = `ℹ ${t('no_new_files')}`;
-        }
-        message.style.display = 'block';
-        
-        // Reload page if new files were found
-        if (data.new_files > 0) {
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        }
-    })
-    .catch(error => {
-        loading.classList.remove('active');
-        button.disabled = false;
-        message.className = 'message';
-        message.style.display = 'block';
-        message.textContent = `✗ ${t('scan_error')}: ${error}`;
-    });
+    button.classList.add('scanning');
+    buttonText.textContent = t('scanning');
+    if (message) message.style.display = 'none';
+
+    fetch('/scan', { method: 'POST' })
+        .then(response => {
+            if (!response.ok) throw new Error('Server error');
+            return response.json();
+        })
+        .then(data => {
+            if (!message) return;
+
+            message.className = 'message';
+            if (data.new_files > 0) {
+                message.classList.add('success');
+                message.textContent = `✓ ${t('scan_complete', { count: data.new_files })}`;
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                message.classList.add('info');
+                message.textContent = `ℹ ${t('no_new_files')}`;
+            }
+            message.style.display = 'block';
+        })
+        .catch(error => {
+            if (!message) return;
+            message.className = 'message error';
+            message.textContent = `✗ ${t('scan_error')}`;
+            message.style.display = 'block';
+            console.error(error);
+        })
+        .finally(() => {
+            // Button IMMER zurücksetzen
+            button.disabled = false;
+            button.classList.remove('scanning');
+            buttonText.textContent = t('scan_all_button');
+        });
 }
 
 function loadFileList() {
