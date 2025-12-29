@@ -623,7 +623,7 @@ tbody tr:hover {
         font-size: 0.85em;
     }
     
-    /* Hide labels for HDR Format, Auflösung, and Audiocodec */
+    /* Hide labels for HDR Format, Resolution, and Audio Codec */
     td[data-label="HDR Format"]:before,
     td[data-label="Auflösung"]:before,
     td[data-label="Audiocodec"]:before {
