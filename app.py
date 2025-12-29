@@ -206,6 +206,36 @@ def extract_movie_name(filename):
     return name
 
 
+def delete_cached_poster(file_info):
+    """Delete cached poster file for a given file_info entry"""
+    poster_url = file_info.get('poster_url', '')
+    if poster_url.startswith('/poster/'):
+        poster_filename = poster_url.replace('/poster/', '')
+        poster_path = os.path.join(POSTER_CACHE_DIR, poster_filename)
+        if os.path.exists(poster_path):
+            try:
+                os.remove(poster_path)
+                print(f"✗ Removed cached poster: {poster_filename}")
+            except Exception as e:
+                print(f"Error removing poster {poster_filename}: {e}")
+
+
+def extract_title_and_year_from_tmdb(data, media_type):
+    """Extract title and year from TMDB API response data"""
+    # Extract title based on media type
+    if media_type == 'movie':
+        title = data.get('title')
+        release_date = data.get('release_date', '')
+    else:  # TV show
+        title = data.get('name')
+        release_date = data.get('first_air_date', '')
+
+    # Extract year (first 4 characters) from release date
+    year = release_date[:4] if release_date and len(release_date) >= 4 else None
+    
+    return title, year
+
+
 def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
     """Fetch poster URL, title, and year from TMDB API by ID"""
     if not TMDB_API_KEY or not REQUESTS_AVAILABLE:
@@ -228,19 +258,8 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
             data = response.json()
             poster_path = data.get('poster_path')
 
-            # Extract title and year based on media type
-            if media_type == 'movie':
-                title = data.get('title')
-                release_date = data.get('release_date', '')
-            else:  # TV show
-                title = data.get('name')
-                release_date = data.get('first_air_date', '')
-
-            # Extract year (first 4 characters) from release date
-            year = release_date[:4] if release_date and len(
-                release_date) >= 4 else None
-
             if poster_path:
+                title, year = extract_title_and_year_from_tmdb(data, media_type)
                 poster_url = f'https://image.tmdb.org/t/p/original{poster_path}'
                 return poster_url, title, year
             
@@ -252,19 +271,8 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
                 data = response.json()
                 poster_path = data.get('poster_path')
                 
-                # Extract title and year based on media type
-                if media_type == 'movie':
-                    title = data.get('title')
-                    release_date = data.get('release_date', '')
-                else:  # TV show
-                    title = data.get('name')
-                    release_date = data.get('first_air_date', '')
-
-                # Extract year (first 4 characters) from release date
-                year = release_date[:4] if release_date and len(
-                    release_date) >= 4 else None
-                
                 if poster_path:
+                    title, year = extract_title_and_year_from_tmdb(data, media_type)
                     poster_url = f'https://image.tmdb.org/t/p/original{poster_path}'
                     return poster_url, title, year
         elif response.status_code != 404:
@@ -315,19 +323,8 @@ def search_tmdb_poster(movie_name, media_type='movie'):
                 first_result = results[0]
                 poster_path = first_result.get('poster_path')
 
-                # Extract title and year based on media type
-                if media_type == 'movie':
-                    title = first_result.get('title')
-                    release_date = first_result.get('release_date', '')
-                else:  # TV show
-                    title = first_result.get('name')
-                    release_date = first_result.get('first_air_date', '')
-
-                # Extract year (first 4 characters) from release date
-                year = release_date[:4] if release_date and len(
-                    release_date) >= 4 else None
-
                 if poster_path:
+                    title, year = extract_title_and_year_from_tmdb(first_result, media_type)
                     poster_url = f'https://image.tmdb.org/t/p/original{poster_path}'
                     return poster_url, title, year
                 
@@ -346,19 +343,8 @@ def search_tmdb_poster(movie_name, media_type='movie'):
                         first_result = results[0]
                         poster_path = first_result.get('poster_path')
                         
-                        # Extract title and year based on media type
-                        if media_type == 'movie':
-                            title = first_result.get('title')
-                            release_date = first_result.get('release_date', '')
-                        else:  # TV show
-                            title = first_result.get('name')
-                            release_date = first_result.get('first_air_date', '')
-
-                        # Extract year (first 4 characters) from release date
-                        year = release_date[:4] if release_date and len(
-                            release_date) >= 4 else None
-                        
                         if poster_path:
+                            title, year = extract_title_and_year_from_tmdb(first_result, media_type)
                             poster_url = f'https://image.tmdb.org/t/p/original{poster_path}'
                             return poster_url, title, year
         elif response.status_code != 404:
@@ -569,16 +555,7 @@ def cleanup_database():
                     file_info = scanned_files[file_path]
                     
                     # Delete cached poster if it exists
-                    poster_url = file_info.get('poster_url', '')
-                    if poster_url.startswith('/poster/'):
-                        poster_filename = poster_url.replace('/poster/', '')
-                        poster_path = os.path.join(POSTER_CACHE_DIR, poster_filename)
-                        if os.path.exists(poster_path):
-                            try:
-                                os.remove(poster_path)
-                                print(f"✗ Removed cached poster: {poster_filename}")
-                            except Exception as e:
-                                print(f"Error removing poster {poster_filename}: {e}")
+                    delete_cached_poster(file_info)
                     
                     del scanned_files[file_path]
                     scanned_paths.discard(file_path)
@@ -1269,16 +1246,7 @@ class MediaFileHandler(FileSystemEventHandler):
                     file_info = scanned_files[file_path]
                     
                     # Delete cached poster if it exists
-                    poster_url = file_info.get('poster_url', '')
-                    if poster_url.startswith('/poster/'):
-                        poster_filename = poster_url.replace('/poster/', '')
-                        poster_path = os.path.join(POSTER_CACHE_DIR, poster_filename)
-                        if os.path.exists(poster_path):
-                            try:
-                                os.remove(poster_path)
-                                print(f"✗ Removed cached poster: {poster_filename}")
-                            except Exception as e:
-                                print(f"Error removing poster {poster_filename}: {e}")
+                    delete_cached_poster(file_info)
                     
                     del scanned_files[file_path]
                     scanned_paths.discard(file_path)
