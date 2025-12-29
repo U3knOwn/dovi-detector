@@ -70,7 +70,7 @@
                 {% for file in files %}
                 {# Wir fügen data-Attribute hinzu, damit das JS die Sortierung nachvollziehen kann #}
                 <tr data-hdr-format="{{ file.hdr_format }}" data-hdr-detail="{{ file.hdr_detail }}" data-el-type="{{ file.el_type or '' }}">
-                    <td data-label="Poster / Dateiname" title="{{ file.filename }}">
+                    <td data-label="Poster / Dateiname" data-label-i18n="table.posterFilename" title="{{ file.filename }}">
                         {% if file.poster_url %}
                         <div class="poster-container">
                             {% if file.tmdb_title %}
@@ -84,7 +84,7 @@
                         <span class="filename-fallback">{{ file.filename }}</span>
                         {% endif %}
                     </td>
-                    <td data-label="HDR Format">
+                    <td data-label="HDR Format" data-label-i18n="table.hdrFormat">
                         {# Wenn Dolby Vision und el_type vorhanden -> ein kombiniertes Badge #}
                         {% if file.hdr_format == 'Dolby Vision' and file.el_type %}
                         <span class="hdr-badge hdr-dolby-vision el-{{ file.el_type.lower() }}">
@@ -101,8 +101,8 @@
                         {% endif %}
                         {% endif %}
                     </td>
-                    <td data-label="Auflösung" class="resolution">{{ file.resolution }}</td>
-                    <td data-label="Audiocodec" class="audio-codec">{{ file.audio_codec }}</td>
+                    <td data-label="Auflösung" data-label-i18n="table.resolution" class="resolution">{{ file.resolution }}</td>
+                    <td data-label="Audiocodec" data-label-i18n="table.audioCodec" class="audio-codec">{{ file.audio_codec }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

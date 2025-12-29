@@ -43,6 +43,11 @@ function t(key, replacements = {}) {
     return value || key;
 }
 
+// Utility function to get error message string
+function getErrorMessage(error) {
+    return error.message || error.toString();
+}
+
 // Update all elements with data-i18n attribute
 function updatePageTranslations() {
     // Update text content
@@ -70,18 +75,9 @@ function updatePageTranslations() {
     });
     
     // Update data-label attributes in table cells
-    document.querySelectorAll('td[data-label]').forEach(td => {
-        const label = td.getAttribute('data-label');
-        // Map label to translation key
-        const labelMap = {
-            'Poster / Dateiname': 'table.posterFilename',
-            'HDR Format': 'table.hdrFormat',
-            'Auflösung': 'table.resolution',
-            'Audiocodec': 'table.audioCodec'
-        };
-        if (labelMap[label]) {
-            td.setAttribute('data-label', t(labelMap[label]));
-        }
+    document.querySelectorAll('td[data-label-i18n]').forEach(td => {
+        const key = td.getAttribute('data-label-i18n');
+        td.setAttribute('data-label', t(key));
     });
     
     // Update language button
@@ -149,7 +145,7 @@ function startManualScan() {
         button.disabled = false;
         message.className = 'message';
         message.style.display = 'block';
-        message.textContent = t('messages.scanError', { error: error.message || error.toString() });
+        message.textContent = t('messages.scanError', { error: getErrorMessage(error) });
     });
 }
 }
@@ -250,7 +246,7 @@ function scanSelectedFile() {
         button.disabled = false;
         message.className = 'message';
         message.style.display = 'block';
-        message.textContent = t('messages.fileScanError', { error: error.message || error.toString() });
+        message.textContent = t('messages.fileScanError', { error: getErrorMessage(error) });
     });
 }
 

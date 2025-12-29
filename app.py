@@ -1397,13 +1397,20 @@ def get_language(lang):
                 'error': 'Invalid language'
             }), 400
         
-        # Try to load from app/data first (development)
-        lang_file = os.path.join('app/data', f'{lang}.json')
-        if not os.path.exists(lang_file):
-            # Try Docker path
-            lang_file = os.path.join(DATA_DIR, f'{lang}.json')
+        # Try multiple paths: development path first, then Docker path
+        lang_filename = f'{lang}.json'
+        possible_paths = [
+            os.path.join('app/data', lang_filename),  # Development
+            os.path.join(DATA_DIR, lang_filename),    # Docker/Production
+        ]
         
-        if not os.path.exists(lang_file):
+        lang_file = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                lang_file = path
+                break
+        
+        if not lang_file:
             return jsonify({
                 'success': False,
                 'error': 'Language file not found'
