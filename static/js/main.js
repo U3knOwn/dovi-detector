@@ -26,7 +26,14 @@ function applyTranslations() {
     // Text content
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (translations[key]) el.textContent = translations[key];
+        if (translations[key]) {
+            // For option elements, set text property; for others, set textContent
+            if (el.tagName === 'OPTION') {
+                el.text = translations[key];
+            } else {
+                el.textContent = translations[key];
+            }
+        }
     });
     
     // HTML content
