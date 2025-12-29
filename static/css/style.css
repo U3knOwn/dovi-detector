@@ -318,6 +318,16 @@ tbody tr:hover {
     color: white;
 }
 
+.resolution-768p {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+}
+
+.resolution-4k-dci {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
 .resolution-unknown {
     background: #444;
     color: #999;

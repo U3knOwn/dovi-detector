@@ -98,7 +98,12 @@
                         {% endif %}
                     </td>
                     <td data-label-i18n="table_header_resolution" data-label="Auflösung">
-                        <span class="resolution-badge resolution-{{ file.resolution.lower().replace(' ', '-').replace('x', '-') }}">
+                        {% if 'x' in file.resolution and file.resolution not in ['2160p', '1080p', '720p', '480p', '1440p', '4320p', '768p'] %}
+                            {% set resolution_class = 'unknown' %}
+                        {% else %}
+                            {% set resolution_class = file.resolution.lower().replace(' ', '-') %}
+                        {% endif %}
+                        <span class="resolution-badge resolution-{{ resolution_class }}">
                             {{ file.resolution }}
                         </span>
                     </td>
