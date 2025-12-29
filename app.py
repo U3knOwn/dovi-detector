@@ -27,6 +27,17 @@ TEMP_DIR = '/app/temp'
 DB_FILE = os.path.join(DATA_DIR, 'scanned_files.json')
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 
+# Compiled regex patterns for better performance
+TMDB_ID_PATTERN = re.compile(r'\{tmdb-(\d+)\}', re.IGNORECASE)
+YEAR_PATTERN = re.compile(r'\b(19|20)\d{2}\b')
+RESOLUTION_PATTERN = re.compile(r'\b(480|720|1080|2160)[pi]\b', re.IGNORECASE)
+CODEC_PATTERN = re.compile(r'\b(x264|x265|h264|h265|hevc)\b', re.IGNORECASE)
+SOURCE_PATTERN = re.compile(r'\b(BluRay|BRRip|WEBRip|WEB-DL|HDRip|DVDRip)\b', re.IGNORECASE)
+HDR_PATTERN = re.compile(r'\b(DV|HDR10\+?|HLG|SDR|Dolby[.\s]?Vision)\b', re.IGNORECASE)
+BRACKET_PATTERN = re.compile(r'[\[\(].*?[\]\)]')
+SEPARATOR_PATTERN = re.compile(r'[._\-]')
+WHITESPACE_PATTERN = re.compile(r'\s+')
+
 # Static files configuration
 TEMPLATES_DIR = os.path.join(DATA_DIR, 'templates')
 STATIC_DIR = os.path.join(DATA_DIR, 'static')
@@ -148,7 +159,7 @@ def cleanup_temp_directory():
 # TMDB API Integration Functions
 def extract_tmdb_id(filename):
     """Extract TMDB ID from filename - pattern: {tmdb-12345}"""
-    match = re.search(r'\{tmdb-(\d+)\}', filename, re.IGNORECASE)
+    match = TMDB_ID_PATTERN.search(filename)
     if match:
         return match.group(1)
     return None
@@ -159,28 +170,32 @@ def extract_movie_name(filename):
     name = os.path.splitext(filename)[0]
     
     # Remove TMDB ID pattern if present
-    name = re.sub(r'\{tmdb-\d+\}', '', name, flags=re.IGNORECASE)
+    name = TMDB_ID_PATTERN.sub('', name)
     
     # Remove common patterns like year, quality, resolution, etc.
-    name = re.sub(r'\b(19|20)\d{2}\b', '', name)  # Year
-    name = re.sub(r'\b(480|720|1080|2160)[pi]\b', '', name, flags=re.IGNORECASE)  # Resolution
-    name = re.sub(r'\b(x264|x265|h264|h265|hevc)\b', '', name, flags=re.IGNORECASE)  # Codecs
-    name = re.sub(r'\b(BluRay|BRRip|WEBRip|WEB-DL|HDRip|DVDRip)\b', '', name, flags=re.IGNORECASE)  # Source
-    name = re.sub(r'\b(DV|HDR10\+?|HLG|SDR|Dolby[.\s]?Vision)\b', '', name, flags=re.IGNORECASE)  # HDR formats
-    name = re.sub(r'\[.*?\]', '', name)  # Remove brackets
-    name = re.sub(r'\(.*?\)', '', name)  # Remove parentheses
+    name = YEAR_PATTERN.sub('', name)
+    name = RESOLUTION_PATTERN.sub('', name)
+    name = CODEC_PATTERN.sub('', name)
+    name = SOURCE_PATTERN.sub('', name)
+    name = HDR_PATTERN.sub('', name)
+    name = BRACKET_PATTERN.sub('', name)
     
     # Replace common separators with spaces
-    name = re.sub(r'[._\-]', ' ', name)
+    name = SEPARATOR_PATTERN.sub(' ', name)
     
     # Clean up multiple spaces
-    name = re.sub(r'\s+', ' ', name).strip()
+    name = WHITESPACE_PATTERN.sub(' ', name).strip()
     
     return name
 
 def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
     """Fetch poster URL from TMDB API by ID"""
     if not TMDB_API_KEY or not REQUESTS_AVAILABLE:
+        return None
+    
+    # Validate tmdb_id is numeric
+    if not tmdb_id or not str(tmdb_id).isdigit():
+        print(f"Invalid TMDB ID: {tmdb_id}")
         return None
     
     try:
@@ -193,6 +208,12 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
             poster_path = data.get('poster_path')
             if poster_path:
                 return f'https://image.tmdb.org/t/p/w185{poster_path}'
+        elif response.status_code != 404:
+            print(f"TMDB API error for ID {tmdb_id}: HTTP {response.status_code}")
+    except requests.exceptions.Timeout:
+        print(f"TMDB API timeout for ID {tmdb_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"TMDB API request error for ID {tmdb_id}: {e}")
     except Exception as e:
         print(f"Error fetching TMDB poster by ID {tmdb_id}: {e}")
     
@@ -201,6 +222,16 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
 def search_tmdb_poster(movie_name, media_type='movie'):
     """Search TMDB for movie/tv show and return poster URL"""
     if not TMDB_API_KEY or not REQUESTS_AVAILABLE or not movie_name:
+        return None
+    
+    # Validate and sanitize movie_name
+    if not isinstance(movie_name, str):
+        return None
+    
+    # Trim and validate length
+    movie_name = movie_name.strip()
+    if len(movie_name) < 1 or len(movie_name) > 200:
+        print(f"Invalid movie name length: {len(movie_name)}")
         return None
     
     try:
@@ -219,6 +250,12 @@ def search_tmdb_poster(movie_name, media_type='movie'):
                 poster_path = results[0].get('poster_path')
                 if poster_path:
                     return f'https://image.tmdb.org/t/p/w185{poster_path}'
+        elif response.status_code != 404:
+            print(f"TMDB API search error for '{movie_name}': HTTP {response.status_code}")
+    except requests.exceptions.Timeout:
+        print(f"TMDB API timeout searching for '{movie_name}'")
+    except requests.exceptions.RequestException as e:
+        print(f"TMDB API request error searching for '{movie_name}': {e}")
     except Exception as e:
         print(f"Error searching TMDB for '{movie_name}': {e}")
     
