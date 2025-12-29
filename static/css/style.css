@@ -263,6 +263,22 @@ tbody tr:hover {
     transform: scale(1.05);
 }
 
+.poster-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.poster-title {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #e0e0e0;
+    text-align: center;
+    max-width: 150px;
+    line-height: 1.3;
+}
+
 .filename-fallback {
     display: block;
     word-break: break-word;
@@ -367,17 +383,37 @@ tbody tr:hover {
         font-size: 0.85em;
     }
     
+    /* Special handling for poster cell - centered and full-width */
     td:first-child {
         padding-top: 0;
+        padding-left: 0;
+        text-align: center;
+    }
+    
+    td:first-child:before {
+        display: none;
     }
     
     td:last-child {
         padding-bottom: 0;
     }
     
+    /* Mobile poster container - full width and centered */
+    .poster-container {
+        width: 100%;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .poster-title {
+        max-width: 100%;
+        font-size: 1em;
+    }
+    
     /* Responsive poster images on mobile */
     .poster-img {
-        max-height: 120px;
+        max-height: 200px;
         max-width: 100%;
         width: auto;
     }
