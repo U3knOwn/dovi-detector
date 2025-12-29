@@ -3,7 +3,7 @@
   "media_count": "files",
   "scanning": "Scanning...",
   "scan_all_button": "Scan all media",
-  "select_file": "-- Select file --",
+  "select_file": "Select file",
   "scan_file_button": "Scan file",
   "sort_by_filename": "By filename",
   "sort_by_profile": "By media format",

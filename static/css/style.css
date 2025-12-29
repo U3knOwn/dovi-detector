@@ -19,11 +19,10 @@ body {
 
 header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     padding: 20px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 h1 {
@@ -33,13 +32,36 @@ h1 {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.language-switcher {
-    margin-top: 10px;
-    display: flex;
+.language-switcher select#languageDropdown {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: #1f2937;
+    color: #e6eef6;
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(2,6,23,0.45);
+    transition: all 160ms ease;
+    cursor: pointer;
+    min-height: 40px;
+    line-height: 1;
+    font-weight: 600;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: #a0a0a0;
+    gap: 8px;
+}
+
+.language-switcher select#languageDropdown:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(2,6,23,0.55);
+}
+
+.language-switcher select#languageDropdown:focus {
+    outline: none;
+    border-color: rgba(99,102,241,0.9);
+    box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
 }
 
 .lang-btn {
@@ -77,6 +99,12 @@ h1 {
     padding: 15px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 10px;
+}
+
+.left-group, .right-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .stats {
@@ -149,7 +177,6 @@ table {
     background: rgba(0, 0, 0, 0.3);
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 thead {
@@ -172,7 +199,7 @@ thead th:first-child {
 
 td {
     padding: 15px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 tbody tr {
@@ -501,6 +528,26 @@ tbody tr:hover {
     to { transform: rotate(360deg); }
 }
 
+/* Mobile Version: alles untereinander */
+@media (max-width: 600px) {
+    .controls {
+        flex-direction: column;
+        align-items: stretch; /* volle Breite */
+    }
+
+    .left-group, .right-group {
+        flex-direction: column;
+        align-items: stretch; /* Elemente nehmen volle Breite */
+        gap: 10px;
+    }
+
+    .search-container input,
+    .button-group button,
+    .right-group select {
+        width: 100%; /* Vollbreite auf Mobil */
+    }
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 640px) {
     #scanButton,
@@ -532,6 +579,7 @@ tbody tr:hover {
 }
 
 /* Mobile responsive styles for screens under 768px */
+/* Mobile responsive styles for screens under 768px */
 @media screen and (max-width: 768px) {
     body {
         padding: 10px;
@@ -543,7 +591,7 @@ tbody tr:hover {
     
     .controls {
         flex-direction: column;
-        gap: 15px;
+        width: 100%; /* sicherstellen, dass Controls die volle Breite haben */
     }
     
     .stats {
@@ -556,20 +604,25 @@ tbody tr:hover {
         flex-direction: column;
     }
     
-    #scanButton, #scanFileButton {
-        width: 220px;
+    /* Alle Selects auf volle Breite */
+    .controls select#fileSelect,
+    .controls select#sortSelect {
+        width: 100% !important; /* überschreibt die feste Breite */
+        max-width: 100%;
+    }
+
+    /* Buttons auf mobile Breite */
+    #scanButton,
+	#fileSelect,
+    #scanFileButton,
+    .button-group button {
+        width: 100%;
     }
 	
 	/* Hide button - globally with !important so it works everywhere */
 	#scanFileButton.hidden {
 		display: none !important;
 	}
-    
-    #fileSelect {
-        width: 100%;
-        min-width: 100%;
-        max-width: 100%;
-    }
     
     /* Hide table headers on mobile */
     thead {
@@ -591,9 +644,7 @@ tbody tr:hover {
         margin-bottom: 15px;
         background: rgba(0, 0, 0, 0.3);
         border-radius: 10px;
-        border-left: 4px solid #4ecca3;
         padding: 15px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
     
     tr:hover {
@@ -695,7 +746,6 @@ tbody tr:hover {
     
     .controls {
         padding: 10px;
-        margin-bottom: 10px;
     }
     
     table {

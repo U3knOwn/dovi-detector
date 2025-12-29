@@ -121,6 +121,7 @@ function startManualScan() {
             } else {
                 message.classList.add('info');
                 message.textContent = `ℹ ${t('no_new_files')}`;
+				setTimeout(() => location.reload(), 2000);
             }
             message.style.display = 'block';
         })
@@ -132,7 +133,6 @@ function startManualScan() {
             console.error(error);
         })
         .finally(() => {
-            // Button IMMER zurücksetzen
             button.disabled = false;
             button.classList.remove('scanning');
             buttonText.textContent = t('scan_all_button');
