@@ -9,18 +9,17 @@
 <body>
     <div class="container">
         <header>
-            <h1>🎞️ <span data-i18n="title"></span></h1>
+            <h1><span data-i18n="title"></span></h1>
         </header>
 
         <div class="controls">
-            <!-- Linke Gruppe: Suche + Scan Buttons -->
             <div class="left-group">
                 <div class="search-container">
                     <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder">
                 </div>
 
                 <button id="scanButton" onclick="startManualScan()">
-                    🔍 <span id="scanButtonText" data-i18n="scan_all_button"></span>
+                    <span id="scanButtonText" data-i18n="scan_all_button"></span>
                 </button>
 
                 <div id="loadingIndicator" class="loading">
@@ -29,10 +28,9 @@
                 </div>
             </div>
 
-            <!-- Rechte Gruppe: Datei + Sortierung -->
             <div class="right-group">
                 <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
-                    ▶️ <span data-i18n="scan_file_button"></span>
+                    <span data-i18n="scan_file_button"></span>
                 </button>
 
                 <select id="fileSelect">
@@ -106,7 +104,7 @@
                         </span>
                     </td>
 
-                    <td data-label-i18n="table_header_audio" data-label="Audiocodec">
+                    <td class="audio-codec" data-label-i18n="table_header_audio" data-label="Audiocodec">
                         {% set audio_class = 'unknown' %}
                         {% if 'TrueHD' in file.audio_codec and 'Atmos' in file.audio_codec %}
                             {% set audio_class = 'truehd-atmos' %}
