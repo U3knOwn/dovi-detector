@@ -77,7 +77,7 @@
                         {% endif %}
                     </td>
 
-                    <td data-label-i18n="table_header_hdr" data-label="HDR Format">
+                    <td data-label-i18n="table_header_hdr">
                         {% if file.hdr_format == 'Dolby Vision' and file.el_type %}
                         <span class="hdr-badge hdr-dolby-vision el-{{ file.el_type.lower() }}">
                             {{ file.hdr_detail }} {{ file.el_type }}
@@ -94,7 +94,7 @@
                         {% endif %}
                     </td>
 
-                    <td data-label-i18n="table_header_resolution" data-label="Auflösung">
+                    <td data-label-i18n="table_header_resolution">
                         {% if 'x' in file.resolution and file.resolution not in ['4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'] %}
                             {% set resolution_class = 'unknown' %}
                         {% else %}
@@ -105,7 +105,7 @@
                         </span>
                     </td>
 
-                    <td class="audio-codec" data-label-i18n="table_header_audio" data-label="Audiocodec">
+                    <td class="audio-codec" data-label-i18n="table_header_audio">
                         {% set audio_class = 'unknown' %}
                         {% if 'TrueHD' in file.audio_codec and 'Atmos' in file.audio_codec %}
                             {% set audio_class = 'truehd-atmos' %}
