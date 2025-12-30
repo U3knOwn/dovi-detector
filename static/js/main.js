@@ -310,10 +310,12 @@ function updateProfileStats() {
     const stats = {
         FEL: 0,
         MEL: 0,
+        'Profile 8': 0,
+        'Profile 5': 0,
         'HDR10+': 0,
         'HDR10': 0,
-        'SDR': 0,
-        'HLG': 0
+        'HLG': 0,
+        'SDR': 0
     };
     
     visibleRows.forEach(row => {
@@ -327,15 +329,43 @@ function updateProfileStats() {
         } else if (elType === 'MEL') {
             stats.MEL++;
         } 
+        // Check for Profile 8
+        else if (
+            hdrDetail.includes('profile 8') ||
+            hdrDetail.includes('profile8') ||
+            hdrDetail.includes('p8') ||
+            hdrFormat.includes('profile 8') ||
+            hdrFormat.includes('p8')
+        ) {
+            stats['Profile 8']++;
+        }
+        // Check for Profile 5
+        else if (
+            hdrDetail.includes('profile 5') ||
+            hdrDetail.includes('profile5') ||
+            hdrDetail.includes('p5')
+        ) {
+            stats['Profile 5']++;
+        }
         // Check for HDR10+ (must check before HDR10 to avoid false matches)
-        else if (hdrFormat.includes('hdr10+') || hdrDetail.includes('hdr10+') || 
-                 hdrFormat.includes('hdr10plus') || hdrDetail.includes('hdr10plus')) {
+        else if (
+            hdrFormat.includes('hdr10+') ||
+            hdrDetail.includes('hdr10+') ||
+            hdrFormat.includes('hdr10plus') ||
+            hdrDetail.includes('hdr10plus')
+        ) {
             stats['HDR10+']++;
         }
         // Check for HDR10 (but not HDR10+) - explicitly exclude HDR10+
-        else if ((hdrFormat.includes('hdr10') || hdrDetail.includes('hdr10') || hdrFormat.includes('smpte2084')) &&
-                 !hdrFormat.includes('hdr10+') && !hdrDetail.includes('hdr10+') &&
-                 !hdrFormat.includes('hdr10plus') && !hdrDetail.includes('hdr10plus')) {
+        else if (
+            (hdrFormat.includes('hdr10') ||
+             hdrDetail.includes('hdr10') ||
+             hdrFormat.includes('smpte2084')) &&
+            !hdrFormat.includes('hdr10+') &&
+            !hdrDetail.includes('hdr10+') &&
+            !hdrFormat.includes('hdr10plus') &&
+            !hdrDetail.includes('hdr10plus')
+        ) {
             stats['HDR10']++;
         }
         // Check for HLG
@@ -350,18 +380,19 @@ function updateProfileStats() {
     
     // Build stats string (only show profiles with at least 1 title)
     const statsArray = [];
-    if (stats.FEL > 0) statsArray.push(`FEL: ${stats.FEL}`);
-    if (stats.MEL > 0) statsArray.push(`MEL: ${stats.MEL}`);
-    if (stats['HDR10+'] > 0) statsArray.push(`HDR10+: ${stats['HDR10+']}`);
-    if (stats['HDR10'] > 0) statsArray.push(`HDR10: ${stats['HDR10']}`);
-    if (stats['HLG'] > 0) statsArray.push(`HLG: ${stats['HLG']}`);
-    if (stats['SDR'] > 0) statsArray.push(`SDR: ${stats['SDR']}`);
-    
+    if (stats.FEL > 0) statsArray.push(`FEL: <strong>${stats.FEL}</strong>`);
+    if (stats.MEL > 0) statsArray.push(`MEL: <strong>${stats.MEL}</strong>`);
+    if (stats['Profile 8'] > 0) statsArray.push(`P8: <strong>${stats['Profile 8']}</strong>`);
+    if (stats['Profile 5'] > 0) statsArray.push(`P5: <strong>${stats['Profile 5']}</strong>`);
+    if (stats['HDR10+'] > 0) statsArray.push(`HDR10+: <strong>${stats['HDR10+']}</strong>`);
+    if (stats['HDR10'] > 0) statsArray.push(`HDR10: <strong>${stats['HDR10']}</strong>`);
+    if (stats['HLG'] > 0) statsArray.push(`HLG: <strong>${stats['HLG']}</strong>`);
+    if (stats['SDR'] > 0) statsArray.push(`SDR: <strong>${stats['SDR']}</strong>`);
     const profileStatsElement = document.getElementById('profileStats');
     if (profileStatsElement && statsArray.length > 0) {
-        profileStatsElement.textContent = statsArray.join(' • ');
+        profileStatsElement.innerHTML = statsArray.join(' / ');
     } else if (profileStatsElement) {
-        profileStatsElement.textContent = '';
+        profileStatsElement.innerHTML = '';
     }
 }
 

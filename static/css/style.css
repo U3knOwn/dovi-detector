@@ -8,7 +8,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: #1e1e2e;
     background-color: #1e1e2e;
-    color: #e0e0e0;
+    color: white;
     min-height: 100vh;
     padding: 20px;
 }
@@ -109,12 +109,11 @@ h1 {
 }
 
 .stats {
-    color: #a0a0a0;
+    color: white;
 }
 
 .stats strong {
     color: #e6eef6;
-    font-size: 1.2em;
 }
 
 .button-group {
@@ -248,7 +247,7 @@ tbody tr:hover {
 
 .hdr-sdr {
     background: #555;
-    color: #e0e0e0;
+    color: white;
 }
 
 .hdr-unknown {
@@ -287,12 +286,12 @@ tbody tr:hover {
     font-size: 0.9em;
 }
 
-.resolution-4320p {
+.resolution-8k-\(uhd\) {
     background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
     color: white;
 }
 
-.resolution-2160p {
+.resolution-4k-\(uhd\) {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
 }
@@ -302,17 +301,17 @@ tbody tr:hover {
     color: white;
 }
 
-.resolution-1080p {
+.resolution-1080p-\(full-hd\) {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
 }
 
-.resolution-720p {
+.resolution-720p-\(hd\) {
     background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
     color: white;
 }
 
-.resolution-480p {
+.resolution-480p-\(sd\) {
     background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
     color: white;
 }
@@ -432,7 +431,7 @@ tbody tr:hover {
 .poster-title {
     font-size: 0.9em;
     font-weight: 600;
-    color: #e0e0e0;
+    color: white;
     text-align: center;
     max-width: 150px;
     line-height: 1.3;
