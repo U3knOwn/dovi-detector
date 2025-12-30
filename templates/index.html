@@ -94,7 +94,7 @@
                     </td>
 
                     <td data-label-i18n="table_header_resolution" data-label="Auflösung">
-                        {% if 'x' in file.resolution and file.resolution not in ['2160p', '1080p', '720p', '480p', '1440p', '4320p', '768p'] %}
+                        {% if 'x' in file.resolution and file.resolution not in ['4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'] %}
                             {% set resolution_class = 'unknown' %}
                         {% else %}
                             {% set resolution_class = file.resolution.lower().replace(' ', '-') %}
