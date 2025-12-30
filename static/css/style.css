@@ -710,11 +710,11 @@ tbody tr:hover {
         width: 100%;
         display: flex;
         justify-content: center;
-        margin-top: 10px; /* optional, Abstand nach oben */
+        margin-top: 10px;
     }
 
     .language-switcher select#languageDropdown {
-        width: auto; /* oder max-width: 200px; wenn es nicht zu groß sein soll */
+        width: auto;
     }
 }
 
