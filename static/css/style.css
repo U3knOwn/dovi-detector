@@ -669,7 +669,7 @@ tbody tr:hover {
     }
 
     h1 {
-        font-size: 1.8em;
+        font-size: 1.4em;
     }
 
     .controls {
@@ -847,7 +847,7 @@ tbody tr:hover {
 
 @media screen and (max-height: 768px) and (orientation: landscape) {
     h1 {
-        font-size: 1.5em;
+        font-size: 2em;
     }
 
     .subtitle {

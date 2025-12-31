@@ -1,6 +1,6 @@
-# Universal HDR Video Scanner 🎬
+# Universal Video Scanner 🎬
 
-Universal HDR Video Scanner with Web Interface - Automatic detection of HDR formats including Dolby Vision enhancement layers in video files.
+Universal Video Scanner with Web Interface - Automatic detection of HDR formats including Dolby Vision enhancement layers in video files.
 
 ## Features ✨
 

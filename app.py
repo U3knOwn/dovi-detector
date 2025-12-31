@@ -1459,7 +1459,7 @@ def serve_poster(filename):
 def main():
     """Main application entry point"""
     print("=" * 50)
-    print("Starting Universal HDR Video Scanner")
+    print("Starting Universal Video Scanner")
     print("=" * 50)
 
     # Check and download static files if needed
