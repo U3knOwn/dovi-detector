@@ -1,1 +1,273 @@
-# main2 Branch
+# 🎟️ Universal Video Scanner
+
+Universal Video Scanner with Web Interface - Automatic detection of HDR formats including Dolby Vision enhancement layers in video files.
+
+## Features ✨
+
+- **Automatic Scanning**: Watchdog-based detection of new media files
+- **All HDR Formats**: SDR, HDR10, HDR10+, HLG, and Dolby Vision (all profiles)
+- **Dolby Vision Analysis**: Detection of MEL (Minimum Enhancement Layer) and FEL (Full Enhancement Layer) for all Dolby Vision profiles
+- **Web Interface**: Modern dark-theme dashboard on port 2367
+- **dovi_tool Integration**: Complete RPU analysis and enhancement layer detection
+- **Docker-based**: Simple deployment with Docker Compose
+- **Manual Scan**: Fallback button for on-demand scanning
+
+## Quick Start 🚀
+
+### Prerequisites
+
+- Docker
+- Docker Compose
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/U3knOwn/universal-video-scanner.git
+cd universal-video-scanner
+```
+
+2. Create media directory:
+```bash
+mkdir -p media
+```
+
+3. Start container:
+```bash
+docker-compose up -d
+```
+
+4. Open web interface:
+```
+http://localhost:2367
+```
+
+## Usage 📖
+
+### Adding Media
+
+Copy your video files to the `media/` directory:
+
+```bash
+cp /path/to/video.mkv ./media/
+```
+
+The scanner automatically detects new files and analyzes them in the background.
+
+### Supported Formats
+
+- MKV (`.mkv`)
+- MP4 (`.mp4`)
+- M4V (`.m4v`)
+- Transport Stream (`.ts`)
+- HEVC Raw (`.hevc`)
+
+### Manual Scan
+
+If automatic detection missed a file:
+
+1. Open the web interface
+2. Click "🔍 Scan unscanned media"
+3. Wait for completion message
+
+## Web Interface 🖥️
+
+The dashboard displays the following information:
+
+| Column | Description |
+|--------|-------------|
+| **Filename** | Name of the media file |
+| **HDR Format** | Detected HDR format (SDR, HDR10, HDR10+, HLG, Dolby Vision with profile) |
+| **Resolution** | Video resolution (e.g. 3840x2160) |
+| **Audio Codec** | Audio codec information (e.g. Dolby TrueHD Atmos) |
+
+### Features
+
+- 📊 Tabular overview of all scanned media
+- 🌙 Dark theme for comfortable viewing
+- 🔄 Auto-refresh every 60 seconds
+- ⚡ Live status during scanning
+
+## Technical Details 🔧
+
+### Architecture
+
+```
+DoVi-Detector/
+├── app.py              # Flask application with scanner logic
+├── Dockerfile          # Container definition
+├── docker-compose.yml  # Deployment configuration
+├── requirements.txt    # Python dependencies
+├── media/             # Media directory (volume)
+└── data/              # Database directory (volume)
+```
+
+### Scanner Workflow
+
+1. **Watchdog** monitors `/media` for new files
+2. **ffmpeg** extracts HEVC stream from container
+3. **dovi_tool extract-rpu** extracts RPU data
+4. **dovi_tool info** analyzes RPU and determines profile/EL type
+5. **Results** are saved to JSON database
+
+### Volumes
+
+- `./media:/media` - Media directory
+- `./data:/app/data` - Persistent database
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MEDIA_PATH` | `/media` | Path to media directory |
+| `FILE_WRITE_DELAY` | `5` | Wait time in seconds after file creation before scanning |
+| `AUTO_REFRESH_INTERVAL` | `60` | Auto-refresh interval of web UI in seconds |
+| `TMDB_API_KEY` | `` | TMDB API key for fetching movie posters (optional) |
+
+### TMDB API Integration (Optional)
+
+To display movie posters instead of filenames in the web interface:
+
+1. Get a free API key from [TMDB](https://www.themoviedb.org/settings/api)
+2. Add it to your `docker-compose.yml`:
+
+```yaml
+environment:
+  - TMDB_API_KEY=your_api_key_here
+```
+
+Or create a `.env` file in the project root:
+
+```
+TMDB_API_KEY=your_api_key_here
+```
+
+**Filename Pattern for TMDB ID:**
+- Include `{tmdb-12345}` in your filename (e.g., `Movie Name {tmdb-12345}.mkv`)
+- If no TMDB ID is found, the app will search TMDB by the extracted movie name
+
+**Poster Caching:**
+- Poster images are automatically downloaded and cached in `/app/data/posters/`
+- Cached posters are reused on subsequent page loads, reducing bandwidth and load times
+- Existing posters are migrated to cache on application startup
+
+**Without TMDB API Key:**
+- The app will still work normally, displaying filenames instead of posters
+
+## Docker Compose Options 🐳
+
+### Standard Configuration
+
+```yaml
+docker-compose up -d
+```
+
+### View Logs
+
+```bash
+docker-compose logs -f
+```
+
+### Restart Container
+
+```bash
+docker-compose restart
+```
+
+### Stop Container
+
+```bash
+docker-compose down
+```
+
+### Rebuild After Changes
+
+```bash
+docker-compose up -d --build
+```
+
+## Troubleshooting 🔍
+
+### Container Won't Start
+
+```bash
+docker-compose logs dovi-detector
+```
+
+### No Files Being Scanned
+
+1. Check if files exist in `media/` directory
+2. Use the manual scan button
+3. Check logs: `docker-compose logs -f`
+
+### Port 2367 Already in Use
+
+Change the port in `docker-compose.yml`:
+
+```yaml
+ports:
+  - "8080:2367"  # External 8080, internal 2367
+```
+
+### Reset Database
+
+```bash
+rm -rf data/scanned_files.json
+docker-compose restart
+```
+
+## Development 💻
+
+### Local Development Without Docker
+
+```bash
+# Install dependencies
+pip3 install -r requirements.txt
+
+# ffmpeg and dovi_tool must be installed manually
+
+# Start app
+export MEDIA_PATH=/path/to/media
+python3 app.py
+```
+
+### Tests
+
+```bash
+# Scan test file
+python3 app.py
+# Open web interface at http://localhost:2367
+```
+
+## Technology Stack 📚
+
+- **Backend**: Python 3 + Flask
+- **Scanner**: watchdog (Filesystem Events)
+- **Video Analysis**: ffmpeg + dovi_tool
+- **Container**: Docker + Docker Compose
+- **Frontend**: HTML5 + CSS3 + Vanilla JavaScript
+
+## License 📄
+
+MIT License - see LICENSE file
+
+## Contributing 🤝
+
+Pull requests and issues are welcome!
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a pull request
+
+## Credits 🙏
+
+- [dovi_tool](https://github.com/quietvoid/dovi_tool) by quietvoid
+- [FFmpeg](https://ffmpeg.org/)
+- [Flask](https://flask.palletsprojects.com/)
+- [Watchdog](https://github.com/gorakhargosh/watchdog)
+
+## Support 💬
+
+For questions or issues, please open an issue in the GitHub repository.

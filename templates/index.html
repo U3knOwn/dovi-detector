@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoVi Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span data-i18n="title"></span></h1>
+        </header>
+
+        <div class="controls">
+            <div class="top-group">
+                <div class="left-group">
+                    <select id="fileSelect">
+                        <option value="" data-i18n="select_file"></option>
+                    </select>
+                    <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
+                        <span data-i18n="scan_file_button"></span>
+                    </button>
+                </div>
+                <div class="right-group">
+                    <button id="scanButton" onclick="startManualScan()">
+                        <span id="scanButtonText" data-i18n="scan_all_button"></span>
+                    </button>
+                    <div id="loadingIndicator" class="loading">
+                        <div class="spinner"></div>
+                        <span data-i18n="scanning"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="bottom-group">
+                <div class="left-group">
+                    <select id="sortSelect" data-aria-label-i18n="sort_label">
+                        <option value="filename" data-i18n="sort_by_filename"></option>
+                        <option value="profile" data-i18n="sort_by_profile"></option>
+                        <option value="audio" data-i18n="sort_by_audio"></option>
+                    </select>
+                </div>
+                <div class="right-group">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder">
+                        <button id="clearSearch" class="clear-btn" onclick="clearSearch()" style="display: none;">✕</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        {% if files %}
+        <table id="mediaTable">
+            <thead>
+                <tr>
+                    <th data-i18n="table_header_poster"></th>
+                    <th data-i18n="table_header_hdr"></th>
+                    <th data-i18n="table_header_resolution"></th>
+                    <th data-i18n="table_header_audio"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                {# We add data attributes so JS can handle sorting #}
+                <tr data-hdr-format="{{ file.hdr_format }}" data-hdr-detail="{{ file.hdr_detail }}" data-el-type="{{ file.el_type or '' }}">
+                    <td data-label-i18n="table_header_poster" data-label="Poster / Dateiname" title="{{ file.filename }}">
+                        {% if file.poster_url %}
+                        <div class="poster-container">
+                            {% if file.tmdb_title %}
+                            <span class="poster-title">
+                                {{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}
+                            </span>
+                            {% endif %}
+                            <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy">
+                        </div>
+                        {% else %}
+                        <span class="filename-fallback">{{ file.filename }}</span>
+                        {% endif %}
+                    </td>
+
+                    <td data-label-i18n="table_header_hdr">
+                        {% if file.hdr_format == 'Dolby Vision' and file.el_type %}
+                        <span class="hdr-badge hdr-dolby-vision el-{{ file.el_type.lower() }}">
+                            {% if not file.hdr_detail or file.hdr_detail == 'Unknown' %}
+                                <span data-i18n="unknown"></span>{% if file.el_type %} ({{ file.el_type }}){% endif %}
+                            {% else %}
+                                {{ file.hdr_detail }}{% if file.el_type %} ({{ file.el_type }}){% endif %}
+                            {% endif %}
+                        </span>
+                        {% else %}
+                        <span class="hdr-badge hdr-{{ file.hdr_format.lower().replace(' ', '-').replace('+', 'plus') }}">
+                            {% if not file.hdr_detail or file.hdr_detail == 'Unknown' %}
+                                <span data-i18n="unknown"></span>
+                            {% else %}
+                                {{ file.hdr_detail }}
+                            {% endif %}
+                        </span>
+                        {% if file.el_type %}
+                        <span class="el-badge el-{{ file.el_type.lower() }}">
+                            {{ file.el_type }}
+                        </span>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+
+                    <td data-label-i18n="table_header_resolution">
+                        {% if 'x' in file.resolution and file.resolution not in ['4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'] %}
+                            {% set resolution_class = 'unknown' %}
+                        {% else %}
+                            {% set resolution_class = file.resolution.lower().replace(' ', '-') %}
+                        {% endif %}
+                        <span class="resolution-badge resolution-{{ resolution_class }}">
+                            {{ file.resolution }}
+                        </span>
+                    </td>
+
+                    <td class="audio-codec" data-label-i18n="table_header_audio">
+                        {% set audio_class = 'unknown' %}
+                        {% if 'TrueHD' in file.audio_codec and 'Atmos' in file.audio_codec %}
+                            {% set audio_class = 'truehd-atmos' %}
+                        {% elif 'DTS:X' in file.audio_codec or 'DTS-X' in file.audio_codec %}
+                            {% set audio_class = 'dtsx' %}
+                        {% elif 'TrueHD' in file.audio_codec %}
+                            {% set audio_class = 'truehd' %}
+                        {% elif 'DTS-HD MA' in file.audio_codec %}
+                            {% set audio_class = 'dts-hd-ma' %}
+                        {% elif 'DTS-HD HRA' in file.audio_codec %}
+                            {% set audio_class = 'dts-hd-hra' %}
+                        {% elif 'Digital Plus' in file.audio_codec and 'Atmos' in file.audio_codec %}
+                            {% set audio_class = 'ddplus-atmos' %}
+                        {% elif 'Digital Plus' in file.audio_codec %}
+                            {% set audio_class = 'ddplus' %}
+                        {% elif 'Dolby Digital' in file.audio_codec %}
+                            {% set audio_class = 'dolby-digital' %}
+                        {% elif 'DTS' in file.audio_codec %}
+                            {% set audio_class = 'dts' %}
+                        {% elif 'AAC' in file.audio_codec %}
+                            {% set audio_class = 'aac' %}
+                        {% elif 'FLAC' in file.audio_codec or 'PCM' in file.audio_codec %}
+                            {% set audio_class = 'lossless' %}
+                        {% endif %}
+                        <span class="audio-badge audio-{{ audio_class }}">
+                            {% if not file.audio_codec or file.audio_codec == 'Unknown' %}
+                                <span data-i18n="unknown"></span>
+                            {% else %}
+                                {{ file.audio_codec }}
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <h2 data-i18n="empty_title"></h2>
+            <p data-i18n-html="empty_description"></p>
+        </div>
+        {% endif %}
+
+        <div class="controls">
+            <div class="stats">
+                <strong id="fileCount">{{ file_count }} <span data-i18n="media_count"></span></strong>
+            </div>
+            <div class="stats">
+                <span id="profileStats"></span>
+            </div>
+            <div class="language-switcher">
+                <select id="languageDropdown" onchange="setLanguage(this.value)">
+                    <option value="de" selected>🇩🇪 DE</option>
+                    <option value="en">🇬🇧 EN</option>
+                </select>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
