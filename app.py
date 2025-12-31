@@ -717,55 +717,84 @@ def detect_hdr_format(video_file):
             }
 
         # --- Step 2: HDR10+ (dynamic metadata) ---
-        cmd = [
-            'ffprobe', '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=side_data',
-            '-of', 'json',
-            video_file
-        ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=15)
-        if result.returncode == 0:
-            try:
-                data = json.loads(result.stdout)
-                streams = data.get('streams', [])
-                if streams:
-                    side_data = streams[0].get('side_data_list', [])
-                    for sd in side_data:
-                        sd_type = sd.get('side_data_type', '').lower()
-                        if sd_type in [
-                            'hdr10+ metadata',
-                                'hdr dynamic metadata smpte2094-40']:
-                            print(f"  -> HDR10+ detected (side_data)")
+        try:
+            mi_cmd = ['mediainfo', '--Output=JSON', video_file]
+            mi_proc = subprocess.run(mi_cmd, capture_output=True, text=True, timeout=10)
+            if mi_proc.returncode == 0 and mi_proc.stdout:
+                try:
+                    mi_json = json.loads(mi_proc.stdout)
+                    media = mi_json.get('media', {}) or {}
+                    tracks = media.get('track', []) or []
+                    # find video tracks (MediaInfo uses @type == "Video")
+                    for t in tracks:
+                        ttype = (t.get('@type') or '').lower()
+                        if ttype != 'video':
+                            continue
+                        hdr_format = (t.get('HDR_Format') or '') or (t.get('HDR format') or '')
+                        hdr_compat = (t.get('HDR_Format_Compatibility') or '') or (t.get('HDR format compatibility') or '')
+                        lf = (hdr_format or '').lower()
+                        lc = (hdr_compat or '').lower()
+
+                        # 1) Direct HDR10+ mentions (strong signal)
+                        if 'hdr10+' in lf or 'hdr10plus' in lf or 'hdr10+' in lc or 'hdr10plus' in lc:
+                            print(f"  -> HDR10+ detected (MediaInfo explicit): HDR_Format='{hdr_format}' HDR_Format_Compatibility='{hdr_compat}'")
                             return {
                                 'format': 'HDR10+',
                                 'detail': 'HDR10+',
                                 'profile': 'HDR10+',
                                 'el_type': ''
                             }
-            except Exception as e:
-                print(f"  [HDR] HDR10+ side_data parsing failed: {e}")
 
-        # Fallback: Full stream info text search
+                        # 2) SMPTE ST 2094 / App 4 detection (must be 2094, NOT 2084)
+                        # Require explicit '2094' or 'app 4' or 'smpte st 2094' to avoid matching PQ (2084).
+                        if (('2094' in lf or 'app 4' in lf or 'app4' in lf or 'smpte st 2094' in lf or 'smpte2094' in lf)
+                                and '2084' not in lf):
+                            print(f"  -> HDR10+ detected (MediaInfo SMPTE ST 2094 / App 4): HDR_Format='{hdr_format}'")
+                            return {
+                                'format': 'HDR10+',
+                                'detail': 'HDR10+',
+                                'profile': 'HDR10+',
+                                'el_type': ''
+                            }
+
+                        # 3) Compatibility field mentioning HDR10+ or profile A (explicit compatibility)
+                        if any(k in lc for k in ['hdr10+ profile', 'profile a', 'hdr10+']):
+                            print(f"  -> HDR10+ detected (MediaInfo compatibility): HDR_Format_Compatibility='{hdr_compat}'")
+                            return {
+                                'format': 'HDR10+',
+                                'detail': 'HDR10+',
+                                'profile': 'HDR10+',
+                                'el_type': ''
+                            }
+                except Exception as e:
+                    print(f"  [HDR] Failed parsing MediaInfo JSON: {e}")
+        except FileNotFoundError:
+            # mediainfo not installed / not available in PATH
+            pass
+        except Exception as e:
+            print(f"  [HDR] MediaInfo call failed: {e}")
+
+        # Fallback: Full stream info text search (existing logic) - stricter pattern
         cmd = [
             'ffprobe', '-v', 'error',
             '-select_streams', 'v:0',
             '-show_streams',
             video_file
         ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=15)
-        if result.returncode == 0:
-            output_lower = result.stdout.lower()
-            if any(
-                indicator in output_lower for indicator in [
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=15)
+        except Exception as e:
+            result = None
+            print(f"  [HDR] ffprobe show_streams call failed: {e}")
+
+        if result and result.returncode == 0:
+            output_lower = (result.stdout or '').lower()
+            # only match explicit HDR10+ or explicit SMPTE ST 2094 mentions (not generic 'smpte')
+            if any(indicator in output_lower for indicator in [
                     'hdr10+',
                     'hdr10plus',
                     'smpte st 2094',
@@ -787,71 +816,46 @@ def detect_hdr_format(video_file):
             '-of', 'json',
             video_file
         ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=15)
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            streams = data.get('streams', [])
-            if streams:
-                stream = streams[0]
-                color_transfer = (stream.get('color_transfer') or '').lower()
-                color_primaries = (stream.get('color_primaries') or '').lower()
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=15)
+        except Exception as e:
+            result = None
+            print(f"  [HDR] ffprobe color metadata call failed: {e}")
 
-                print(f"  color_transfer: '{color_transfer}'")
-                print(f"  color_primaries: '{color_primaries}'")
+        if result and result.returncode == 0:
+            try:
+                data = json.loads(result.stdout)
+                streams = data.get('streams', [])
+                if streams:
+                    st = streams[0]
+                    transfer = (st.get('color_transfer') or '').lower()
+                    primaries = (st.get('color_primaries') or '').lower()
+                    # HLG detection
+                    if 'hlg' in transfer or 'arib' in transfer:
+                        print("  -> HLG detected")
+                        return {'format': 'HLG', 'detail': 'HLG', 'profile': '', 'el_type': ''}
+                    # PQ / HDR10 detection (SMPTE ST 2084 / PQ)
+                    if any(x in transfer for x in ['pq', 'smpte2084', 'smpte st 2084', 'smpte-st-2084']):
+                        print("  -> PQ transfer detected (likely HDR10)")
+                        return {'format': 'HDR10', 'detail': 'HDR10', 'profile': '', 'el_type': ''}
+                    # If BT.2020 primaries present -> assume HDR10
+                    if 'bt2020' in primaries or 'bt.2020' in primaries:
+                        print("  -> BT.2020 primaries detected (likely HDR10)")
+                        return {'format': 'HDR10', 'detail': 'HDR10', 'profile': '', 'el_type': ''}
+            except Exception as e:
+                print(f"  [HDR] color metadata parsing failed: {e}")
 
-                # HDR10 uses PQ (SMPTE2084) + BT.2020
-                if any(
-                    indicator in color_transfer for indicator in [
-                        'smpte2084',
-                        'smpte 2084',
-                        'smpte-2084',
-                        'pq']):
-                    print(f"  -> HDR10 detected")
-                    return {
-                        'format': 'HDR10',
-                        'detail': 'HDR10',
-                        'profile': 'HDR10',
-                        'el_type': ''
-                    }
-
-                # HLG (Hybrid Log-Gamma)
-                if any(
-                    indicator in color_transfer for indicator in [
-                        'arib-std-b67',
-                        'arib std b67',
-                        'hlg',
-                        'hybrid log-gamma']):
-                    print(f"  -> HLG detected")
-                    return {
-                        'format': 'HLG',
-                        'detail': 'HLG (Hybrid Log-Gamma)',
-                        'profile': 'HLG',
-                        'el_type': ''
-                    }
-
-        # --- Step 4: Fallback to SDR ---
-        print(f"  -> Fallback to SDR")
-        return {
-            'format': 'SDR',
-            'detail': 'SDR',
-            'profile': 'SDR',
-            'el_type': ''
-        }
+        # Final fallback: SDR
+        print("  -> No HDR metadata found: assuming SDR")
+        return {'format': 'SDR', 'detail': 'SDR', 'profile': '', 'el_type': ''}
 
     except Exception as e:
-        print(
-            f"[HDR] Error detecting HDR format for "
-            f"{os.path.basename(video_file)}: {e}")
-        return {
-            'format': 'Unknown',
-            'detail': 'Unknown',
-            'profile': 'Unknown',
-            'el_type': ''
-        }
+        print(f"  [HDR] Unexpected error while detecting HDR format: {e}")
+        return {'format': 'Unknown', 'detail': 'Error', 'profile': '', 'el_type': ''}
 
 
 def get_video_resolution(video_file):
