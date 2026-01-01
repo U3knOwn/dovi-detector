@@ -181,9 +181,9 @@
     </div>
 
     <!-- Media Details Dialog -->
-    <div class="media-dialog-overlay" id="mediaDialogOverlay" onclick="closeMediaDialog(event)">
+    <div class="media-dialog-overlay" id="mediaDialogOverlay" onclick="closeMediaDialog(event)" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
         <div class="media-dialog" onclick="event.stopPropagation()">
-            <button class="dialog-close" onclick="closeMediaDialog(event)">&times;</button>
+            <button class="dialog-close" onclick="closeMediaDialog(event)" aria-label="Close dialog">&times;</button>
             <h2 class="dialog-title" id="dialogTitle"></h2>
             <div class="dialog-info">
                 <div class="dialog-info-item">

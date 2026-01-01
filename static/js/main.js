@@ -690,11 +690,12 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, tmdb
     
     // Set up links
     if (tmdbId && tmdbId !== '') {
-        // TMDb link
+        // TMDb link - direct to movie page
         dialogTmdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}`;
         dialogTmdbLink.style.display = 'inline-block';
         
-        // IMDb link - go to TMDb external IDs page which has IMDb link
+        // IMDb link - via TMDb external IDs page (which provides IMDb link)
+        // This is used because we don't have direct IMDb ID, only TMDb ID
         dialogImdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}/external_ids`;
         dialogImdbLink.style.display = 'inline-block';
     } else {
@@ -729,11 +730,12 @@ let touchStartX = 0;
 let touchStartY = 0;
 let touchEndX = 0;
 let touchEndY = 0;
+let swipeListenersAttached = false;
 
 function setupSwipeToClose() {
     const dialog = document.querySelector('.media-dialog');
     
-    if (!dialog) return;
+    if (!dialog || swipeListenersAttached) return;
     
     dialog.addEventListener('touchstart', function(e) {
         touchStartX = e.changedTouches[0].screenX;
@@ -745,6 +747,8 @@ function setupSwipeToClose() {
         touchEndY = e.changedTouches[0].screenY;
         handleSwipe();
     }, { passive: true });
+    
+    swipeListenersAttached = true;
 }
 
 function handleSwipe() {
