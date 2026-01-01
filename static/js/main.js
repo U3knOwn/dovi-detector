@@ -658,18 +658,12 @@ function formatDuration(seconds) {
 function formatFileSize(bytes) {
     if (bytes === null || bytes === undefined || bytes < 0) return 'Unknown';
     
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let size = bytes;
-    let unitIndex = 0;
+    // Always convert to GB
+    const sizeInGB = bytes / (1024 * 1024 * 1024);
     
-    while (size >= 1024 && unitIndex < units.length - 1) {
-        size /= 1024;
-        unitIndex++;
-    }
-    
-    // For bytes, don't show decimals. For larger units, show 2 decimals
-    const formattedSize = unitIndex === 0 ? size.toString() : size.toFixed(2);
-    return `${formattedSize} ${units[unitIndex]}`;
+    // Format with 1 decimal place and use comma as decimal separator (German format)
+    const formattedSize = sizeInGB.toFixed(1).replace('.', ',');
+    return `${formattedSize} GB`;
 }
 
 function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId) {
