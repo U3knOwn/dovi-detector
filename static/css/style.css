@@ -489,19 +489,21 @@ tbody tr:hover {
     letter-spacing: 0.5px;
 }
 
-/* Media Details Dialog */
 .media-dialog-overlay {
     display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background: rgba(0, 0, 0, 0.85);
     z-index: 1000;
+    overflow-y: auto;
     justify-content: center;
-    align-items: center;
-    animation: fadeIn 0.3s ease;
+    align-items: flex-start;
+}
+
+.media-dialog {
+    margin: auto;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
 }
 
 .media-dialog-overlay.active {
@@ -565,6 +567,8 @@ tbody tr:hover {
     margin-bottom: 30px;
     padding-right: 30px;
     line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 .dialog-poster {
@@ -858,6 +862,15 @@ tbody tr:hover {
     animation: spin 0.9s linear infinite;
 }
 
+.media-dialog::-webkit-scrollbar {
+    display: none;
+}
+
+.media-dialog {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
@@ -1043,9 +1056,8 @@ tbody tr:hover {
         width: auto;
     }
 
-    /* Dialog responsive styles for mobile */
     .media-dialog {
-        padding: 30px 20px;
+        padding: 20px;
         max-width: 95%;
     }
 
