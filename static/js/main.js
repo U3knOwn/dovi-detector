@@ -158,18 +158,6 @@ function loadFileList() {
                     }
                     select.appendChild(option);
                 });
-
-                // enable scan for selected file when choosing
-				select.addEventListener('change', function() {
-					const scanBtn = document.getElementById('scanFileButton');
-					if (this.value) {
-						scanBtn.classList.remove('hidden');
-						scanBtn.disabled = false;
-					} else {
-						scanBtn.classList.add('hidden');
-						scanBtn.disabled = true;
-					}
-				});
             }
         })
         .catch(error => {
@@ -651,6 +639,78 @@ function sortTableByRating() {
     rows.forEach(r => tbody.appendChild(r));
 }
 
+function sortTableByFileSize() {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aSize = parseFloat(a.getAttribute('data-file-size')) || 0;
+        const bSize = parseFloat(b.getAttribute('data-file-size')) || 0;
+        
+        // Sort descending (largest first)
+        if (bSize !== aSize) return bSize - aSize;
+        
+        // If same size, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
+function sortTableByVideoBitrate() {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aBitrate = parseFloat(a.getAttribute('data-video-bitrate')) || 0;
+        const bBitrate = parseFloat(b.getAttribute('data-video-bitrate')) || 0;
+        
+        // Sort descending (highest first)
+        if (bBitrate !== aBitrate) return bBitrate - aBitrate;
+        
+        // If same bitrate, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
+function sortTableByAudioBitrate() {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aBitrate = parseFloat(a.getAttribute('data-audio-bitrate')) || 0;
+        const bBitrate = parseFloat(b.getAttribute('data-audio-bitrate')) || 0;
+        
+        // Sort descending (highest first)
+        if (bBitrate !== aBitrate) return bBitrate - aBitrate;
+        
+        // If same bitrate, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
 function applySort(mode) {
     if (!mode) mode = localStorage.getItem('dovi_sort_mode') || 'filename';
     const select = document.getElementById('sortSelect');
@@ -662,6 +722,12 @@ function applySort(mode) {
         sortTableByAudio();
     } else if (mode === 'rating') {
         sortTableByRating();
+    } else if (mode === 'filesize') {
+        sortTableByFileSize();
+    } else if (mode === 'videobitrate') {
+        sortTableByVideoBitrate();
+    } else if (mode === 'audiobitrate') {
+        sortTableByAudioBitrate();
     } else {
         sortTableByFilename();
     }
@@ -696,6 +762,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('input', searchMedia);
+        }
+        
+        // Listener for file select change
+        const fileSelect = document.getElementById('fileSelect');
+        if (fileSelect) {
+            fileSelect.addEventListener('change', function() {
+                const scanBtn = document.getElementById('scanFileButton');
+                if (this.value) {
+                    scanBtn.classList.remove('hidden');
+                    scanBtn.disabled = false;
+                } else {
+                    scanBtn.classList.add('hidden');
+                    scanBtn.disabled = true;
+                }
+            });
         }
         
         // Listener for Escape key to close dialog
