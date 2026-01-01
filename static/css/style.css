@@ -602,7 +602,7 @@ tbody tr:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     text-align: center;
 }
 
@@ -647,10 +647,10 @@ tbody tr:hover {
 }
 
 .empty-state {
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
-    text-align: center;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  text-align: center;
 }
 
 .empty-state h2 {
@@ -1083,7 +1083,7 @@ tbody tr:hover {
     }
 
     .dialog-info {
-        gap: 15px;
+        gap: 30px;
     }
 
     .dialog-link {
