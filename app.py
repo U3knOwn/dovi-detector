@@ -32,6 +32,7 @@ TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 FANART_API_KEY = os.environ.get('FANART_API_KEY', '')
 IMAGE_SOURCE = os.environ.get('IMAGE_SOURCE', 'tmdb').lower()
 CONTENT_LANGUAGE = os.environ.get('CONTENT_LANGUAGE', 'en').lower()
+FAVICON_FILENAME = 'favicon.ico'
 
 # Language code mapping from ISO 639-1 to various formats used by MediaInfo/ffprobe
 LANGUAGE_CODE_MAP = {
@@ -2021,7 +2022,15 @@ def serve_poster(filename):
 def favicon():
     """Serve favicon from root directory"""
     try:
-        favicon_path = os.path.join(os.path.dirname(__file__), 'favicon.ico')
+        # Get the absolute path to the application directory
+        app_dir = os.path.abspath(os.path.dirname(__file__))
+        favicon_path = os.path.join(app_dir, FAVICON_FILENAME)
+        
+        # Verify the resolved path is still within app directory (prevent path traversal)
+        if not os.path.abspath(favicon_path).startswith(app_dir):
+            print(f"Path traversal attempt detected in favicon route")
+            return "Invalid path", 400
+        
         if os.path.exists(favicon_path):
             return send_file(favicon_path, mimetype='image/x-icon')
         else:
