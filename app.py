@@ -526,15 +526,19 @@ def get_tmdb_credits(tmdb_id, media_type='movie'):
             crew = data.get('crew', [])
             for member in crew:
                 if member.get('job') == 'Director':
-                    directors.append(member.get('name', ''))
-                    if len(directors) >= 3:
-                        break
+                    name = member.get('name', '').strip()
+                    if name:  # Only add non-empty names
+                        directors.append(name)
+                        if len(directors) >= 3:
+                            break
             
             # Extract cast (limit to 10)
             cast = []
             cast_list = data.get('cast', [])
             for actor in cast_list[:10]:
-                cast.append(actor.get('name', ''))
+                name = actor.get('name', '').strip()
+                if name:  # Only add non-empty names
+                    cast.append(name)
             
             return directors, cast
         
