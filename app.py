@@ -320,15 +320,15 @@ def get_tmdb_title_and_year_by_id(tmdb_id, media_type='movie'):
 
 
 def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
-    """Fetch poster URL, title, and year from TMDB API by ID"""
+    """Fetch poster URL, title, year, and rating from TMDB API by ID"""
     if not TMDB_API_KEY or not REQUESTS_AVAILABLE:
-        return None, None, None
+        return None, None, None, None
 
     # Validate tmdb_id is numeric
     if not tmdb_id or not isinstance(
             tmdb_id, (str, int)) or not str(tmdb_id).isdigit():
         print(f"Invalid TMDB ID: {tmdb_id}")
-        return None, None, None
+        return None, None, None, None
 
     try:
         url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}'
@@ -340,11 +340,12 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
         if response.status_code == 200:
             data = response.json()
             backdrop_path = data.get('backdrop_path')
+            rating = data.get('vote_average')  # TMDB rating (0-10 scale)
 
             if backdrop_path:
                 title, year = extract_title_and_year_from_tmdb(data, media_type)
                 poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                return poster_url, title, year
+                return poster_url, title, year, rating
         
         # If configured language request failed or didn't have poster, try English fallback
         if CONTENT_LANGUAGE != 'en' and (response.status_code != 200 or not data.get('backdrop_path')):
@@ -354,11 +355,12 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
             if response.status_code == 200:
                 data = response.json()
                 backdrop_path = data.get('backdrop_path')
+                rating = data.get('vote_average')
                 
                 if backdrop_path:
                     title, year = extract_title_and_year_from_tmdb(data, media_type)
                     poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                    return poster_url, title, year
+                    return poster_url, title, year, rating
         
         if response.status_code not in [200, 404]:
             print(
@@ -371,23 +373,23 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
     except Exception as e:
         print(f"Error fetching TMDB poster by ID {tmdb_id}: {e}")
 
-    return None, None, None
+    return None, None, None, None
 
 
 def search_tmdb_poster(movie_name, media_type='movie'):
-    """Search TMDB for movie/tv show and return poster URL, title, and year"""
+    """Search TMDB for movie/tv show and return poster URL, title, year, and rating"""
     if not TMDB_API_KEY or not REQUESTS_AVAILABLE or not movie_name:
-        return None, None, None
+        return None, None, None, None
 
     # Validate and sanitize movie_name
     if not isinstance(movie_name, str):
-        return None, None, None
+        return None, None, None, None
 
     # Trim and validate length
     movie_name = movie_name.strip()
     if len(movie_name) < 1 or len(movie_name) > 200:
         print(f"Invalid movie name length: {len(movie_name)}")
-        return None, None, None
+        return None, None, None, None
 
     try:
         url = f'https://api.themoviedb.org/3/search/{media_type}'
@@ -407,11 +409,12 @@ def search_tmdb_poster(movie_name, media_type='movie'):
                 # Get first result
                 first_result = results[0]
                 backdrop_path = first_result.get('backdrop_path')
+                rating = first_result.get('vote_average')
 
                 if backdrop_path:
                     title, year = extract_title_and_year_from_tmdb(first_result, media_type)
                     poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                    return poster_url, title, year
+                    return poster_url, title, year, rating
         
         # If configured language search failed or returned no results with posters, try English fallback
         if CONTENT_LANGUAGE != 'en' and (response.status_code != 200 or not results or not results[0].get('backdrop_path')):
@@ -428,11 +431,12 @@ def search_tmdb_poster(movie_name, media_type='movie'):
                 if results:
                     first_result = results[0]
                     backdrop_path = first_result.get('backdrop_path')
+                    rating = first_result.get('vote_average')
                     
                     if backdrop_path:
                         title, year = extract_title_and_year_from_tmdb(first_result, media_type)
                         poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                        return poster_url, title, year
+                        return poster_url, title, year, rating
         
         if response.status_code not in [200, 404]:
             print(
@@ -445,46 +449,46 @@ def search_tmdb_poster(movie_name, media_type='movie'):
     except Exception as e:
         print(f"Error searching TMDB for '{movie_name}': {e}")
 
-    return None, None, None
+    return None, None, None, None
 
 
 def get_tmdb_poster(filename):
-    """Main function: Try ID first, then fallback to name search. Returns (tmdb_id, poster_url, title, year)"""
+    """Main function: Try ID first, then fallback to name search. Returns (tmdb_id, poster_url, title, year, rating)"""
     if not TMDB_API_KEY or not REQUESTS_AVAILABLE:
-        return None, None, None, None
+        return None, None, None, None, None
 
     # Try to extract TMDB ID first
     tmdb_id = extract_tmdb_id(filename)
     if tmdb_id:
         print(f"  [TMDB] Found TMDB ID: {tmdb_id}")
         # Try movie first
-        poster_url, title, year = get_tmdb_poster_by_id(tmdb_id, 'movie')
+        poster_url, title, year, rating = get_tmdb_poster_by_id(tmdb_id, 'movie')
         if poster_url:
             print(f"  [TMDB] Poster found by ID (movie): {poster_url}")
-            return tmdb_id, poster_url, title, year
+            return tmdb_id, poster_url, title, year, rating
         # Try TV show
-        poster_url, title, year = get_tmdb_poster_by_id(tmdb_id, 'tv')
+        poster_url, title, year, rating = get_tmdb_poster_by_id(tmdb_id, 'tv')
         if poster_url:
             print(f"  [TMDB] Poster found by ID (TV): {poster_url}")
-            return tmdb_id, poster_url, title, year
+            return tmdb_id, poster_url, title, year, rating
 
     # Fallback: Search by name
     movie_name = extract_movie_name(filename)
     if movie_name:
         print(f"  [TMDB] Searching by name: '{movie_name}'")
         # Try movie search first
-        poster_url, title, year = search_tmdb_poster(movie_name, 'movie')
+        poster_url, title, year, rating = search_tmdb_poster(movie_name, 'movie')
         if poster_url:
             print(f"  [TMDB] Poster found by search (movie): {poster_url}")
-            return None, poster_url, title, year
+            return None, poster_url, title, year, rating
         # Try TV search
-        poster_url, title, year = search_tmdb_poster(movie_name, 'tv')
+        poster_url, title, year, rating = search_tmdb_poster(movie_name, 'tv')
         if poster_url:
             print(f"  [TMDB] Poster found by search (TV): {poster_url}")
-            return None, poster_url, title, year
+            return None, poster_url, title, year, rating
 
     print(f"  [TMDB] No poster found for: {filename}")
-    return None, None, None, None
+    return None, None, None, None, None
 
 
 def is_valid_tmdb_url(url):
@@ -1688,6 +1692,7 @@ def scan_video_file(file_path):
     poster_url = None
     tmdb_title = None
     tmdb_year = None
+    tmdb_rating = None
     
     if IMAGE_SOURCE == 'fanart':
         # Use Fanart.tv for poster
@@ -1704,7 +1709,7 @@ def scan_video_file(file_path):
                 print(f"  [TMDB] Title/year found: {tmdb_title} ({tmdb_year})")
     else:
         # Use TMDB (default)
-        tmdb_id, poster_url, tmdb_title, tmdb_year = get_tmdb_poster(filename)
+        tmdb_id, poster_url, tmdb_title, tmdb_year, tmdb_rating = get_tmdb_poster(filename)
 
     # Cache the poster if we got a URL
     cached_backdrop_path = None
@@ -1724,6 +1729,7 @@ def scan_video_file(file_path):
         'poster_url': cached_backdrop_path if cached_backdrop_path else poster_url,
         'tmdb_title': tmdb_title,
         'tmdb_year': tmdb_year,
+        'tmdb_rating': tmdb_rating,
         'duration': duration,
         'video_bitrate': video_bitrate,
         'audio_bitrate': audio_bitrate
@@ -1887,16 +1893,15 @@ def get_files():
                 ext = os.path.splitext(file)[1].lower()
                 if ext in SUPPORTED_FORMATS:
                     file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, MEDIA_PATH)
                     is_scanned = file_path in scanned_paths
                     all_files.append({
                         'path': file_path,
-                        'name': relative_path,
+                        'name': file,  # Only filename, not path
                         'scanned': is_scanned
                     })
 
-        # Sort by name
-        all_files.sort(key=lambda x: x['name'])
+        # Sort by name (A-Z, case-insensitive)
+        all_files.sort(key=lambda x: x['name'].lower())
 
         return jsonify({
             'success': True,

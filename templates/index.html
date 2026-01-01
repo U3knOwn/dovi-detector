@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DoVi Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/inter.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -60,8 +61,8 @@
                 <tr>
                     <th data-i18n="table_header_poster"></th>
                     <th data-i18n="table_header_hdr"></th>
-                    <th data-i18n="table_header_resolution"></th>
                     <th data-i18n="table_header_audio"></th>
+                    <th data-i18n="table_header_resolution"></th>
                 </tr>
             </thead>
             <tbody>
@@ -83,7 +84,15 @@
                                 {{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}
                             </span>
                             {% endif %}
-                            <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy">
+                            <div class="poster-img-wrapper">
+                                <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy">
+                                {% if file.tmdb_rating %}
+                                <div class="imdb-badge">
+                                    <span class="imdb-logo">★</span>
+                                    <span class="imdb-rating">{{ "%.1f"|format(file.tmdb_rating) }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                         {% else %}
                         <span class="filename-fallback"
@@ -122,17 +131,6 @@
                         {% endif %}
                     </td>
 
-                    <td data-label-i18n="table_header_resolution">
-                        {% if 'x' in file.resolution and file.resolution not in ['4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'] %}
-                            {% set resolution_class = 'unknown' %}
-                        {% else %}
-                            {% set resolution_class = file.resolution.lower().replace(' ', '-') %}
-                        {% endif %}
-                        <span class="resolution-badge resolution-{{ resolution_class }}">
-                            {{ file.resolution }}
-                        </span>
-                    </td>
-
                     <td class="audio-codec" data-label-i18n="table_header_audio">
                         {% set audio_class = 'unknown' %}
                         {% if 'TrueHD' in file.audio_codec and 'Atmos' in file.audio_codec %}
@@ -164,6 +162,17 @@
                             {% else %}
                                 {{ file.audio_codec }}
                             {% endif %}
+                        </span>
+                    </td>
+
+                    <td data-label-i18n="table_header_resolution">
+                        {% if 'x' in file.resolution and file.resolution not in ['4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'] %}
+                            {% set resolution_class = 'unknown' %}
+                        {% else %}
+                            {% set resolution_class = file.resolution.lower().replace(' ', '-') %}
+                        {% endif %}
+                        <span class="resolution-badge resolution-{{ resolution_class }}">
+                            {{ file.resolution }}
                         </span>
                     </td>
                 </tr>

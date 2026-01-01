@@ -5,7 +5,7 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: #1e1e2e;
     background-color: #1e1e2e;
     color: white;
@@ -455,6 +455,38 @@ tbody tr:hover {
 
 .poster-container:hover .poster-title {
     color: #4ecca3;
+}
+
+.poster-img-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.imdb-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, #f5c518 0%, #e6b800 100%);
+    color: #000;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+}
+
+.imdb-logo {
+    font-size: 1.1em;
+    color: #000;
+}
+
+.imdb-rating {
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
 /* Media Details Dialog */

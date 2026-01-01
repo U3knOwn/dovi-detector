@@ -247,8 +247,8 @@ function searchMedia() {
         // Get searchable content from specific cells only
         const posterCell = row.querySelector('td:nth-child(1)');
         const hdrCell = row.querySelector('td:nth-child(2)');
-        const resolutionCell = row.querySelector('td:nth-child(3)');
-        const audioCell = row.querySelector('td:nth-child(4)');
+        const audioCell = row.querySelector('td:nth-child(3)');
+        const resolutionCell = row.querySelector('td:nth-child(4)');
         
         // Build searchable text from relevant content
         let searchableText = '';
