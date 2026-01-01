@@ -102,7 +102,6 @@ app = Flask(__name__,
 
 # Scanner configuration constants
 FILE_WRITE_DELAY = int(os.environ.get('FILE_WRITE_DELAY', '5'))
-AUTO_REFRESH_INTERVAL = int(os.environ.get('AUTO_REFRESH_INTERVAL', '60'))
 
 # Supported video formats
 SUPPORTED_FORMATS = {'.mkv', '.mp4', '.m4v', '.ts', '.hevc'}
@@ -1535,8 +1534,7 @@ def index():
 
     return render_template('index.html',
                            files=files_list,
-                           file_count=len(files_list),
-                           auto_refresh_interval=AUTO_REFRESH_INTERVAL)
+                           file_count=len(files_list))
 
 
 @app.route('/scan', methods=['POST'])
