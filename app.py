@@ -100,7 +100,6 @@ GITHUB_FILES = {
     'static/fonts/Inter-Medium.woff2': os.path.join(FONTS_DIR, 'Inter-Medium.woff2'),
     'static/fonts/Inter-SemiBold.woff2': os.path.join(FONTS_DIR, 'Inter-SemiBold.woff2'),
     'static/fonts/Inter-Bold.woff2': os.path.join(FONTS_DIR, 'Inter-Bold.woff2'),
-    'static/favicon.ico': os.path.join(STATIC_DIR, 'favicon.ico'),
 }
 
 app = Flask(__name__,
@@ -2016,6 +2015,20 @@ def serve_poster(filename):
     except Exception as e:
         print(f"Error serving poster {filename}: {e}")
         return "Error serving poster", 500
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon from root directory"""
+    try:
+        favicon_path = os.path.join(os.path.dirname(__file__), 'favicon.ico')
+        if os.path.exists(favicon_path):
+            return send_file(favicon_path, mimetype='image/x-icon')
+        else:
+            return "Favicon not found", 404
+    except Exception as e:
+        print(f"Error serving favicon: {e}")
+        return "Error serving favicon", 500
 
 
 def main():
