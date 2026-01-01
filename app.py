@@ -33,6 +33,20 @@ FANART_API_KEY = os.environ.get('FANART_API_KEY', '')
 IMAGE_SOURCE = os.environ.get('IMAGE_SOURCE', 'tmdb').lower()
 CONTENT_LANGUAGE = os.environ.get('CONTENT_LANGUAGE', 'en').lower()
 
+# Helper functions for language configuration
+def get_tmdb_languages():
+    """Get primary and fallback languages for TMDB API calls based on CONTENT_LANGUAGE"""
+    primary_lang = CONTENT_LANGUAGE if CONTENT_LANGUAGE in ['en', 'de'] else 'en'
+    fallback_lang = 'de' if primary_lang == 'en' else 'en'
+    return primary_lang, fallback_lang
+
+def get_preferred_audio_languages():
+    """Get list of preferred audio language codes based on CONTENT_LANGUAGE"""
+    if CONTENT_LANGUAGE == 'de':
+        return ['ger', 'deu', 'de', 'german']
+    else:  # Default to English
+        return ['eng', 'en', 'english']
+
 # Compiled regex patterns for better performance
 TMDB_ID_PATTERN = re.compile(r'\{tmdb-(\d+)\}', re.IGNORECASE)
 YEAR_PATTERN = re.compile(r'\b(19|20)\d{2}\b')
@@ -254,8 +268,7 @@ def get_tmdb_poster_by_id(tmdb_id, media_type='movie'):
         url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}'
         
         # Determine primary and fallback languages based on CONTENT_LANGUAGE
-        primary_lang = CONTENT_LANGUAGE if CONTENT_LANGUAGE in ['en', 'de'] else 'en'
-        fallback_lang = 'de' if primary_lang == 'en' else 'en'
+        primary_lang, fallback_lang = get_tmdb_languages()
         
         # Try primary language first
         params = {'api_key': TMDB_API_KEY, 'language': primary_lang}
@@ -317,8 +330,7 @@ def search_tmdb_poster(movie_name, media_type='movie'):
         url = f'https://api.themoviedb.org/3/search/{media_type}'
         
         # Determine primary and fallback languages based on CONTENT_LANGUAGE
-        primary_lang = CONTENT_LANGUAGE if CONTENT_LANGUAGE in ['en', 'de'] else 'en'
-        fallback_lang = 'de' if primary_lang == 'en' else 'en'
+        primary_lang, fallback_lang = get_tmdb_languages()
         
         # Try primary language first
         params = {
@@ -1072,11 +1084,8 @@ def get_audio_codec(video_file):
     # DTS:X)
     audio_tracks = get_audio_info_mediainfo(video_file)
     if audio_tracks:
-        # Determine preferred language codes based on CONTENT_LANGUAGE
-        if CONTENT_LANGUAGE == 'de':
-            preferred_langs = ['ger', 'deu', 'de', 'german']
-        else:  # Default to English
-            preferred_langs = ['eng', 'en', 'english']
+        # Get preferred language codes based on CONTENT_LANGUAGE
+        preferred_langs = get_preferred_audio_languages()
         
         # Try to find preferred language audio track first
         preferred_track = None
@@ -1192,11 +1201,8 @@ def get_audio_codec(video_file):
         if result.returncode == 0:
             data = json.loads(result.stdout)
             if 'streams' in data and len(data['streams']) > 0:
-                # Determine preferred language codes based on CONTENT_LANGUAGE
-                if CONTENT_LANGUAGE == 'de':
-                    preferred_langs = ['ger', 'deu', 'de']
-                else:  # Default to English
-                    preferred_langs = ['eng', 'en']
+                # Get preferred language codes based on CONTENT_LANGUAGE
+                preferred_langs = get_preferred_audio_languages()
                 
                 # Try to find preferred language audio track first
                 preferred_stream = None
