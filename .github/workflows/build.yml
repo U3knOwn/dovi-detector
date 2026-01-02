@@ -30,7 +30,7 @@ jobs:
             universal-video-scanner:latest \
             -o universal-video-scanner.tar
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release and upload Docker image
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
@@ -38,9 +38,5 @@ jobs:
           body: |
             Docker Image Release
             Version: v${{ github.run_number }}
-
-      - name: Upload Docker image to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ github.run_number }}
           files: universal-video-scanner.tar
+          fail_on_unmatched_files: true
