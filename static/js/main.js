@@ -857,6 +857,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     const dialogTmdbLink = document.getElementById('dialogTmdbLink');
     const dialogTrailer = document.getElementById('dialogTrailer');
     const dialogTrailerLink = document.getElementById('dialogTrailerLink');
+    const dialogLinksContainer = document.getElementById('dialogLinksContainer');
     const dialogPlot = document.getElementById('dialogPlot');
     const dialogPlotText = document.getElementById('dialogPlotText');
     const dialogDirectors = document.getElementById('dialogDirectors');
@@ -931,31 +932,37 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     // Set up links
     dialogTmdbLink.classList.remove(...dialogTmdbLink.classList);
     dialogTmdbLink.classList.add('dialog-link', 'tmdb');
-
-    if (tmdbId && tmdbId !== '') {
-        // TMDb link - direct to movie page
-        dialogTmdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}`;
-        dialogTmdbLink.style.display = 'inline-block';
-    } else {
-        // Hide links if no TMDb ID
-        dialogTmdbLink.style.display = 'none';
-    }
-    
-    // Set up YouTube trailer link
     dialogTrailerLink.classList.remove(...dialogTrailerLink.classList);
     dialogTrailerLink.classList.add('dialog-link', 'youtube');
 
-    if (title && title !== '') {
-        const searchQuery = year && year !== '' ?
-            `${title} (${year}) - Trailer` :
-            `${title} - Trailer`;
-        const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
-        dialogTrailerLink.href = youtubeUrl;
-        dialogTrailerLink.style.display = 'inline-block';
+    if (tmdbId && tmdbId !== 'None') {
+        // TMDb link - direct to movie page
+        dialogTmdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}`;
+        dialogTmdbLink.style.display = 'inline-block';
+        
+        // Set up YouTube trailer link
+        if (title && title !== '') {
+            const searchQuery = year && year !== '' ?
+                `${title} (${year}) - Trailer` :
+                `${title} - Trailer`;
+            const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+            dialogTrailerLink.href = youtubeUrl;
+            dialogTrailerLink.style.display = 'inline-block';
 
-        if (dialogTrailer && dialogTrailer.style) dialogTrailer.style.display = '';
+            if (dialogTrailer && dialogTrailer.style) dialogTrailer.style.display = '';
+        } else {
+            dialogTrailerLink.style.display = 'none';
+        }
+        
+        // Show links container
+        if (dialogLinksContainer) dialogLinksContainer.style.display = '';
     } else {
+        // Hide links if no TMDb ID
+        dialogTmdbLink.style.display = 'none';
         dialogTrailerLink.style.display = 'none';
+        
+        // Hide entire links container
+        if (dialogLinksContainer) dialogLinksContainer.style.display = 'none';
     }
     
     // Show dialog
