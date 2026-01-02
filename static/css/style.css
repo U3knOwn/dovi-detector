@@ -962,6 +962,35 @@ tbody tr:hover {
     to { transform: rotate(360deg); }
 }
 
+/* Footer Styles */
+.site-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    margin-top: 30px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85em;
+}
+
+.site-footer .github-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.site-footer .github-link:hover {
+    color: #e6eef6;
+}
+
+.site-footer .github-link svg {
+    flex-shrink: 0;
+}
+
 @media screen and (max-width: 850px) {
     body {
         padding: 10px;
@@ -1209,5 +1238,13 @@ tbody tr:hover {
 
     .empty-state h2 {
         font-size: 1.2em;
+    }
+
+    .site-footer {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+        margin-top: 20px;
+        text-align: center;
     }
 }
