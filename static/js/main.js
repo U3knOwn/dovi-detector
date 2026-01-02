@@ -929,6 +929,9 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
     
     // Set up links
+    dialogTmdbLink.classList.remove(...dialogTmdbLink.classList);
+    dialogTmdbLink.classList.add('dialog-link', 'tmdb');
+
     if (tmdbId && tmdbId !== '') {
         // TMDb link - direct to movie page
         dialogTmdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}`;
@@ -939,15 +942,20 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
     
     // Set up YouTube trailer link
+    dialogTrailerLink.classList.remove(...dialogTrailerLink.classList);
+    dialogTrailerLink.classList.add('dialog-link', 'youtube');
+
     if (title && title !== '') {
-        const searchQuery = year && year !== '' 
-            ? `${title} (${year}) - Trailer`
-            : `${title} - Trailer`;
+        const searchQuery = year && year !== '' ?
+            `${title} (${year}) - Trailer` :
+            `${title} - Trailer`;
         const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
         dialogTrailerLink.href = youtubeUrl;
-        dialogTrailer.style.display = 'flex';
+        dialogTrailerLink.style.display = 'inline-block';
+
+        if (dialogTrailer && dialogTrailer.style) dialogTrailer.style.display = '';
     } else {
-        dialogTrailer.style.display = 'none';
+        dialogTrailerLink.style.display = 'none';
     }
     
     // Show dialog
