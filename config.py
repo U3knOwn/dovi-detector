@@ -66,23 +66,6 @@ JS_DIR = os.path.join(STATIC_DIR, 'js')
 LOCALE_DIR = os.path.join(STATIC_DIR, 'locale')
 FONTS_DIR = os.path.join(STATIC_DIR, 'fonts')
 
-# GitHub raw URLs for downloading static files
-GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/U3knOwn/universal-video-scanner/main'
-GITHUB_FILES = {
-    'templates/index.html': os.path.join(TEMPLATES_DIR, 'index.html'),
-    'static/css/style.css': os.path.join(CSS_DIR, 'style.css'),
-    'static/js/main.js': os.path.join(JS_DIR, 'main.js'),
-    'static/locale/de.json': os.path.join(LOCALE_DIR, 'de.json'),
-    'static/locale/en.json': os.path.join(LOCALE_DIR, 'en.json'),
-    'static/fonts/inter.css': os.path.join(FONTS_DIR, 'inter.css'),
-    'static/fonts/Inter-Regular.woff2': os.path.join(FONTS_DIR, 'Inter-Regular.woff2'),
-    'static/fonts/Inter-Medium.woff2': os.path.join(FONTS_DIR, 'Inter-Medium.woff2'),
-    'static/fonts/Inter-SemiBold.woff2': os.path.join(FONTS_DIR, 'Inter-SemiBold.woff2'),
-    'static/fonts/Inter-Bold.woff2': os.path.join(FONTS_DIR, 'Inter-Bold.woff2'),
-    'static/favicon.ico': os.path.join(STATIC_DIR, 'favicon.ico'),
-    'static/icon.svg': os.path.join(STATIC_DIR, 'icon.svg'),
-}
-
 # Scanner configuration constants
 FILE_WRITE_DELAY = int(os.environ.get('FILE_WRITE_DELAY', '5'))
 AUTO_REFRESH_INTERVAL = int(os.environ.get('AUTO_REFRESH_INTERVAL', '10'))
