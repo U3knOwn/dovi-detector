@@ -738,6 +738,54 @@ function sortTableByAudioBitrate() {
     sortTableByNumericAttribute('data-audio-bitrate');
 }
 
+function sortTableByYear() {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aYear = parseInt(a.getAttribute('data-year')) || 0;
+        const bYear = parseInt(b.getAttribute('data-year')) || 0;
+        
+        // Sort descending (newest first)
+        if (bYear !== aYear) return bYear - aYear;
+        
+        // If same year, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
+function sortTableByDuration() {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aDuration = parseFloat(a.getAttribute('data-duration')) || 0;
+        const bDuration = parseFloat(b.getAttribute('data-duration')) || 0;
+        
+        // Sort descending (longest first)
+        if (bDuration !== aDuration) return bDuration - aDuration;
+        
+        // If same duration, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
 function sortTableByNumericAttribute(attribute) {
     const table = document.getElementById('mediaTable');
     if (!table) return;
@@ -785,6 +833,10 @@ function applySort(mode) {
         sortTableByVideoBitrate();
     } else if (mode === 'audiobitrate') {
         sortTableByAudioBitrate();
+    } else if (mode === 'year') {
+        sortTableByYear();
+    } else if (mode === 'duration') {
+        sortTableByDuration();
     } else {
         sortTableByFilename();
     }

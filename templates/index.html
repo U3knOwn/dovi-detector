@@ -53,6 +53,8 @@
                         <option value="filesize" data-i18n="sort_by_filesize"></option>
                         <option value="videobitrate" data-i18n="sort_by_videobitrate"></option>
                         <option value="audiobitrate" data-i18n="sort_by_audiobitrate"></option>
+                        <option value="year" data-i18n="sort_by_year"></option>
+                        <option value="duration" data-i18n="sort_by_duration"></option>
                     </select>
                 </div>
                 <div class="right-group">
@@ -85,7 +87,9 @@
                     data-tmdb-rating="{{ file.tmdb_rating or '0' }}" 
                     data-file-size="{{ file.file_size|default('0') }}" 
                     data-video-bitrate="{{ file.video_bitrate|default('0') }}" 
-                    data-audio-bitrate="{{ file.audio_bitrate|default('0') }}">
+                    data-audio-bitrate="{{ file.audio_bitrate|default('0') }}"
+                    data-year="{{ file.tmdb_year|default('') }}"
+                    data-duration="{{ file.duration|default('') }}">
                     <td data-label-i18n="table_header_poster" data-label="Poster / Dateiname" title="{{ file.filename }}">
                         {% if file.poster_url %}
                         <div class="poster-container" 
