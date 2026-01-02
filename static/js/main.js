@@ -777,10 +777,6 @@ function removeFileFromTable(filePath) {
     const rows = table.querySelectorAll('tbody tr');
     
     for (const row of rows) {
-        // Check multiple places where file path might be stored
-        const posterContainer = row.querySelector('.poster-container');
-        const filenameFallback = row.querySelector('.filename-fallback');
-        
         // Try to find the title attribute which contains the filename
         const posterCell = row.querySelector('td[data-label-i18n="table_header_poster"]');
         if (posterCell && posterCell.getAttribute('title') === filePath) {
@@ -876,7 +872,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
     
     // Set poster image if available
-    if (posterUrl && posterUrl !== '' && posterUrl !== 'None' && !posterUrl.includes('None')) {
+    if (posterUrl && posterUrl !== '' && posterUrl !== 'None') {
         dialogPosterImg.src = posterUrl;
         dialogPoster.style.display = 'block';
     } else {
@@ -884,7 +880,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
     
     // Set plot if available, otherwise show fallback text
-    if (plot && plot !== '' && plot !== 'None' && !plot.includes('None')) {
+    if (plot && plot !== '' && plot !== 'None') {
         dialogPlotText.textContent = plot;
         dialogPlot.style.display = 'flex';
     } else {
