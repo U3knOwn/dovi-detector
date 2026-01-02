@@ -43,3 +43,13 @@ media/
 data/
 *.hevc
 *.bin
+
+# Backup files from refactoring
+app.py.bak
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
