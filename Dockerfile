@@ -29,6 +29,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app.py .
+COPY config.py .
+COPY services/ ./services/
+COPY utils/ ./utils/
+COPY watchers/ ./watchers/
 
 # Create media directory
 RUN mkdir -p /media
