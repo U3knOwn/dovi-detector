@@ -35,7 +35,6 @@ h1 {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* Logo Container */
 .logo-container {
     display: flex;
     align-items: center;
@@ -43,7 +42,6 @@ h1 {
     gap: 15px;
 }
 
-/* Rotated Icon */
 .header-logo {
     width: 64px;
     height: 64px;
@@ -56,11 +54,10 @@ h1 {
     transform: rotate(0deg) scale(1.1);
 }
 
-/* Cool Gradient Text */
 .title-text {
     font-size: 2.5em;
     font-weight: 800;
-    color: #e6eef6; /* Fallback for browsers that don't support background-clip */
+    color: #e6eef6;
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
     background-clip: text;
     -webkit-background-clip: text;
@@ -974,15 +971,21 @@ tbody tr:hover {
         font-size: 1.4em;
     }
 
-    /* Mobile Responsive */
     .logo-container {
-        flex-direction: column;
-        gap: 10px;
+        gap: 5px;
     }
-    
+
+	.title-text {
+        font-size: 1.6em;
+        margin-bottom: 10px;
+        margin-right: 20px;
+    }
+
     .header-logo {
+        margin-bottom: 10px;
         width: 48px;
         height: 48px;
+        margin-left: 20px;
     }
 
     .controls {
