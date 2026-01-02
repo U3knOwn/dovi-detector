@@ -158,18 +158,6 @@ function loadFileList() {
                     }
                     select.appendChild(option);
                 });
-
-                // enable scan for selected file when choosing
-				select.addEventListener('change', function() {
-					const scanBtn = document.getElementById('scanFileButton');
-					if (this.value) {
-						scanBtn.classList.remove('hidden');
-						scanBtn.disabled = false;
-					} else {
-						scanBtn.classList.add('hidden');
-						scanBtn.disabled = true;
-					}
-				});
             }
         })
         .catch(error => {
@@ -627,6 +615,46 @@ function sortTableByAudio() {
     rows.forEach(r => tbody.appendChild(r));
 }
 
+function sortTableByRating() {
+    sortTableByNumericAttribute('data-tmdb-rating');
+}
+
+function sortTableByFileSize() {
+    sortTableByNumericAttribute('data-file-size');
+}
+
+function sortTableByVideoBitrate() {
+    sortTableByNumericAttribute('data-video-bitrate');
+}
+
+function sortTableByAudioBitrate() {
+    sortTableByNumericAttribute('data-audio-bitrate');
+}
+
+function sortTableByNumericAttribute(attribute) {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        const aValue = parseFloat(a.getAttribute(attribute)) || 0;
+        const bValue = parseFloat(b.getAttribute(attribute)) || 0;
+        
+        // Sort descending (highest/largest first)
+        if (bValue !== aValue) return bValue - aValue;
+        
+        // If same value, sort secondarily by filename
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
 function applySort(mode) {
     if (!mode) mode = localStorage.getItem('dovi_sort_mode') || 'filename';
     const select = document.getElementById('sortSelect');
@@ -636,6 +664,14 @@ function applySort(mode) {
         sortTableByProfile();
     } else if (mode === 'audio') {
         sortTableByAudio();
+    } else if (mode === 'rating') {
+        sortTableByRating();
+    } else if (mode === 'filesize') {
+        sortTableByFileSize();
+    } else if (mode === 'videobitrate') {
+        sortTableByVideoBitrate();
+    } else if (mode === 'audiobitrate') {
+        sortTableByAudioBitrate();
     } else {
         sortTableByFilename();
     }
@@ -670,6 +706,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('input', searchMedia);
+        }
+        
+        // Listener for file select change
+        const fileSelect = document.getElementById('fileSelect');
+        if (fileSelect) {
+            fileSelect.addEventListener('change', function() {
+                const scanBtn = document.getElementById('scanFileButton');
+                if (this.value) {
+                    scanBtn.classList.remove('hidden');
+                    scanBtn.disabled = false;
+                } else {
+                    scanBtn.classList.add('hidden');
+                    scanBtn.disabled = true;
+                }
+            });
         }
         
         // Listener for Escape key to close dialog
@@ -716,7 +767,7 @@ function formatFileSize(bytes) {
     return `${formattedSize} GB`;
 }
 
-function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId) {
+function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast) {
     const overlay = document.getElementById('mediaDialogOverlay');
     const dialogTitle = document.getElementById('dialogTitle');
     const dialogDuration = document.getElementById('dialogDuration');
@@ -726,6 +777,12 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     const dialogPoster = document.getElementById('dialogPoster');
     const dialogPosterImg = document.getElementById('dialogPosterImg');
     const dialogTmdbLink = document.getElementById('dialogTmdbLink');
+    const dialogPlot = document.getElementById('dialogPlot');
+    const dialogPlotText = document.getElementById('dialogPlotText');
+    const dialogDirectors = document.getElementById('dialogDirectors');
+    const dialogDirectorsText = document.getElementById('dialogDirectorsText');
+    const dialogCast = document.getElementById('dialogCast');
+    const dialogCastText = document.getElementById('dialogCastText');
     
     // Set title with year if available
     if (year && year !== '') {
@@ -740,6 +797,30 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         dialogPoster.style.display = 'block';
     } else {
         dialogPoster.style.display = 'none';
+    }
+    
+    // Set plot if available
+    if (plot && plot !== '') {
+        dialogPlotText.textContent = plot;
+        dialogPlot.style.display = 'flex';
+    } else {
+        dialogPlot.style.display = 'none';
+    }
+    
+    // Set directors if available
+    if (directors && directors !== '') {
+        dialogDirectorsText.textContent = directors;
+        dialogDirectors.style.display = 'flex';
+    } else {
+        dialogDirectors.style.display = 'none';
+    }
+    
+    // Set cast if available (with "..." to indicate more actors)
+    if (cast && cast !== '') {
+        dialogCastText.textContent = cast + ' ...';
+        dialogCast.style.display = 'flex';
+    } else {
+        dialogCast.style.display = 'none';
     }
     
     // Set duration
@@ -799,8 +880,11 @@ function showMediaDialogFromData(element) {
     const fileSize = parseInt(element.getAttribute('data-file-size')) || null;
     const posterUrl = element.getAttribute('data-poster-url') || '';
     const tmdbId = element.getAttribute('data-tmdb-id') || '';
+    const plot = element.getAttribute('data-plot') || '';
+    const directors = element.getAttribute('data-directors') || '';
+    const cast = element.getAttribute('data-cast') || '';
     
-    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId);
+    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast);
 }
 
 function closeMediaDialog(event) {

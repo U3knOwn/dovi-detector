@@ -3,6 +3,8 @@
     padding: 0;
     box-sizing: border-box;
     font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
 }
 
 body {
@@ -590,6 +592,14 @@ tbody tr:hover {
     max-height: 200px;
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dialog-plot-text {
+    color: #c2c2c2;
+    line-height: 1.2;
+    text-align: center;
+    font-size: 1.1em;
+    font-weight: bold;
 }
 
 .dialog-info {

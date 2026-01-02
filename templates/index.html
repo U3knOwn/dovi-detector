@@ -43,6 +43,10 @@
                         <option value="filename" data-i18n="sort_by_filename"></option>
                         <option value="profile" data-i18n="sort_by_profile"></option>
                         <option value="audio" data-i18n="sort_by_audio"></option>
+                        <option value="rating" data-i18n="sort_by_rating"></option>
+                        <option value="filesize" data-i18n="sort_by_filesize"></option>
+                        <option value="videobitrate" data-i18n="sort_by_videobitrate"></option>
+                        <option value="audiobitrate" data-i18n="sort_by_audiobitrate"></option>
                     </select>
                 </div>
                 <div class="right-group">
@@ -69,7 +73,13 @@
             <tbody>
                 {% for file in files %}
                 {# We add data attributes so JS can handle sorting #}
-                <tr data-hdr-format="{{ file.hdr_format }}" data-hdr-detail="{{ file.hdr_detail }}" data-el-type="{{ file.el_type or '' }}">
+                <tr data-hdr-format="{{ file.hdr_format }}" 
+                    data-hdr-detail="{{ file.hdr_detail }}" 
+                    data-el-type="{{ file.el_type or '' }}" 
+                    data-tmdb-rating="{{ file.tmdb_rating or '0' }}" 
+                    data-file-size="{{ file.file_size|default('0') }}" 
+                    data-video-bitrate="{{ file.video_bitrate|default('0') }}" 
+                    data-audio-bitrate="{{ file.audio_bitrate|default('0') }}">
                     <td data-label-i18n="table_header_poster" data-label="Poster / Dateiname" title="{{ file.filename }}">
                         {% if file.poster_url %}
                         <div class="poster-container" 
@@ -81,6 +91,9 @@
                              data-file-size="{{ file.file_size|default('') }}"
                              data-poster-url="{{ file.poster_url|default('') }}"
                              data-tmdb-id="{{ file.tmdb_id|default('') }}"
+                             data-plot="{{ file.tmdb_plot|default('') }}"
+                             data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
+                             data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                              onclick="showMediaDialogFromData(this)">
                             {% if file.tmdb_title %}
                             <span class="poster-title">
@@ -107,6 +120,9 @@
                               data-file-size="{{ file.file_size|default('') }}"
                               data-poster-url="{{ file.poster_url|default('') }}"
                               data-tmdb-id="{{ file.tmdb_id|default('') }}"
+                              data-plot="{{ file.tmdb_plot|default('') }}"
+                              data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
+                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                               onclick="showMediaDialogFromData(this)">{{ file.filename }}</span>
                         {% endif %}
                     </td>
@@ -217,6 +233,18 @@
                 <img id="dialogPosterImg" class="dialog-poster-img" src="" alt="Poster">
             </div>
             <div class="dialog-info">
+                <div class="dialog-info-item" id="dialogPlot" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_plot"></span>
+                    <p class="dialog-plot-text" id="dialogPlotText"></p>
+                </div>
+                <div class="dialog-info-item" id="dialogDirectors" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_directors"></span>
+                    <span class="dialog-value" id="dialogDirectorsText"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogCast" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_cast"></span>
+                    <span class="dialog-value" id="dialogCastText"></span>
+                </div>
                 <div class="dialog-info-item">
                     <span class="dialog-label" data-i18n="dialog_duration"></span>
                     <span class="dialog-value" id="dialogDuration"></span>
