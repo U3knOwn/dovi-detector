@@ -58,8 +58,9 @@ LANGUAGE_CODE_MAP = {
 }
 
 # Static files configuration
-TEMPLATES_DIR = os.path.join(DATA_DIR, 'templates')
-STATIC_DIR = os.path.join(DATA_DIR, 'static')
+# Use bundled static files from /app directory instead of downloading from GitHub
+TEMPLATES_DIR = '/app/templates'
+STATIC_DIR = '/app/static'
 CSS_DIR = os.path.join(STATIC_DIR, 'css')
 JS_DIR = os.path.join(STATIC_DIR, 'js')
 LOCALE_DIR = os.path.join(STATIC_DIR, 'locale')
@@ -98,9 +99,4 @@ def ensure_directories():
     """Ensure all required directories exist. Call this from main() in app.py"""
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(TEMP_DIR, exist_ok=True)
-    os.makedirs(TEMPLATES_DIR, exist_ok=True)
-    os.makedirs(CSS_DIR, exist_ok=True)
-    os.makedirs(JS_DIR, exist_ok=True)
-    os.makedirs(LOCALE_DIR, exist_ok=True)
-    os.makedirs(FONTS_DIR, exist_ok=True)
     os.makedirs(POSTER_CACHE_DIR, exist_ok=True)

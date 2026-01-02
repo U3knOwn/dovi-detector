@@ -13,7 +13,7 @@ from flask import Flask, render_template, jsonify, request, send_file, Response
 import config
 
 # Import utility functions
-from utils.file_utils import download_static_files, update_static_files, cleanup_temp_directory
+from utils.file_utils import cleanup_temp_directory
 
 # Import service modules
 from services import database
@@ -180,28 +180,6 @@ def scan_single_file():
         }), 500
 
 
-@app.route('/update_assets', methods=['POST'])
-def update_assets():
-    """Endpoint to manually trigger asset updates"""
-    try:
-        success = update_static_files(config.GITHUB_RAW_BASE, config.GITHUB_FILES)
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'All assets updated successfully'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to update some assets'
-            }), 500
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
 @app.route('/poster/<filename>')
 def serve_poster(filename):
     """Serve cached poster images"""
@@ -268,11 +246,6 @@ def main():
 
     # Ensure all required directories exist
     config.ensure_directories()
-
-    # Check and download static files if needed
-    print("Checking static files...")
-    if not download_static_files(config.GITHUB_RAW_BASE, config.GITHUB_FILES):
-        print("Warning: Failed to download some static files")
 
     # Clean up any orphaned temporary files from previous runs
     cleanup_temp_directory(config.TEMP_DIR)

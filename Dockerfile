@@ -33,6 +33,8 @@ COPY config.py .
 COPY services/ ./services/
 COPY utils/ ./utils/
 COPY watchers/ ./watchers/
+COPY static/ ./static/
+COPY templates/ ./templates/
 
 # Create media directory
 RUN mkdir -p /media
