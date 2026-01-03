@@ -541,6 +541,10 @@ function sortTableByProfileAudio() {
 
         if (aAudioRank !== bAudioRank) return aAudioRank - bAudioRank;
 
+        const aChannels = getChannelCount(aAudio);
+        const bChannels = getChannelCount(bAudio);
+        if (aChannels !== bChannels) return bChannels - aChannels;
+
         const aName = getFilenameFromRow(a).toLowerCase();
         const bName = getFilenameFromRow(b).toLowerCase();
         if (aName < bName) return -1;
@@ -690,6 +694,17 @@ function getAudioRank(audioCodec) {
     return 9;
 }
 
+function getChannelCount(audioCodec) {
+    const audio = (audioCodec || '').toLowerCase();
+    const channelMatch = audio.match(/\s(\d+\.\d+)(?=\s|$|\()/);
+
+    if (channelMatch) {
+        return parseFloat(channelMatch[1]);
+    }
+
+    return 0;
+}
+
 function sortTableByAudio() {
     const table = document.getElementById('mediaTable');
     if (!table) return;
@@ -704,14 +719,16 @@ function sortTableByAudio() {
         const bRank = getAudioRank(bAudio);
         
         if (aRank !== bRank) return aRank - bRank;
+		
+        const aChannels = getChannelCount(aAudio);
+        const bChannels = getChannelCount(bAudio);
+        if (aChannels !== bChannels) return bChannels - aChannels;
         
-        // If same rank, sort alphabetically by codec name
         const aLower = aAudio.toLowerCase();
         const bLower = bAudio.toLowerCase();
         if (aLower < bLower) return -1;
         if (aLower > bLower) return 1;
         
-        // If same audio codec, sort secondarily by filename
         const aName = getFilenameFromRow(a).toLowerCase();
         const bName = getFilenameFromRow(b).toLowerCase();
         if (aName < bName) return -1;
