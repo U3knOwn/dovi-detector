@@ -87,21 +87,21 @@ def copy_directory_with_writable_permissions(src_dir, dest_dir, force=False):
 
 def get_directory_version(directory):
     """
-    Calculate a version hash for a directory based on file modification times and names.
+    Calculate a version hash for a directory based on file names and sizes.
     This is used to detect when the container's bundled files have been updated.
     
     Args:
         directory: Path to directory to hash
         
     Returns:
-        str: Hash representing the directory version, or None if directory doesn't exist
+        str: SHA256 hash representing the directory version, or empty string if directory doesn't exist
     """
     import hashlib
     
     if not os.path.exists(directory):
-        return None
+        return ""
     
-    hash_obj = hashlib.md5()
+    hash_obj = hashlib.sha256()
     
     # Walk through directory and hash file paths and sizes
     # We use size instead of content for performance
@@ -151,6 +151,12 @@ def copy_static_and_templates_to_data_dir(static_src, templates_src, data_dir):
     # Calculate current version of source directories
     static_version = get_directory_version(static_src)
     templates_version = get_directory_version(templates_src)
+    
+    # Handle case where directories don't exist (return empty string)
+    if not static_version and not templates_version:
+        print("Warning: Source directories not found")
+        return False, False
+    
     current_version = f"{static_version}:{templates_version}"
     
     # Check if we need to update
