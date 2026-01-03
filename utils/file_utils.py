@@ -33,13 +33,14 @@ def make_writable(path):
         print(f"Warning: Could not make {path} writable: {e}")
 
 
-def copy_directory_with_writable_permissions(src_dir, dest_dir):
+def copy_directory_with_writable_permissions(src_dir, dest_dir, force=False):
     """
     Copy a directory recursively and ensure all files are writable.
     
     Args:
         src_dir: Source directory path
         dest_dir: Destination directory path
+        force: If True, always overwrite. If False, skip if destination exists.
         
     Returns:
         bool: True if copy was successful, False otherwise
@@ -48,6 +49,10 @@ def copy_directory_with_writable_permissions(src_dir, dest_dir):
         if not os.path.exists(src_dir):
             print(f"Warning: Source directory does not exist: {src_dir}")
             return False
+        
+        # If destination exists and force is False, skip copy
+        if os.path.exists(dest_dir) and not force:
+            return True  # Already exists, consider it a success
         
         # Safety check: ensure dest_dir is a subdirectory within a data/config directory
         # to prevent accidental deletion of important system files
@@ -80,10 +85,53 @@ def copy_directory_with_writable_permissions(src_dir, dest_dir):
         return False
 
 
+def get_directory_version(directory):
+    """
+    Calculate a version hash for a directory based on file modification times and names.
+    This is used to detect when the container's bundled files have been updated.
+    
+    Args:
+        directory: Path to directory to hash
+        
+    Returns:
+        str: Hash representing the directory version, or None if directory doesn't exist
+    """
+    import hashlib
+    
+    if not os.path.exists(directory):
+        return None
+    
+    hash_obj = hashlib.md5()
+    
+    # Walk through directory and hash file paths and sizes
+    # We use size instead of content for performance
+    for root, dirs, files in sorted(os.walk(directory)):
+        # Sort for consistent ordering
+        dirs.sort()
+        for filename in sorted(files):
+            filepath = os.path.join(root, filename)
+            try:
+                # Hash relative path and file size
+                rel_path = os.path.relpath(filepath, directory)
+                hash_obj.update(rel_path.encode())
+                hash_obj.update(str(os.path.getsize(filepath)).encode())
+            except Exception:
+                continue
+    
+    return hash_obj.hexdigest()
+
+
 def copy_static_and_templates_to_data_dir(static_src, templates_src, data_dir):
     """
     Copy static and templates directories to the data directory where scanned_files.json is stored.
     This allows users to access and modify these files from the host system.
+    
+    Files are only copied if:
+    - The destination directories don't exist (first run), OR
+    - The source directories have changed (Docker container update)
+    
+    This preserves user customizations across container restarts while ensuring
+    updates are applied when the container is updated.
     
     Args:
         static_src: Path to source static directory (e.g., /app/static)
@@ -94,24 +142,63 @@ def copy_static_and_templates_to_data_dir(static_src, templates_src, data_dir):
         tuple: (static_success, templates_success) - boolean values indicating if each copy succeeded
     """
     print("=" * 50)
-    print("Copying static and templates to data directory...")
+    print("Checking static and templates directories...")
     
     static_dest = os.path.join(data_dir, 'static')
     templates_dest = os.path.join(data_dir, 'templates')
+    version_file = os.path.join(data_dir, '.static_templates_version')
     
-    # Copy static directory
-    static_success = copy_directory_with_writable_permissions(static_src, static_dest)
+    # Calculate current version of source directories
+    static_version = get_directory_version(static_src)
+    templates_version = get_directory_version(templates_src)
+    current_version = f"{static_version}:{templates_version}"
+    
+    # Check if we need to update
+    stored_version = None
+    need_update = False
+    
+    if os.path.exists(version_file):
+        try:
+            with open(version_file, 'r') as f:
+                stored_version = f.read().strip()
+        except Exception:
+            pass
+    
+    # Determine if update is needed
+    if not os.path.exists(static_dest) or not os.path.exists(templates_dest):
+        print("First run detected - copying directories...")
+        need_update = True
+    elif stored_version != current_version:
+        print("Container update detected - updating directories...")
+        print(f"  Previous version: {stored_version[:16] if stored_version else 'none'}...")
+        print(f"  Current version:  {current_version[:16]}...")
+        need_update = True
+    else:
+        print("Directories up to date - preserving user customizations")
+        print("=" * 50)
+        return True, True
+    
+    # Copy directories (force=True to overwrite)
+    static_success = copy_directory_with_writable_permissions(static_src, static_dest, force=need_update)
     if static_success:
         print(f"✓ Copied static/ to {static_dest}")
     else:
         print(f"✗ Failed to copy static/ to {static_dest}")
     
-    # Copy templates directory
-    templates_success = copy_directory_with_writable_permissions(templates_src, templates_dest)
+    templates_success = copy_directory_with_writable_permissions(templates_src, templates_dest, force=need_update)
     if templates_success:
         print(f"✓ Copied templates/ to {templates_dest}")
     else:
         print(f"✗ Failed to copy templates/ to {templates_dest}")
+    
+    # Save version file
+    if static_success and templates_success:
+        try:
+            with open(version_file, 'w') as f:
+                f.write(current_version)
+            print(f"✓ Version tracking updated")
+        except Exception as e:
+            print(f"Warning: Could not save version file: {e}")
     
     print("=" * 50)
     

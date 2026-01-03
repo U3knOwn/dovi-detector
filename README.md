@@ -126,19 +126,26 @@ DoVi-Detector/
 
 ### Static Files and Templates
 
-On startup, the application automatically copies the `static/` and `templates/` directories to the `data/` directory. This allows you to:
+The application intelligently manages static files and templates with version tracking:
 
-- **Access files from the host**: Modify CSS, JavaScript, HTML templates, or locale files directly from `./data/static/` and `./data/templates/`
-- **Customize the interface**: Make changes to the web interface without rebuilding the Docker container
-- **Persistent modifications**: Your changes persist across container restarts
+- **First run**: Automatically copies `static/` and `templates/` directories to `./data/`
+- **Container restarts**: Your customizations are **preserved** (files are not overwritten)
+- **Docker updates**: New versions are automatically deployed when the container image is updated
 
 **File Locations:**
 - **Host system**: `./data/static/` and `./data/templates/`
 - **Inside container**: `/app/data/static/` and `/app/data/templates/`
 
+**How it works:**
+1. On first startup, files are copied from the container to `./data/`
+2. You can customize any files (CSS, JS, HTML, translations)
+3. On restart, your customizations are **preserved**
+4. When you update the Docker image (`docker-compose pull`), the app detects the change and updates the files
+5. After an update, you can make new customizations that will again persist across restarts
+
 **Access Rights:**
-- All copied files and directories are **writable** by default
-- You can modify any file (CSS styles, JavaScript, HTML templates, translations)
+- All copied files and directories are **writable** by user and group
+- You can modify any file without special permissions
 - Changes take effect after restarting the container
 
 **Example customizations:**
@@ -152,8 +159,12 @@ nano ./data/static/locale/en.json
 # Customize HTML template
 nano ./data/templates/index.html
 
-# Restart container to apply changes
+# Restart container to apply changes (customizations preserved)
 docker-compose restart
+
+# Update Docker image (files will be updated to new version)
+docker-compose pull
+docker-compose up -d
 ```
 
 ### Volumes
