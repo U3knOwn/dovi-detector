@@ -686,6 +686,17 @@ tbody tr:hover {
     font-weight: bold;
 }
 
+/* Dateiname-Item unter dem Poster */
+.dialog-filename-item {
+    margin-top: 15px;
+}
+
+.dialog-filename-item .dialog-value {
+    word-break: break-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
 .dialog-links {
     display: flex;
     gap: 12px;

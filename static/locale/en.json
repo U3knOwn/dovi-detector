@@ -36,6 +36,7 @@
   "dialog_file_size": "File Size:",
   "dialog_video_bitrate": "Video Bitrate:",
   "dialog_audio_bitrate": "Audio Bitrate:",
+  "dialog_filename": "File:",
   "dialog_plot": "Plot:",
   "dialog_links": "Links:",
   "dialog_directors": "Directors:",
