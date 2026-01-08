@@ -276,7 +276,7 @@ tbody tr:hover {
     text-align: center;
     width: 175px;
     padding: 10px;
-    border-radius: 20px;
+    border-radius: 8px;
     font-weight: bold;
     font-size: 0.9em;
 }
@@ -514,8 +514,8 @@ tbody tr:hover {
     position: absolute;
     top: 8px;
     right: 8px;
-    background: linear-gradient(135deg, #f5c518 0%, #e6b800 100%);
-    color: #000;
+    background: linear-gradient(135deg, #90cea1 0%, #01b4e4 100%);
+    color: #292929;
     padding: 4px 8px;
     border-radius: 6px;
     font-weight: bold;
@@ -529,7 +529,7 @@ tbody tr:hover {
 
 .tmdb-logo {
     font-size: 1.1em;
-    color: #000;
+    color: #292929;
 }
 
 .tmdb-rating {
@@ -554,13 +554,20 @@ tbody tr:hover {
 }
 
 .media-dialog {
-    width: 90%;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+    border-radius: 20px;
     max-width: 500px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideIn 0.3s ease;
+    width: 90%;
     max-height: 85vh;
     overflow-y: auto;
     margin: 20px auto;
     padding: 20px;
     box-sizing: border-box;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .media-dialog-overlay.active {
@@ -574,17 +581,6 @@ tbody tr:hover {
     to {
         opacity: 1;
     }
-}
-
-.media-dialog {
-    background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
-    border-radius: 20px;
-    padding: 40px;
-    max-width: 500px;
-    width: 90%;
-    position: relative;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    animation: slideIn 0.3s ease;
 }
 
 @keyframes slideIn {
@@ -686,6 +682,17 @@ tbody tr:hover {
     font-weight: bold;
 }
 
+/* Filename item below the poster */
+.dialog-filename-item {
+    margin-top: 15px;
+}
+
+.dialog-filename-item .dialog-value {
+    word-break: break-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
 .dialog-links {
     display: flex;
     gap: 12px;
@@ -699,7 +706,7 @@ tbody tr:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 18px;
+    padding: 13px;
     min-width: 140px;
     height: 44px;
     border-radius: 8px;
@@ -711,7 +718,7 @@ tbody tr:hover {
 }
 
 .dialog-link.tmdb {
-    background: linear-gradient(135deg, #01b4e4 0%, #0190b8 100%);
+    background: linear-gradient(135deg, #90cea1 0%, #01b4e4 100%);
 }
 
 .dialog-link.youtube {
@@ -956,11 +963,6 @@ tbody tr:hover {
 
 .media-dialog::-webkit-scrollbar {
     display: none;
-}
-
-.media-dialog {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
 }
 
 @keyframes spin {

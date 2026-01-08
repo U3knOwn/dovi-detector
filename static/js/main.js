@@ -1030,7 +1030,7 @@ function formatFileSize(bytes) {
     return `${formattedSize} GB`;
 }
 
-function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating) {
+function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename) {
     const overlay = document.getElementById('mediaDialogOverlay');
     const dialogTitle = document.getElementById('dialogTitle');
     const dialogDuration = document.getElementById('dialogDuration');
@@ -1051,6 +1051,8 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     const dialogDirectorsText = document.getElementById('dialogDirectorsText');
     const dialogCast = document.getElementById('dialogCast');
     const dialogCastText = document.getElementById('dialogCastText');
+    const dialogFilenameItem = document.getElementById('dialogFilenameItem');
+    const dialogFilename = document.getElementById('dialogFilename');
     
     // Set title with year if available
     if (year && year !== '') {
@@ -1063,6 +1065,14 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     if (posterUrl && posterUrl !== '' && posterUrl !== 'None') {
         dialogPosterImg.src = posterUrl;
         dialogPoster.style.display = 'block';
+        
+        // Set filename if available
+        if (dialogFilenameItem && dialogFilename && filename && filename.trim() !== '') {
+            dialogFilename.textContent = filename;
+            dialogFilenameItem.style.display = 'flex';
+        } else if (dialogFilenameItem) {
+            dialogFilenameItem.style.display = 'none';
+        }
     } else {
         dialogPoster.style.display = 'none';
     }
@@ -1082,8 +1092,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         dialogPlotText.textContent = plot;
         dialogPlot.style.display = 'flex';
     } else {
-        dialogPlotText.textContent = t('dialog_no_info');
-        dialogPlot.style.display = 'flex';
+        dialogPlot.style.display = 'none';
     }
     
     // Set directors if available
@@ -1189,8 +1198,9 @@ function showMediaDialogFromData(element) {
     const plot = element.getAttribute('data-plot') || '';
     const directors = element.getAttribute('data-directors') || '';
     const cast = element.getAttribute('data-cast') || '';
+    const filename = element.getAttribute('data-filename') || '';
     
-    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating);
+    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename);
 }
 
 function closeMediaDialog(event) {
