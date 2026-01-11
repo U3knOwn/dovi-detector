@@ -996,7 +996,7 @@ tbody tr:hover {
     flex-shrink: 0;
 }
 
-@media screen and (max-width: 850px) {
+@media screen and (max-width: 915px) {
     body {
         padding: 10px;
     }
