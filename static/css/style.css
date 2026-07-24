@@ -399,7 +399,7 @@ header {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--text-muted);
+    color: var(--text);
 }
 
 .file-select-trigger.has-selection .file-select-label {
@@ -1103,7 +1103,7 @@ tbody tr:hover td {
     background: var(--surface-2);
     border: 1px solid var(--border-strong);
     border-radius: 22px;
-    max-width: 480px;
+    max-width: 880px;
     width: 90%;
     max-height: 80vh;
     display: flex;
@@ -1476,12 +1476,17 @@ tbody tr:hover td {
     border: 1px solid var(--border);
     border-radius: 50%;
     color: var(--text-muted);
-    font-size: 1.3em;
     cursor: pointer;
     line-height: 1;
     padding: 0;
     transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
     z-index: 5;
+}
+
+.dialog-close svg {
+    display: block;
+    width: 18px;
+    height: 18px;
 }
 
 .dialog-close:hover {
