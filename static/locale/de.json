@@ -38,6 +38,8 @@
   "unknown": "Unbekannt",
   "show": "Anzeigen",
   "hide": "Ausblenden",
+  "theme_toggle_light": "Zum hellen Design wechseln",
+  "theme_toggle_dark": "Zum dunklen Design wechseln",
   "clear_db": "Datenbank leeren",
   "clear_db_confirm": "Alle Scan‑Daten werden unwiderruflich gelöscht. Fortfahren?",
   "please_wait": "Bitte warten...",

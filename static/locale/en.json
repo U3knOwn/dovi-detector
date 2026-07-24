@@ -38,6 +38,8 @@
   "unknown": "Unknown",
   "show": "Show",
   "hide": "Hide",
+  "theme_toggle_light": "Switch to light mode",
+  "theme_toggle_dark": "Switch to dark mode",
   "clear_db": "Delete database",
   "clear_db_confirm": "All scan data will be permanently deleted. Continue?",
   "please_wait": "Please wait...",
