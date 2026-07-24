@@ -55,6 +55,11 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             <div class="top-group">
                 <div class="left-group">
                     <button type="button" id="fileSelectTrigger" class="file-select-trigger" onclick="openFileDialog()" aria-haspopup="dialog" aria-controls="fileDialogOverlay">
+                        <svg class="file-select-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect width="20" height="5" x="2" y="3" rx="1"/>
+                            <path d="M4 8v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8"/>
+                            <path d="M10 12h4"/>
+                        </svg>
                         <span id="fileSelectLabel" class="file-select-label" data-i18n="select_file"></span>
                         <svg class="file-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="m6 9 6 6 6-6"/>
@@ -75,23 +80,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         <div class="controls controls-bottom">
             <div class="bottom-group">
                 <div class="left-group">
-                    <select id="sortSelect" data-aria-label-i18n="sort_label">
-                        <option value="filename" data-i18n="sort_by_filename"></option>
-                        <option value="filesize" data-i18n="sort_by_filesize"></option>
-                        <option value="added" data-i18n="sort_by_added"></option>
-                        <option value="rating" data-i18n="sort_by_rating"></option>
-                        <option value="year" data-i18n="sort_by_year"></option>
-                        <option value="duration" data-i18n="sort_by_duration"></option>
-                        <option value="profile" data-i18n="sort_by_profile"></option>
-                        <option value="profile_audio" data-i18n="sort_by_profile_audio"></option>
-                        <option value="profile_videobitrate" data-i18n="sort_by_profile_videobitrate"></option>
-                        <option value="profile_audiobitrate" data-i18n="sort_by_profile_audiobitrate"></option>
-                        <option value="audio" data-i18n="sort_by_audio"></option>
-                        <option value="audio_audiobitrate" data-i18n="sort_by_audio_audiobitrate"></option>
-                        <option value="videobitrate" data-i18n="sort_by_videobitrate"></option>
-                        <option value="audiobitrate" data-i18n="sort_by_audiobitrate"></option>
-                        <option value="cm_version" data-i18n="sort_by_cm_version"></option>
-                    </select>
+                    <div class="custom-select" id="sortSelectWrap">
+                        <button type="button" class="custom-select-trigger" id="sortSelectTrigger" aria-haspopup="listbox" aria-expanded="false" data-aria-label-i18n="sort_label">
+                            <span class="custom-select-current" id="sortSelectCurrent"></span>
+                            <svg class="custom-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <ul class="custom-select-menu" id="sortSelectMenu" role="listbox" tabindex="-1"></ul>
+                    </div>
                 </div>
                 <div class="collapse-btn" aria-expanded="true" aria-controls="collapsed_button">
                     <span class="toggle hide">
@@ -110,7 +105,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 <div class="right-group">
                     <div class="search-container">
                         <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder">
-                        <button id="clearSearch" class="clear-btn" onclick="clearSearch()" style="display: none;">✕</button>
+                        <button id="clearSearch" class="clear-btn" onclick="clearSearch()" aria-label="Clear search" style="display: none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
                     </div>
                 </div>
             </div>
@@ -170,7 +165,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                                 <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy">
                                 {% if file.tmdb_rating %}
                                 <div class="tmdb-badge">
-                                    <span class="tmdb-logo">★</span>
+                                    <span class="tmdb-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
                                     <span class="tmdb-rating">{{ "%.1f"|format(file.tmdb_rating) }}</span>
                                 </div>
                                 {% endif %}
@@ -302,19 +297,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 <span id="profileStats"></span>
             </div>
             <div class="language-switcher">
-                <select id="languageDropdown" onchange="setLanguage(this.value)">
-                    <option value="de" selected>🇩🇪 DE</option>
-                    <option value="en">🇺🇸 EN</option>
-                    <option value="fr">🇫🇷 FR</option>
-                    <option value="es">🇪🇸 ES</option>
-                    <option value="it">🇮🇹 IT</option>
-                    <option value="pt">🇵🇹 PT</option>
-                    <option value="nl">🇳🇱 NL</option>
-                    <option value="pl">🇵🇱 PL</option>
-                    <option value="ru">🇷🇺 RU</option>
-                    <option value="tr">🇹🇷 TR</option>
-                    <option value="zh">🇨🇳 中文</option>
-                </select>
+                <div class="custom-select lang-select" id="languageWrap">
+                    <button type="button" class="custom-select-trigger" id="languageTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+                        <span class="custom-select-current" id="languageCurrent"></span>
+                        <svg class="custom-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <ul class="custom-select-menu" id="languageMenu" role="listbox" tabindex="-1"></ul>
+                </div>
             </div>
         </div>
 
@@ -368,7 +357,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 <div class="dialog-poster-wrapper">
                     <img id="dialogPosterImg" class="dialog-poster-img" src="" alt="Poster">
                     <div class="tmdb-badge dialog-tmdb-badge" id="dialogTmdbBadge" style="display: none;">
-                        <span class="tmdb-logo">★</span>
+                        <span class="tmdb-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
                         <span class="tmdb-rating" id="dialogTmdbRating"></span>
                     </div>
                 </div>
@@ -436,14 +425,23 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     </div>
                 </div>
                 <div class="dialog-info-item" id="dialogDeleteContainer" style="display: none;">
-                    <button class="dialog-delete-btn" onclick="deleteCurrentEntry()" data-i18n="dialog_delete_entry"></button>
+                    <button class="dialog-delete-btn" onclick="deleteCurrentEntry()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 6h18"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            <line x1="10" y1="11" x2="10" y2="17"/>
+                            <line x1="14" y1="11" x2="14" y2="17"/>
+                        </svg>
+                        <span data-i18n="dialog_delete_entry"></span>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 	
     <button class="scroll-toggle" id="scrollToggle">
-        <span class="icon" aria-hidden="true">↓</span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
     </button>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

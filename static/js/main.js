@@ -10,6 +10,10 @@ let currentDialogFilePath = '';
 let availableFiles = [];
 let selectedPaths = new Set();
 
+// Custom dropdown instances (sort + language), built on DOMContentLoaded.
+let sortSelectInstance = null;
+let languageInstance = null;
+
 // Theme System (dark is the default)
 const THEME_META_COLORS = { dark: '#0a0c12', light: '#eef1f7' };
 
@@ -108,6 +112,9 @@ function applyTranslations() {
         if (translations[key]) el.setAttribute('aria-label', translations[key]);
     });
     
+    // Refresh the sort dropdown so its option labels follow the active language.
+    if (sortSelectInstance) sortSelectInstance.refresh();
+
     updateLanguageButtons();
     updateThemeToggleLabel();
 }
@@ -115,10 +122,7 @@ function applyTranslations() {
 function updateLanguageButtons() {
     // Keep the language dropdown in sync with the active language,
     // otherwise it falls back to the hardcoded default after a reload.
-    const dropdown = document.getElementById('languageDropdown');
-    if (dropdown && dropdown.value !== currentLang) {
-        dropdown.value = currentLang;
-    }
+    if (languageInstance) languageInstance.setValue(currentLang);
 }
 
 async function setLanguage(lang) {
@@ -400,9 +404,196 @@ function scanSelectedFiles() {
             console.error(error);
             if (!message) return;
             message.className = 'message error';
-            message.textContent = `✗ ${t('scan_error')}`;
+            setMessageContent(message, 'error', t('scan_error'));
             message.style.display = 'block';
         });
+}
+
+/* -------------------------------
+   Custom Dropdowns (sort + language)
+   ------------------------------- */
+
+// Small stroke-based icons (24x24) that match the rest of the UI. Several sort
+// modes intentionally share an icon (all profile* -> film, audio* -> volume).
+const SVG_ATTR = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const SORT_ICONS = {
+    file:     `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    drive:    `<svg viewBox="0 0 24 24" ${SVG_ATTR}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>`,
+    inbox:    `<svg viewBox="0 0 24 24" ${SVG_ATTR}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`,
+    star:     `<svg viewBox="0 0 24 24" ${SVG_ATTR}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+    calendar: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    clock:    `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>`,
+    film:     `<svg viewBox="0 0 24 24" ${SVG_ATTR}><rect x="2.5" y="3" width="19" height="18" rx="2"/><line x1="7" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="17" y2="21"/><line x1="2.5" y1="12" x2="21.5" y2="12"/><line x1="2.5" y1="7.5" x2="7" y2="7.5"/><line x1="17" y1="7.5" x2="21.5" y2="7.5"/><line x1="2.5" y1="16.5" x2="7" y2="16.5"/><line x1="17" y1="16.5" x2="21.5" y2="16.5"/></svg>`,
+    volume:   `<svg viewBox="0 0 24 24" ${SVG_ATTR}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`,
+    monitor:  `<svg viewBox="0 0 24 24" ${SVG_ATTR}><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+    target:   `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>`
+};
+
+const SORT_OPTIONS = [
+    { value: 'filename',             i18n: 'sort_by_filename',             icon: 'file' },
+    { value: 'filesize',             i18n: 'sort_by_filesize',             icon: 'drive' },
+    { value: 'added',                i18n: 'sort_by_added',                icon: 'inbox' },
+    { value: 'rating',               i18n: 'sort_by_rating',               icon: 'star' },
+    { value: 'year',                 i18n: 'sort_by_year',                 icon: 'calendar' },
+    { value: 'duration',             i18n: 'sort_by_duration',             icon: 'clock' },
+    { value: 'profile',              i18n: 'sort_by_profile',              icon: 'film' },
+    { value: 'profile_audio',        i18n: 'sort_by_profile_audio',        icon: 'film' },
+    { value: 'profile_videobitrate', i18n: 'sort_by_profile_videobitrate', icon: 'film' },
+    { value: 'profile_audiobitrate', i18n: 'sort_by_profile_audiobitrate', icon: 'film' },
+    { value: 'audio',                i18n: 'sort_by_audio',                icon: 'volume' },
+    { value: 'audio_audiobitrate',   i18n: 'sort_by_audio_audiobitrate',   icon: 'volume' },
+    { value: 'videobitrate',         i18n: 'sort_by_videobitrate',         icon: 'monitor' },
+    { value: 'audiobitrate',         i18n: 'sort_by_audiobitrate',         icon: 'volume' },
+    { value: 'cm_version',           i18n: 'sort_by_cm_version',           icon: 'target' }
+];
+
+// Simplified inline SVG flags (20x14) for the language switcher.
+const FLAG_SVGS = {
+    de: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#000"/><rect y="4.67" width="20" height="4.67" fill="#D00"/><rect y="9.33" width="20" height="4.67" fill="#FFCE00"/></svg>',
+    en: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#B22234"/><g fill="#fff"><rect y="2" width="20" height="2"/><rect y="6" width="20" height="2"/><rect y="10" width="20" height="2"/></g><rect width="9" height="8" fill="#3C3B6E"/></svg>',
+    fr: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#fff"/><rect width="6.67" height="14" fill="#0055A4"/><rect x="13.33" width="6.67" height="14" fill="#EF4135"/></svg>',
+    es: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#AA151B"/><rect y="3.5" width="20" height="7" fill="#F1BF00"/></svg>',
+    it: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#fff"/><rect width="6.67" height="14" fill="#009246"/><rect x="13.33" width="6.67" height="14" fill="#CE2B37"/></svg>',
+    pt: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#F00"/><rect width="8" height="14" fill="#060"/><circle cx="8" cy="7" r="2.2" fill="#FC0" stroke="#fff" stroke-width="0.4"/></svg>',
+    nl: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#fff"/><rect width="20" height="4.67" fill="#AE1C28"/><rect y="9.33" width="20" height="4.67" fill="#21468B"/></svg>',
+    pl: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#DC143C"/><rect width="20" height="7" fill="#fff"/></svg>',
+    ru: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#fff"/><rect y="4.67" width="20" height="4.67" fill="#0039A6"/><rect y="9.33" width="20" height="4.67" fill="#D52B1E"/></svg>',
+    tr: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#E30A17"/><circle cx="8" cy="7" r="3" fill="#fff"/><circle cx="9" cy="7" r="2.4" fill="#E30A17"/><polygon points="14.6,7 13.52,6.62 13.49,5.48 12.8,6.39 11.71,6.06 12.36,7 11.71,7.94 12.8,7.61 13.49,8.52 13.52,7.38" fill="#fff"/></svg>',
+    zh: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#DE2910"/><polygon points="5,2.5 5.9,5.2 8.7,5.2 6.4,6.9 7.3,9.6 5,7.9 2.7,9.6 3.6,6.9 1.3,5.2 4.1,5.2" fill="#FFDE00"/></svg>'
+};
+
+const LANG_OPTIONS = [
+    { value: 'de', label: 'DE' },
+    { value: 'en', label: 'EN' },
+    { value: 'fr', label: 'FR' },
+    { value: 'es', label: 'ES' },
+    { value: 'it', label: 'IT' },
+    { value: 'pt', label: 'PT' },
+    { value: 'nl', label: 'NL' },
+    { value: 'pl', label: 'PL' },
+    { value: 'ru', label: 'RU' },
+    { value: 'tr', label: 'TR' },
+    { value: 'zh', label: '中文' }
+];
+
+// Registry so an outside click / Escape can close every open dropdown.
+const _customSelects = [];
+function closeAllCustomSelects(except) {
+    _customSelects.forEach(s => { if (s !== except) s.close(); });
+}
+document.addEventListener('click', e => {
+    _customSelects.forEach(s => { if (!s.wrap.contains(e.target)) s.close(); });
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAllCustomSelects();
+});
+
+// Build an accessible custom dropdown that mirrors a native <select> but lets
+// each option carry an inline SVG icon (impossible with real <option>s).
+function buildCustomSelect(cfg) {
+    const wrap = document.getElementById(cfg.wrapId);
+    const trigger = document.getElementById(cfg.triggerId);
+    const current = document.getElementById(cfg.currentId);
+    const menu = document.getElementById(cfg.menuId);
+    if (!wrap || !trigger || !current || !menu) return null;
+
+    let value = cfg.initialValue;
+
+    function innerHTMLFor(opt) {
+        return `<span class="custom-select-opt-icon">${cfg.iconFor(opt)}</span>` +
+               `<span class="custom-select-opt-label"></span>`;
+    }
+    function fillLabel(el, opt) {
+        const labelEl = el.querySelector('.custom-select-opt-label');
+        if (labelEl) labelEl.textContent = cfg.labelFor(opt);
+    }
+
+    function renderCurrent() {
+        const opt = cfg.options.find(o => o.value === value) || cfg.options[0];
+        current.innerHTML = innerHTMLFor(opt);
+        fillLabel(current, opt);
+    }
+
+    function renderMenu() {
+        menu.innerHTML = '';
+        cfg.options.forEach(opt => {
+            const li = document.createElement('li');
+            li.className = 'custom-select-option' + (opt.value === value ? ' selected' : '');
+            li.setAttribute('role', 'option');
+            li.setAttribute('data-value', opt.value);
+            li.setAttribute('aria-selected', opt.value === value ? 'true' : 'false');
+            li.innerHTML = innerHTMLFor(opt);
+            fillLabel(li, opt);
+            li.addEventListener('click', () => { select(opt.value); close(); });
+            menu.appendChild(li);
+        });
+    }
+
+    function open() {
+        closeAllCustomSelects(api);
+        wrap.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+    }
+    function close() {
+        wrap.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+    }
+    function toggle() { wrap.classList.contains('open') ? close() : open(); }
+
+    function select(v, silent) {
+        value = v;
+        renderCurrent();
+        menu.querySelectorAll('.custom-select-option').forEach(li => {
+            const sel = li.getAttribute('data-value') === v;
+            li.classList.toggle('selected', sel);
+            li.setAttribute('aria-selected', sel ? 'true' : 'false');
+        });
+        if (!silent && cfg.onSelect) cfg.onSelect(v);
+    }
+
+    trigger.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+
+    renderMenu();
+    renderCurrent();
+
+    const api = {
+        wrap,
+        close,
+        getValue: () => value,
+        setValue: v => select(v, true),
+        refresh: () => { renderMenu(); renderCurrent(); }
+    };
+    _customSelects.push(api);
+    return api;
+}
+
+function initCustomSelects() {
+    sortSelectInstance = buildCustomSelect({
+        wrapId: 'sortSelectWrap',
+        triggerId: 'sortSelectTrigger',
+        currentId: 'sortSelectCurrent',
+        menuId: 'sortSelectMenu',
+        options: SORT_OPTIONS,
+        initialValue: localStorage.getItem('dovi_sort_mode') || 'filename',
+        iconFor: opt => SORT_ICONS[opt.icon] || '',
+        labelFor: opt => t(opt.i18n),
+        onSelect: v => {
+            localStorage.setItem('dovi_sort_mode', v);
+            applySort(v);
+        }
+    });
+
+    languageInstance = buildCustomSelect({
+        wrapId: 'languageWrap',
+        triggerId: 'languageTrigger',
+        currentId: 'languageCurrent',
+        menuId: 'languageMenu',
+        options: LANG_OPTIONS,
+        initialValue: currentLang,
+        iconFor: opt => FLAG_SVGS[opt.value] || '',
+        labelFor: opt => opt.label,
+        onSelect: v => setLanguage(v)
+    });
 }
 
 /* -------------------------------
@@ -513,7 +704,7 @@ function updateClearButton() {
     const searchInput = document.getElementById('searchInput');
     const clearBtn = document.getElementById('clearSearch');
     if (clearBtn) {
-        clearBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
+        clearBtn.style.display = searchInput.value.length > 0 ? 'flex' : 'none';
     }
 }
 
@@ -1139,8 +1330,7 @@ function sortTableByAdded() {
 
 function applySort(mode) {
     if (!mode) mode = localStorage.getItem('dovi_sort_mode') || 'filename';
-    const select = document.getElementById('sortSelect');
-    if (select) select.value = mode;
+    if (sortSelectInstance) sortSelectInstance.setValue(mode);
 
     if (mode === 'profile') {
         sortTableByProfile();
@@ -1181,6 +1371,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize language first
     initLanguage().then(() => {
+        // Build the custom sort/language dropdowns before anything reads them.
+        initCustomSelects();
+
         // Load file list for scan dropdown
         loadFileList();
 
@@ -1193,16 +1386,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update clear button state on initial load
         updateClearButton();
 
-        // Listener for sort selection
-        const sortSelect = document.getElementById('sortSelect');
-        if (sortSelect) {
-            sortSelect.addEventListener('change', function() {
-                const mode = this.value || 'filename';
-                localStorage.setItem('dovi_sort_mode', mode);
-                applySort(mode);
-            });
-        }
-        
+        // Sort selection is handled by the custom dropdown's onSelect callback
+        // (see initCustomSelects), which persists the mode and re-sorts.
+
         // Listener for search bar
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
@@ -1404,6 +1590,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Status message icons (success / info / error), rendered as inline SVG.
+const MSG_ICONS = {
+    success: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    info:    `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+    error:   `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`
+};
+
+// Render a status message with a leading SVG icon; text is set via textContent
+// so translated strings are never interpreted as HTML.
+function setMessageContent(el, type, text) {
+    if (!el) return;
+    el.innerHTML = `<span class="message-icon">${MSG_ICONS[type] || ''}</span><span class="message-text"></span>`;
+    el.querySelector('.message-text').textContent = text;
+}
+
 /* -------------------------------
    Server-Sent Events for Live Updates
    ------------------------------- */
@@ -1449,11 +1650,11 @@ function setupSSE() {
                     message.className = 'message';
                     if (data.new_files > 0) {
                         message.classList.add('success');
-                        message.textContent = '\u2713 ' + t('scan_complete', { count: data.new_files });
+                        setMessageContent(message, 'success', t('scan_complete', { count: data.new_files }));
                         setTimeout(function() { location.reload(); }, 2000);
                     } else {
                         message.classList.add('info');
-                        message.textContent = '\u2139 ' + t('no_new_files');
+                        setMessageContent(message, 'info', t('no_new_files'));
                         setTimeout(function() { location.reload(); }, 2000);
                     }
                     message.style.display = 'block';
@@ -1462,7 +1663,7 @@ function setupSSE() {
                 if (scanProgress) scanProgress.style.display = 'none';
                 if (message) {
                     message.className = 'message error';
-                    message.textContent = '\u2717 ' + t('scan_error');
+                    setMessageContent(message, 'error', t('scan_error'));
                     message.style.display = 'block';
                 }
             }
@@ -1826,14 +2027,17 @@ function setupScrollButton() {
       return (full - (scrollY + vh)) <= nearBottomPx;
     }
 
+    const ARROW_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+    const ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
+
     function setStateTop() {
       currentState = 'top';
-      icon && (icon.textContent = '↑');
+      icon && (icon.innerHTML = ARROW_UP);
     }
 
     function setStateBottom() {
       currentState = 'bottom';
-      icon && (icon.textContent = '↓');
+      icon && (icon.innerHTML = ARROW_DOWN);
     }
 
     function clearInactivityTimer() {

@@ -340,8 +340,7 @@ header {
 /* ---------- Shared control base ---------- */
 
 #fileSelectTrigger,
-#sortSelect,
-#languageDropdown,
+.custom-select-trigger,
 #searchInput,
 .collapse-btn {
     -webkit-appearance: none;
@@ -360,8 +359,7 @@ header {
 }
 
 #fileSelectTrigger:hover,
-#sortSelect:hover,
-#languageDropdown:hover,
+.custom-select-trigger:hover,
 #searchInput:hover,
 .collapse-btn:hover {
     border-color: var(--border-strong);
@@ -369,17 +367,11 @@ header {
 }
 
 #fileSelectTrigger:focus-visible,
-#sortSelect:focus,
-#languageDropdown:focus,
+.custom-select-trigger:focus-visible,
 #searchInput:focus {
     outline: none;
     border-color: rgba(99, 102, 241, 0.8);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-#sortSelect:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 /* ---------- Custom file-select trigger (opens the file dialog) ---------- */
@@ -391,6 +383,11 @@ header {
     gap: 8px;
     font-weight: 500;
     text-align: left;
+}
+
+.file-select-trigger .file-select-icon {
+    flex: 0 0 auto;
+    color: var(--text-muted);
 }
 
 .file-select-trigger .file-select-label {
@@ -417,24 +414,147 @@ header {
     color: var(--text-muted);
 }
 
-/* ---------- Selects ---------- */
+/* ---------- Custom dropdowns (sort + language) ---------- */
 
-#sortSelect,
-#languageDropdown {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398a2b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 38px;
-    text-overflow: ellipsis;
+.custom-select {
+    position: relative;
+    display: inline-block;
 }
 
-.controls select#sortSelect {
+.controls .custom-select#sortSelectWrap {
     width: 300px;
 }
 
-select option {
-    background-color: var(--surface-2);
+.custom-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    padding-right: 12px;
+}
+
+.custom-select-current {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.custom-select-current .custom-select-opt-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.custom-select-caret {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.custom-select.open .custom-select-caret {
+    transform: rotate(180deg);
+    color: var(--text-muted);
+}
+
+.custom-select-opt-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}
+
+.custom-select-opt-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.custom-select-menu {
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-height: 320px;
+    overflow-y: auto;
+    /* Hidden with display:none so a closed menu never reserves scroll height
+       (an absolutely-positioned but merely invisible menu still inflates the
+       page height, leaving dead space below the footer). */
+    display: none;
+}
+
+.custom-select.open .custom-select-menu {
+    display: block;
+    animation: dropdownIn 0.15s ease;
+}
+
+@keyframes dropdownIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The language switcher sits in the footer, so open it upwards to avoid
+   extending the page below the fold. */
+.lang-select .custom-select-menu {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.lang-select.open .custom-select-menu {
+    animation: dropupIn 0.15s ease;
+}
+
+@keyframes dropupIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 9px;
+    font-size: 0.9rem;
+    font-weight: 500;
     color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.custom-select-option:hover {
+    background: var(--surface-3);
+}
+
+.custom-select-option.selected {
+    background: rgba(99, 102, 241, 0.14);
+    color: var(--accent-soft);
+}
+
+.custom-select-option.selected .custom-select-opt-icon {
+    color: var(--accent-soft);
+}
+
+/* Rounded flag chips in the language switcher */
+.lang-select .custom-select-opt-icon {
+    width: 22px;
+    height: 15px;
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 /* ---------- Collapse (show/hide) button ---------- */
@@ -509,6 +629,12 @@ select option {
     transition: color 0.15s ease, background 0.15s ease;
 }
 
+.clear-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
 .clear-btn:hover {
     color: var(--text);
     background: var(--surface-3);
@@ -567,6 +693,19 @@ select option {
     font-size: 0.92rem;
     font-weight: 500;
     border: 1px solid transparent;
+}
+
+.message .message-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: -3px;
+    margin-right: 7px;
+}
+
+.message .message-icon svg {
+    width: 16px;
+    height: 16px;
+    display: block;
 }
 
 .message.success {
@@ -958,9 +1097,17 @@ tbody tr:hover td {
 }
 
 .tmdb-logo {
-    font-size: 1.05em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: #fbbf24;
     line-height: 1;
+}
+
+.tmdb-logo svg {
+    width: 1em;
+    height: 1em;
+    display: block;
 }
 
 .tmdb-rating {
@@ -1072,8 +1219,11 @@ tbody tr:hover td {
     font-variant-numeric: tabular-nums;
 }
 
-.language-switcher select#languageDropdown {
-    min-width: 96px;
+.language-switcher .custom-select {
+    min-width: 92px;
+}
+
+.language-switcher .custom-select-trigger {
     font-weight: 600;
 }
 
@@ -1641,6 +1791,10 @@ tbody tr:hover td {
 }
 
 .dialog-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     background: rgba(248, 113, 113, 0.12);
     color: var(--danger);
     border: 1px solid rgba(248, 113, 113, 0.4);
@@ -1652,6 +1806,10 @@ tbody tr:hover td {
     transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
     width: 100%;
     max-width: 300px;
+}
+
+.dialog-delete-btn svg {
+    flex: 0 0 auto;
 }
 
 .dialog-delete-btn:hover {
@@ -1686,6 +1844,18 @@ tbody tr:hover td {
     will-change: transform, opacity;
     opacity: 1;
     transform: translateY(0);
+}
+
+.scroll-toggle .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scroll-toggle .icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
 }
 
 .scroll-toggle:hover {
@@ -1931,7 +2101,7 @@ tbody tr:hover td {
     }
 
     .controls .file-select-trigger,
-    .controls select#sortSelect,
+    .controls .custom-select#sortSelectWrap,
     .scan-progress {
         width: 100%;
     }
@@ -2091,7 +2261,7 @@ tbody tr:hover td {
         justify-content: center;
     }
 
-    .language-switcher select#languageDropdown {
+    .language-switcher .custom-select {
         width: auto;
     }
 
