@@ -1041,7 +1041,7 @@ tbody tr:hover td {
 
 .poster-img {
     display: block;
-    width: 280px;
+    width: 320px;
     max-width: 100%;
     aspect-ratio: 16 / 9;
     height: auto;
