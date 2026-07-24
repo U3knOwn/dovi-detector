@@ -54,9 +54,12 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         <div class="controls controls-top">
             <div class="top-group">
                 <div class="left-group">
-                    <select id="fileSelect">
-                        <option value="" data-i18n="select_file"></option>
-                    </select>
+                    <button type="button" id="fileSelectTrigger" class="file-select-trigger" onclick="openFileDialog()" aria-haspopup="dialog" aria-controls="fileDialogOverlay">
+                        <span id="fileSelectLabel" class="file-select-label" data-i18n="select_file"></span>
+                        <svg class="file-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
                     <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
                         <span data-i18n="scan_file_button"></span>
                     </button>
@@ -341,6 +344,22 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             </a>
         </footer>
 
+    </div>
+
+    <!-- File Selection Dialog -->
+    <div class="file-dialog-overlay" id="fileDialogOverlay" onclick="closeFileDialog(event)" role="dialog" aria-modal="true" aria-labelledby="fileDialogTitle">
+        <div class="file-dialog" onclick="event.stopPropagation()">
+            <button class="dialog-close" onclick="closeFileDialog(event)" aria-label="Close dialog">&times;</button>
+            <h2 class="dialog-title" id="fileDialogTitle" data-i18n="file_dialog_title"></h2>
+            <div class="file-dialog-search">
+                <svg class="file-dialog-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.3-4.3"/>
+                </svg>
+                <input type="text" id="fileDialogSearch" data-i18n-placeholder="search_placeholder" autocomplete="off">
+            </div>
+            <div class="file-dialog-list" id="fileDialogList"></div>
+        </div>
     </div>
 
     <!-- Media Details Dialog -->

@@ -6,6 +6,11 @@ let currentLang = 'de';
 let translations = {};
 let currentDialogFilePath = '';
 
+// File selection dialog state
+let availableFiles = [];
+let selectedFilePath = '';
+let selectedFileName = '';
+
 // Theme System (dark is the default)
 const THEME_META_COLORS = { dark: '#0a0c12', light: '#eef1f7' };
 
@@ -185,24 +190,25 @@ function startManualScan() {
 }
 
 function loadFileList() {
-    fetch('/get_files')
+    return fetch('/get_files')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const select = document.getElementById('fileSelect');
-                // Clear existing options except first
-                select.innerHTML = `<option value="">${t('select_file')}</option>`;
-                
-                // Add files to dropdown
-                data.files.forEach(file => {
-                    const option = document.createElement('option');
-                    option.value = file.path;
-                    option.textContent = file.name + (file.scanned ? ' ✓' : '');
-                    if (file.scanned) {
-                        option.style.color = '#4ecca3';
-                    }
-                    select.appendChild(option);
-                });
+                availableFiles = data.files || [];
+
+                // If a previously selected file has vanished (e.g. after a scan
+                // reload or deletion), drop the selection so the UI stays valid.
+                if (selectedFilePath && !availableFiles.some(f => f.path === selectedFilePath)) {
+                    selectedFilePath = '';
+                    selectedFileName = '';
+                }
+
+                updateFileTriggerLabel();
+
+                // Keep the dialog in sync if it is currently open.
+                if (isFileDialogOpen()) {
+                    renderFileDialogList();
+                }
             }
         })
         .catch(error => {
@@ -210,14 +216,160 @@ function loadFileList() {
         });
 }
 
+// Refresh the trigger button: show the selected filename or the placeholder.
+function updateFileTriggerLabel() {
+    const label = document.getElementById('fileSelectLabel');
+    const trigger = document.getElementById('fileSelectTrigger');
+    if (!label || !trigger) return;
+
+    if (selectedFilePath) {
+        label.textContent = selectedFileName;
+        trigger.classList.add('has-selection');
+    } else {
+        label.textContent = t('select_file');
+        trigger.classList.remove('has-selection');
+    }
+
+    // Keep the scan button state consistent with the current selection.
+    const scanBtn = document.getElementById('scanFileButton');
+    if (scanBtn) {
+        if (selectedFilePath) {
+            scanBtn.classList.remove('hidden');
+            scanBtn.disabled = false;
+        } else {
+            scanBtn.classList.add('hidden');
+            scanBtn.disabled = true;
+        }
+    }
+}
+
+function isFileDialogOpen() {
+    const overlay = document.getElementById('fileDialogOverlay');
+    return overlay && overlay.classList.contains('active');
+}
+
+function openFileDialog() {
+    const overlay = document.getElementById('fileDialogOverlay');
+    if (!overlay) return;
+
+    const search = document.getElementById('fileDialogSearch');
+    if (search) search.value = '';
+
+    renderFileDialogList();
+
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Focus the search field for quick filtering.
+    if (search) {
+        setTimeout(() => search.focus(), 50);
+    }
+}
+
+function closeFileDialog(event) {
+    if (event) event.stopPropagation();
+    const overlay = document.getElementById('fileDialogOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Build the grouped file list (unscanned first, then scanned), honouring the
+// current search filter. Selecting an item updates the trigger and closes.
+function renderFileDialogList() {
+    const list = document.getElementById('fileDialogList');
+    if (!list) return;
+
+    const searchEl = document.getElementById('fileDialogSearch');
+    const term = (searchEl ? searchEl.value : '').trim().toLowerCase();
+
+    const filtered = term
+        ? availableFiles.filter(f => f.name.toLowerCase().includes(term))
+        : availableFiles.slice();
+
+    list.innerHTML = '';
+
+    if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'file-dialog-empty';
+        empty.textContent = t('file_dialog_empty');
+        list.appendChild(empty);
+        return;
+    }
+
+    const unscanned = filtered.filter(f => !f.scanned);
+    const scanned = filtered.filter(f => f.scanned);
+
+    if (unscanned.length > 0) {
+        list.appendChild(buildFileGroup(t('files_unscanned'), unscanned, false));
+    }
+    if (scanned.length > 0) {
+        list.appendChild(buildFileGroup(t('files_scanned'), scanned, true));
+    }
+}
+
+function buildFileGroup(titleText, files, scanned) {
+    const group = document.createElement('div');
+    group.className = 'file-group';
+
+    const header = document.createElement('div');
+    header.className = 'file-group-header';
+
+    const heading = document.createElement('span');
+    heading.className = 'file-group-title';
+    heading.textContent = titleText;
+
+    const count = document.createElement('span');
+    count.className = 'file-group-count';
+    count.textContent = files.length;
+
+    header.appendChild(heading);
+    header.appendChild(count);
+    group.appendChild(header);
+
+    files.forEach(file => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'file-item' + (scanned ? ' scanned' : ' unscanned');
+        if (file.path === selectedFilePath) item.classList.add('active');
+        item.setAttribute('data-path', file.path);
+
+        const status = document.createElement('span');
+        status.className = 'file-item-status';
+        status.setAttribute('aria-hidden', 'true');
+        if (scanned) {
+            status.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+        }
+
+        const name = document.createElement('span');
+        name.className = 'file-item-name';
+        name.textContent = file.name;
+        name.title = file.name;
+
+        item.appendChild(status);
+        item.appendChild(name);
+        item.addEventListener('click', () => selectFile(file.path, file.name));
+
+        group.appendChild(item);
+    });
+
+    return group;
+}
+
+function selectFile(path, name) {
+    selectedFilePath = path;
+    selectedFileName = name;
+    updateFileTriggerLabel();
+    closeFileDialog();
+}
+
 function scanSelectedFile() {
-    const select = document.getElementById('fileSelect');
-    const filePath = select.value;
-    
+    const filePath = selectedFilePath;
+
     if (!filePath) {
         return;
     }
-    
+
     const button = document.getElementById('scanFileButton');
     const loading = document.getElementById('loadingIndicator');
     const message = document.getElementById('message');
@@ -1071,24 +1223,20 @@ document.addEventListener('DOMContentLoaded', function() {
             searchInput.addEventListener('input', searchMedia);
         }
         
-        // Listener for file select change
-        const fileSelect = document.getElementById('fileSelect');
-        if (fileSelect) {
-            fileSelect.addEventListener('change', function() {
-                const scanBtn = document.getElementById('scanFileButton');
-                if (this.value) {
-                    scanBtn.classList.remove('hidden');
-                    scanBtn.disabled = false;
-                } else {
-                    scanBtn.classList.add('hidden');
-                    scanBtn.disabled = true;
-                }
-            });
+        // Listener for the file dialog search field (live filtering)
+        const fileDialogSearch = document.getElementById('fileDialogSearch');
+        if (fileDialogSearch) {
+            fileDialogSearch.addEventListener('input', renderFileDialogList);
         }
-        
-        // Listener for Escape key to close dialog
+
+        // Listener for Escape key to close dialogs
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
+                const fileOverlay = document.getElementById('fileDialogOverlay');
+                if (fileOverlay && fileOverlay.classList.contains('active')) {
+                    closeFileDialog();
+                    return;
+                }
                 const overlay = document.getElementById('mediaDialogOverlay');
                 if (overlay && overlay.classList.contains('active')) {
                     closeMediaDialog();

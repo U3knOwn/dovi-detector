@@ -162,8 +162,9 @@ def get_files():
                         'scanned': is_scanned
                     })
 
-        # Sort by name (A-Z, case-insensitive)
-        all_files.sort(key=lambda x: x['name'].lower())
+        # Sort unscanned files first so users immediately see what still
+        # needs scanning, then by name (A-Z, case-insensitive) within each group.
+        all_files.sort(key=lambda x: (x['scanned'], x['name'].lower()))
 
         return jsonify({
             'success': True,
