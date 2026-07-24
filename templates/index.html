@@ -60,23 +60,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                             <path d="m6 9 6 6 6-6"/>
                         </svg>
                     </button>
-                    <button id="scanFileButton" class="hidden" onclick="scanSelectedFile()" disabled>
-                        <span data-i18n="scan_file_button"></span>
-                    </button>
                 </div>
                 <div class="right-group">
-                    <button id="scanButton" onclick="startManualScan()">
-                        <span id="scanButtonText" data-i18n="scan_all_button"></span>
-                    </button>
                     <div id="scanProgress" class="scan-progress" style="display: none;">
                         <div class="scan-progress-bar-container">
                             <div id="scanProgressBar" class="scan-progress-bar"></div>
                         </div>
                         <span id="scanProgressText" class="scan-progress-text">0%</span>
-                    </div>
-                    <div id="loadingIndicator" class="loading">
-                        <div class="spinner"></div>
-                        <span data-i18n="scanning"></span>
                     </div>
                 </div>
             </div>
@@ -359,6 +349,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 <input type="text" id="fileDialogSearch" data-i18n-placeholder="search_placeholder" autocomplete="off">
             </div>
             <div class="file-dialog-list" id="fileDialogList"></div>
+            <div class="file-dialog-footer">
+                <div class="file-dialog-footer-actions">
+                    <button type="button" class="file-dialog-btn" id="fileSelectAll" onclick="selectAllFiles()" data-i18n="select_all"></button>
+                    <button type="button" class="file-dialog-btn" id="fileDeselectAll" onclick="deselectAllFiles()" data-i18n="deselect_all"></button>
+                </div>
+                <button type="button" class="file-dialog-btn primary" id="fileScanSelected" onclick="scanSelectedFiles()" disabled></button>
+            </div>
         </div>
     </div>
 
