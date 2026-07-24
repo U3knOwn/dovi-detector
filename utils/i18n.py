@@ -9,7 +9,7 @@ import re
 import config
 
 # Supported languages
-SUPPORTED_LANGUAGES = ['en', 'de']
+SUPPORTED_LANGUAGES = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'tr', 'zh']
 
 # Cache for loaded translations
 _translations_cache = {}

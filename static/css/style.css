@@ -428,8 +428,18 @@ select option {
     letter-spacing: 0.01em;
     border-radius: var(--radius);
     cursor: pointer;
+    overflow: hidden;
     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
     transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+}
+
+/* Keep long translations from spilling past the fixed-width button:
+   the label shrinks and truncates with an ellipsis instead. */
+#scanButtonText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #scanButton:hover {
