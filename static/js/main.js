@@ -109,11 +109,11 @@ function applyTranslations() {
 }
 
 function updateLanguageButtons() {
-    const langDe = document.getElementById('langDe');
-    const langEn = document.getElementById('langEn');
-    if (langDe && langEn) {
-        langDe.classList.toggle('active', currentLang === 'de');
-        langEn.classList.toggle('active', currentLang === 'en');
+    // Keep the language dropdown in sync with the active language,
+    // otherwise it falls back to the hardcoded default after a reload.
+    const dropdown = document.getElementById('languageDropdown');
+    if (dropdown && dropdown.value !== currentLang) {
+        dropdown.value = currentLang;
     }
 }
 
