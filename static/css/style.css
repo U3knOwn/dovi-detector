@@ -339,12 +339,11 @@ header {
 
 /* ---------- Shared control base ---------- */
 
-#fileSelect,
+#fileSelectTrigger,
 #sortSelect,
 #languageDropdown,
 #searchInput,
-.collapse-btn,
-#scanFileButton {
+.collapse-btn {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -360,17 +359,16 @@ header {
     cursor: pointer;
 }
 
-#fileSelect:hover,
+#fileSelectTrigger:hover,
 #sortSelect:hover,
 #languageDropdown:hover,
 #searchInput:hover,
-.collapse-btn:hover,
-#scanFileButton:hover {
+.collapse-btn:hover {
     border-color: var(--border-strong);
     background-color: var(--surface-3);
 }
 
-#fileSelect:focus,
+#fileSelectTrigger:focus-visible,
 #sortSelect:focus,
 #languageDropdown:focus,
 #searchInput:focus {
@@ -379,16 +377,48 @@ header {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-#fileSelect:disabled,
-#sortSelect:disabled,
-#scanFileButton:disabled {
+#sortSelect:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
+/* ---------- Custom file-select trigger (opens the file dialog) ---------- */
+
+.controls .file-select-trigger {
+    width: 300px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    text-align: left;
+}
+
+.file-select-trigger .file-select-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
+}
+
+.file-select-trigger.has-selection .file-select-label {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.file-select-trigger .file-select-caret {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.file-select-trigger:hover .file-select-caret {
+    color: var(--text-muted);
+}
+
 /* ---------- Selects ---------- */
 
-#fileSelect,
 #sortSelect,
 #languageDropdown {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398a2b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -398,7 +428,6 @@ header {
     text-overflow: ellipsis;
 }
 
-.controls select#fileSelect,
 .controls select#sortSelect {
     width: 300px;
 }
@@ -406,90 +435,6 @@ header {
 select option {
     background-color: var(--surface-2);
     color: var(--text);
-}
-
-/* ---------- Primary scan button ---------- */
-
-#scanButton {
-    -webkit-appearance: none;
-    appearance: none;
-    height: var(--control-h);
-    width: 300px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: var(--accent-grad);
-    color: #fff;
-    border: none;
-    padding: 0 18px;
-    font-size: 0.92rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    border-radius: var(--radius);
-    cursor: pointer;
-    overflow: hidden;
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
-    transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.15s ease;
-}
-
-/* Keep long translations from spilling past the fixed-width button:
-   the label shrinks and truncates with an ellipsis instead. */
-#scanButtonText {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-#scanButton:hover {
-    filter: brightness(1.1);
-    box-shadow: 0 6px 22px rgba(99, 102, 241, 0.45);
-    transform: translateY(-1px);
-}
-
-#scanButton:active {
-    transform: translateY(0);
-}
-
-#scanButton:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--ring), 0 4px 16px rgba(99, 102, 241, 0.35);
-}
-
-#scanButton:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    transform: none;
-    filter: none;
-    box-shadow: none;
-}
-
-/* ---------- Scan single file button ---------- */
-
-#scanFileButton {
-    width: 64px;
-    flex-shrink: 0;
-    background-color: rgba(52, 211, 153, 0.12);
-    border-color: rgba(52, 211, 153, 0.35);
-    color: var(--success);
-    font-weight: 600;
-}
-
-#scanFileButton:hover {
-    background-color: rgba(52, 211, 153, 0.2);
-    border-color: rgba(52, 211, 153, 0.55);
-}
-
-#scanFileButton {
-    transition: opacity 0.2s ease, visibility 0.2s ease, background-color 0.15s ease, border-color 0.15s ease;
-}
-
-#scanFileButton.hidden {
-    display: none;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
 }
 
 /* ---------- Collapse (show/hide) button ---------- */
@@ -608,39 +553,6 @@ select option {
     font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-}
-
-/* ---------- Loading indicator ---------- */
-
-.loading {
-    display: none;
-    align-items: center;
-    gap: 10px;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    padding: 0 12px;
-    height: var(--control-h);
-    border-radius: var(--radius);
-}
-
-.loading.active {
-    display: inline-flex;
-    background-color: var(--control-bg);
-    border: 1px solid var(--border);
-}
-
-.spinner,
-.loading .spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--scrollbar-thumb);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 /* ============================================================
@@ -1166,6 +1078,333 @@ tbody tr:hover td {
 }
 
 /* ============================================================
+   File Selection Dialog
+   ============================================================ */
+
+.file-dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    overflow-y: auto;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.file-dialog-overlay.active {
+    display: flex;
+}
+
+.file-dialog {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 22px;
+    max-width: 480px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    margin: 20px auto;
+    padding: 28px 22px 22px;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+
+.file-dialog .dialog-title {
+    margin: 4px 36px 18px;
+}
+
+.file-dialog-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    flex: 0 0 auto;
+}
+
+.file-dialog-search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-faint);
+    pointer-events: none;
+}
+
+#fileDialogSearch {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: var(--control-h);
+    background-color: var(--control-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0 14px 0 42px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    border-radius: var(--radius);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#fileDialogSearch:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.file-dialog-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 120px;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.file-dialog-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.file-dialog-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+}
+
+.file-dialog-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+.file-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.file-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 4px 4px;
+    position: sticky;
+    top: 0;
+    background: var(--surface-2);
+    z-index: 1;
+}
+
+.file-group-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.file-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+}
+
+.file-item {
+    -webkit-appearance: none;
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 12px;
+    background: var(--control-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.file-item:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-3);
+}
+
+.file-item:active {
+    transform: scale(0.99);
+}
+
+.file-item:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.file-item.selected {
+    border-color: rgba(99, 102, 241, 0.7);
+    background: rgba(99, 102, 241, 0.12);
+}
+
+/* Custom selection checkbox (left) */
+.file-item-checkbox {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid var(--border-strong);
+    color: transparent;
+    background: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.file-item:hover .file-item-checkbox {
+    border-color: var(--text-faint);
+}
+
+.file-item.selected .file-item-checkbox {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.file-item-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-item.scanned .file-item-name {
+    color: var(--text-muted);
+}
+
+/* Scan-status badge (right) */
+.file-item-status {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+.file-item.scanned .file-item-status {
+    color: #fff;
+    background: var(--success);
+}
+
+.file-item.unscanned .file-item-status {
+    background: transparent;
+    border: 2px dashed var(--text-faint);
+}
+
+.file-dialog-empty {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 0.92rem;
+    padding: 40px 20px;
+}
+
+/* ---------- File dialog footer ---------- */
+
+.file-dialog-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.file-dialog-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.file-dialog-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 40px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--control-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+}
+
+.file-dialog-btn:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-3);
+}
+
+.file-dialog-btn:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.file-dialog-btn.primary {
+    background: var(--accent-grad);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+}
+
+.file-dialog-btn.primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 22px rgba(99, 102, 241, 0.45);
+}
+
+.file-dialog-btn.primary:active {
+    transform: translateY(0);
+}
+
+.file-dialog-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.file-dialog-btn.primary:disabled {
+    box-shadow: none;
+    filter: none;
+}
+
+/* ============================================================
    Media Details Dialog
    ============================================================ */
 
@@ -1686,16 +1925,10 @@ tbody tr:hover td {
         width: 100%;
     }
 
-    .controls select#fileSelect,
+    .controls .file-select-trigger,
     .controls select#sortSelect,
-    #scanButton,
-    #scanFileButton,
     .scan-progress {
         width: 100%;
-    }
-
-    #scanFileButton.hidden {
-        display: none !important;
     }
 
     #searchInput,
@@ -1862,6 +2095,12 @@ tbody tr:hover td {
     .media-dialog {
         padding: 22px 18px;
         max-width: 95%;
+    }
+
+    .file-dialog {
+        padding: 22px 16px 16px;
+        max-width: 95%;
+        max-height: 85vh;
     }
 
     .dialog-title {

@@ -6,6 +6,10 @@ let currentLang = 'de';
 let translations = {};
 let currentDialogFilePath = '';
 
+// File selection dialog state
+let availableFiles = [];
+let selectedPaths = new Set();
+
 // Theme System (dark is the default)
 const THEME_META_COLORS = { dark: '#0a0c12', light: '#eef1f7' };
 
@@ -136,73 +140,29 @@ async function initLanguage() {
     applyTranslations();
 }
 
-// Existing functions (startManualScan, loadFileList, scanSelectedFile) remain unchanged.
-// The script is extended with sorting logic and initialization.
-
-function startManualScan() {
-    const button = document.getElementById('scanButton');
-    const buttonText = document.getElementById('scanButtonText');
-    const message = document.getElementById('message');
-    const scanProgress = document.getElementById('scanProgress');
-    const scanProgressBar = document.getElementById('scanProgressBar');
-    const scanProgressText = document.getElementById('scanProgressText');
-
-    // Disable button + blue background
-    button.disabled = true;
-    button.classList.add('scanning');
-    buttonText.textContent = t('scanning');
-    if (message) message.style.display = 'none';
-
-    // Show progress bar at 0%
-    if (scanProgress) {
-        scanProgressBar.style.width = '0%';
-        scanProgressText.textContent = '0%';
-        scanProgress.style.display = 'inline-flex';
-    }
-
-    fetch('/scan', { method: 'POST' })
-        .then(response => {
-            if (!response.ok) throw new Error('Server error');
-            return response.json();
-        })
-        .then(data => {
-            // Scan started in background - progress comes via SSE
-            if (!data.success) {
-                throw new Error(data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            if (scanProgress) scanProgress.style.display = 'none';
-            if (!message) return;
-            message.className = 'message error';
-            message.textContent = `✗ ${t('scan_error')}`;
-            message.style.display = 'block';
-            console.error(error);
-            button.disabled = false;
-            button.classList.remove('scanning');
-            buttonText.textContent = t('scan_all_button');
-        });
-}
+// File-list loading, the multi-select scan dialog, and the sorting/search
+// logic below drive the scan controls and the media table.
 
 function loadFileList() {
-    fetch('/get_files')
+    return fetch('/get_files')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const select = document.getElementById('fileSelect');
-                // Clear existing options except first
-                select.innerHTML = `<option value="">${t('select_file')}</option>`;
-                
-                // Add files to dropdown
-                data.files.forEach(file => {
-                    const option = document.createElement('option');
-                    option.value = file.path;
-                    option.textContent = file.name + (file.scanned ? ' ✓' : '');
-                    if (file.scanned) {
-                        option.style.color = '#4ecca3';
-                    }
-                    select.appendChild(option);
+                availableFiles = data.files || [];
+
+                // Drop selections whose files have vanished (e.g. after a scan
+                // reload or deletion) so the selection stays valid.
+                const existing = new Set(availableFiles.map(f => f.path));
+                selectedPaths.forEach(p => {
+                    if (!existing.has(p)) selectedPaths.delete(p);
                 });
+
+                updateFileTriggerLabel();
+
+                // Keep the dialog in sync if it is currently open.
+                if (isFileDialogOpen()) {
+                    renderFileDialogList();
+                }
             }
         })
         .catch(error => {
@@ -210,61 +170,239 @@ function loadFileList() {
         });
 }
 
-function scanSelectedFile() {
-    const select = document.getElementById('fileSelect');
-    const filePath = select.value;
-    
-    if (!filePath) {
+// Refresh the trigger button: show how many files are selected, or the
+// placeholder when nothing is chosen yet.
+function updateFileTriggerLabel() {
+    const label = document.getElementById('fileSelectLabel');
+    const trigger = document.getElementById('fileSelectTrigger');
+    if (!label || !trigger) return;
+
+    const count = selectedPaths.size;
+    if (count > 0) {
+        label.textContent = t('files_selected', { count: count });
+        trigger.classList.add('has-selection');
+    } else {
+        label.textContent = t('select_file');
+        trigger.classList.remove('has-selection');
+    }
+}
+
+function isFileDialogOpen() {
+    const overlay = document.getElementById('fileDialogOverlay');
+    return overlay && overlay.classList.contains('active');
+}
+
+function openFileDialog() {
+    const overlay = document.getElementById('fileDialogOverlay');
+    if (!overlay) return;
+
+    const search = document.getElementById('fileDialogSearch');
+    if (search) search.value = '';
+
+    renderFileDialogList();
+
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Focus the search field for quick filtering.
+    if (search) {
+        setTimeout(() => search.focus(), 50);
+    }
+}
+
+function closeFileDialog(event) {
+    if (event) event.stopPropagation();
+    const overlay = document.getElementById('fileDialogOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Files currently visible in the dialog (honouring the search filter).
+function getFilteredFiles() {
+    const searchEl = document.getElementById('fileDialogSearch');
+    const term = (searchEl ? searchEl.value : '').trim().toLowerCase();
+    return term
+        ? availableFiles.filter(f => f.name.toLowerCase().includes(term))
+        : availableFiles.slice();
+}
+
+// Build the grouped, multi-selectable file list (unscanned first, then
+// scanned), honouring the current search filter.
+function renderFileDialogList() {
+    const list = document.getElementById('fileDialogList');
+    if (!list) return;
+
+    const filtered = getFilteredFiles();
+
+    list.innerHTML = '';
+
+    if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'file-dialog-empty';
+        empty.textContent = t('file_dialog_empty');
+        list.appendChild(empty);
+        updateScanSelectedButton();
         return;
     }
-    
-    const button = document.getElementById('scanFileButton');
-    const loading = document.getElementById('loadingIndicator');
-    const message = document.getElementById('message');
-    
-    // Disable button and show loading
-    button.disabled = true;
-    loading.classList.add('active');
-    message.style.display = 'none';
-    
-    // Make AJAX request to scan specific file with language parameter
-    fetch(`/scan_file?lang=${currentLang}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ file_path: filePath })
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Hide loading
-        loading.classList.remove('active');
-        button.disabled = false;
-        
-        // Show message
-        message.className = 'message';
-        if (data.success) {
-            message.classList.add('success');
-            message.textContent = '✓ ' + data.message;
-            
-            // Reload file list and page
-            loadFileList();
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            message.classList.add('info');
-            message.textContent = 'ℹ ' + (data.message || data.error);
+
+    const unscanned = filtered.filter(f => !f.scanned);
+    const scanned = filtered.filter(f => f.scanned);
+
+    if (unscanned.length > 0) {
+        list.appendChild(buildFileGroup(t('files_unscanned'), unscanned, false));
+    }
+    if (scanned.length > 0) {
+        list.appendChild(buildFileGroup(t('files_scanned'), scanned, true));
+    }
+
+    updateScanSelectedButton();
+}
+
+function buildFileGroup(titleText, files, scanned) {
+    const group = document.createElement('div');
+    group.className = 'file-group';
+
+    const header = document.createElement('div');
+    header.className = 'file-group-header';
+
+    const heading = document.createElement('span');
+    heading.className = 'file-group-title';
+    heading.textContent = titleText;
+
+    const count = document.createElement('span');
+    count.className = 'file-group-count';
+    count.textContent = files.length;
+
+    header.appendChild(heading);
+    header.appendChild(count);
+    group.appendChild(header);
+
+    files.forEach(file => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'file-item' + (scanned ? ' scanned' : ' unscanned');
+        item.setAttribute('data-path', file.path);
+        item.setAttribute('role', 'checkbox');
+        const isChecked = selectedPaths.has(file.path);
+        item.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+        if (isChecked) item.classList.add('selected');
+
+        // Custom checkbox (selection state)
+        const checkbox = document.createElement('span');
+        checkbox.className = 'file-item-checkbox';
+        checkbox.setAttribute('aria-hidden', 'true');
+        checkbox.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+        const name = document.createElement('span');
+        name.className = 'file-item-name';
+        name.textContent = file.name;
+        name.title = file.name;
+
+        // Scan-status badge on the right
+        const status = document.createElement('span');
+        status.className = 'file-item-status';
+        status.setAttribute('aria-hidden', 'true');
+        status.title = scanned ? t('files_scanned') : t('files_unscanned');
+        if (scanned) {
+            status.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
         }
-        message.style.display = 'block';
-    })
-    .catch(error => {
-        loading.classList.remove('active');
-        button.disabled = false;
-        message.className = 'message error';
-        message.style.display = 'block';
-        message.textContent = `✗ ${t('file_scan_error')}: ${error}`;
+
+        item.appendChild(checkbox);
+        item.appendChild(name);
+        item.appendChild(status);
+        item.addEventListener('click', () => toggleFileSelection(file.path, item));
+
+        group.appendChild(item);
     });
+
+    return group;
+}
+
+function toggleFileSelection(path, item) {
+    if (selectedPaths.has(path)) {
+        selectedPaths.delete(path);
+        item.classList.remove('selected');
+        item.setAttribute('aria-checked', 'false');
+    } else {
+        selectedPaths.add(path);
+        item.classList.add('selected');
+        item.setAttribute('aria-checked', 'true');
+    }
+    updateScanSelectedButton();
+    updateFileTriggerLabel();
+}
+
+// Select every file currently visible in the dialog.
+function selectAllFiles() {
+    getFilteredFiles().forEach(f => selectedPaths.add(f.path));
+    renderFileDialogList();
+    updateFileTriggerLabel();
+}
+
+// Deselect every file currently visible in the dialog.
+function deselectAllFiles() {
+    getFilteredFiles().forEach(f => selectedPaths.delete(f.path));
+    renderFileDialogList();
+    updateFileTriggerLabel();
+}
+
+// Keep the primary "scan selected" button label and enabled state in sync.
+function updateScanSelectedButton() {
+    const btn = document.getElementById('fileScanSelected');
+    if (!btn) return;
+    const count = selectedPaths.size;
+    btn.textContent = count > 0
+        ? `${t('scan_selected')} (${count})`
+        : t('scan_selected');
+    btn.disabled = count === 0;
+}
+
+// Scan all currently selected files. Progress is streamed back over SSE and
+// handled by setupSSE(), which drives the progress bar and reloads on done.
+function scanSelectedFiles() {
+    if (selectedPaths.size === 0) return;
+
+    const paths = Array.from(selectedPaths);
+    const message = document.getElementById('message');
+    const scanProgress = document.getElementById('scanProgress');
+    const scanProgressBar = document.getElementById('scanProgressBar');
+    const scanProgressText = document.getElementById('scanProgressText');
+
+    closeFileDialog();
+
+    if (message) message.style.display = 'none';
+
+    // Show progress bar at 0%
+    if (scanProgress) {
+        if (scanProgressBar) scanProgressBar.style.width = '0%';
+        if (scanProgressText) scanProgressText.textContent = '0%';
+        scanProgress.style.display = 'inline-flex';
+    }
+
+    fetch(`/scan_files?lang=${currentLang}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_paths: paths })
+    })
+        .then(response => {
+            if (!response.ok) throw new Error('Server error');
+            return response.json();
+        })
+        .then(data => {
+            // Scan runs in the background - progress arrives via SSE.
+            if (!data.success) {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            if (scanProgress) scanProgress.style.display = 'none';
+            console.error(error);
+            if (!message) return;
+            message.className = 'message error';
+            message.textContent = `✗ ${t('scan_error')}`;
+            message.style.display = 'block';
+        });
 }
 
 /* -------------------------------
@@ -1071,24 +1209,20 @@ document.addEventListener('DOMContentLoaded', function() {
             searchInput.addEventListener('input', searchMedia);
         }
         
-        // Listener for file select change
-        const fileSelect = document.getElementById('fileSelect');
-        if (fileSelect) {
-            fileSelect.addEventListener('change', function() {
-                const scanBtn = document.getElementById('scanFileButton');
-                if (this.value) {
-                    scanBtn.classList.remove('hidden');
-                    scanBtn.disabled = false;
-                } else {
-                    scanBtn.classList.add('hidden');
-                    scanBtn.disabled = true;
-                }
-            });
+        // Listener for the file dialog search field (live filtering)
+        const fileDialogSearch = document.getElementById('fileDialogSearch');
+        if (fileDialogSearch) {
+            fileDialogSearch.addEventListener('input', renderFileDialogList);
         }
-        
-        // Listener for Escape key to close dialog
+
+        // Listener for Escape key to close dialogs
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
+                const fileOverlay = document.getElementById('fileDialogOverlay');
+                if (fileOverlay && fileOverlay.classList.contains('active')) {
+                    closeFileDialog();
+                    return;
+                }
                 const overlay = document.getElementById('mediaDialogOverlay');
                 if (overlay && overlay.classList.contains('active')) {
                     closeMediaDialog();
@@ -1301,8 +1435,6 @@ function setupSSE() {
             const scanProgress = document.getElementById('scanProgress');
             const scanProgressBar = document.getElementById('scanProgressBar');
             const scanProgressText = document.getElementById('scanProgressText');
-            const button = document.getElementById('scanButton');
-            const buttonText = document.getElementById('scanButtonText');
             const message = document.getElementById('message');
 
             if (data.status === 'scanning') {
@@ -1313,11 +1445,6 @@ function setupSSE() {
                 }
             } else if (data.status === 'done') {
                 if (scanProgress) scanProgress.style.display = 'none';
-                if (button) {
-                    button.disabled = false;
-                    button.classList.remove('scanning');
-                    buttonText.textContent = t('scan_all_button');
-                }
                 if (message) {
                     message.className = 'message';
                     if (data.new_files > 0) {
@@ -1333,11 +1460,6 @@ function setupSSE() {
                 }
             } else if (data.status === 'error') {
                 if (scanProgress) scanProgress.style.display = 'none';
-                if (button) {
-                    button.disabled = false;
-                    button.classList.remove('scanning');
-                    buttonText.textContent = t('scan_all_button');
-                }
                 if (message) {
                     message.className = 'message error';
                     message.textContent = '\u2717 ' + t('scan_error');

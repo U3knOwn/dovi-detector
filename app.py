@@ -162,8 +162,9 @@ def get_files():
                         'scanned': is_scanned
                     })
 
-        # Sort by name (A-Z, case-insensitive)
-        all_files.sort(key=lambda x: x['name'].lower())
+        # Sort unscanned files first so users immediately see what still
+        # needs scanning, then by name (A-Z, case-insensitive) within each group.
+        all_files.sort(key=lambda x: (x['scanned'], x['name'].lower()))
 
         return jsonify({
             'success': True,
@@ -217,6 +218,73 @@ def scan_single_file():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/scan_files', methods=['POST'])
+def scan_multiple_files():
+    """Scan a user-selected set of files in the background with progress updates.
+
+    Mirrors the progress protocol of /scan (via scan_progress_queue) so the
+    existing SSE handler drives the progress bar. Already-scanned files are
+    skipped by scan_video_file, so selecting everything effectively scans only
+    what is still missing.
+    """
+    data = request.get_json(silent=True) or {}
+    file_paths = data.get('file_paths', [])
+
+    if not isinstance(file_paths, list) or not file_paths:
+        lang = get_request_language(request)
+        return jsonify({
+            'success': False,
+            'error': translate('api_no_file_path_provided', lang)
+        }), 400
+
+    # Keep only paths that still exist on disk, preserving the given order.
+    valid_paths = [p for p in file_paths if isinstance(p, str) and os.path.exists(p)]
+
+    def _run_scan():
+        try:
+            total = len(valid_paths)
+
+            if total == 0:
+                scan_progress_queue.put(json.dumps({
+                    'current': 0, 'total': 0, 'percent': 0,
+                    'status': 'done', 'new_files': 0,
+                    'removed_files': 0,
+                    'total_files': len(database.scanned_files)
+                }))
+                return
+
+            def _report_progress(current, total_count, file_path, result):
+                percent = int((current / total_count) * 100)
+                scan_progress_queue.put(json.dumps({
+                    'current': current, 'total': total_count, 'percent': percent,
+                    'status': 'scanning',
+                    'filename': os.path.basename(file_path)
+                }))
+
+            scanned_new_count = bulk_scan_files(
+                valid_paths,
+                _scan_video_file_wrapper,
+                lambda: database.save_database(config.DB_FILE),
+                config.SCAN_WORKERS,
+                _report_progress)
+
+            scan_progress_queue.put(json.dumps({
+                'current': total, 'total': total, 'percent': 100,
+                'status': 'done', 'new_files': scanned_new_count,
+                'removed_files': 0,
+                'total_files': len(database.scanned_files)
+            }))
+        except Exception as e:
+            scan_progress_queue.put(json.dumps({
+                'status': 'error', 'error': str(e)
+            }))
+
+    thread = threading.Thread(target=_run_scan, daemon=True)
+    thread.start()
+
+    return jsonify({'success': True, 'message': 'Scan started'})
 
 
 @app.route('/poster/<filename>')
