@@ -1251,7 +1251,7 @@ tbody tr:hover td {
     max-width: 100%;
     font-size: 0.82rem;
     color: var(--text-muted);
-    font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 }
 
 .dialog-links {
