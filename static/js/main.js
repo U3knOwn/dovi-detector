@@ -1918,14 +1918,14 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     
     // Set video bitrate
     if (videoBitrate && videoBitrate > 0) {
-        dialogVideoBitrate.textContent = `${formatMbps(videoBitrate)} ${t('unit_mbit')}`;
+        dialogVideoBitrate.textContent = `${formatMbps(videoBitrate)} ${t('unit_Mb')}`;
     } else {
         dialogVideoBitrate.textContent = t('unknown');
     }
 
     // Set audio bitrate
     if (audioBitrate && audioBitrate > 0) {
-        dialogAudioBitrate.textContent = `${audioBitrate} ${t('unit_kbit')}`;
+        dialogAudioBitrate.textContent = `${audioBitrate} ${t('unit_Kb')}`;
     } else {
         dialogAudioBitrate.textContent = t('unknown');
     }
