@@ -517,7 +517,7 @@ def main():
 
     # Start Flask app
     try:
-        app.run(host='0.0.0.0', port=2367, debug=False)
+        app.run(host='0.0.0.0', port=2367, debug=False, threaded=True)
     except KeyboardInterrupt:
         print("Shutting down...")
         observer.stop()
