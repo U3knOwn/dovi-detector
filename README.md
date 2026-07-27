@@ -145,7 +145,7 @@ DoVi-Detector/
 ### Scanner Workflow
 
 1. **Watchdog** monitors `/media` for new files
-2. **hdrprobe** analyzes the video and detects SDR, HDR10, HDR10+, HLG, and Dolby Vision (profile, EL type, CM version)
+2. **hdrprobe** analyzes the video and detects SDR, HDR10, HDR10+, HLG, and Dolby Vision (profile, EL type, CM version) along with the static HDR metadata (mastering display luminance, MaxCLL/MaxFALL, the RPU's L6 values and L5 active area)
 3. **MediaInfo** extracts resolution, duration, audio codec, and bitrate information
 4. **Results** are saved to JSON database
 

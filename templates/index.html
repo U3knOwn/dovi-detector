@@ -154,6 +154,8 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                              data-filename="{{ file.filename }}"
                              data-dv-cm-version="{{ file.dv_cm_version|default('') }}"
+                             data-hdr-format="{{ file.hdr_format|default('') }}"
+                             data-hdr-metadata='{{ file.hdr_metadata|default({})|tojson }}'
                              data-path="{{ file.path }}"
                              onclick="showMediaDialogFromData(this)">
                             {% if file.tmdb_title %}
@@ -187,6 +189,8 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                              data-filename="{{ file.filename }}"
                              data-dv-cm-version="{{ file.dv_cm_version|default('') }}"
+                             data-hdr-format="{{ file.hdr_format|default('') }}"
+                             data-hdr-metadata='{{ file.hdr_metadata|default({})|tojson }}'
                              data-path="{{ file.path }}"
                              onclick="showMediaDialogFromData(this)">
                             <span class="poster-title">{{ file.filename }}</span>
@@ -390,6 +394,26 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 <div class="dialog-info-item">
                     <span class="dialog-label" data-i18n="dialog_audio_bitrate"></span>
                     <span class="dialog-value" id="dialogAudioBitrate"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogHdr10Mdl" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_hdr10_mdl"></span>
+                    <span class="dialog-value" id="dialogHdr10MdlText"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogHdr10ContentLight" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_hdr10_content_light"></span>
+                    <span class="dialog-value" id="dialogHdr10ContentLightText"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogRpuMdl" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_rpu_mdl"></span>
+                    <span class="dialog-value" id="dialogRpuMdlText"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogRpuContentLight" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_rpu_content_light"></span>
+                    <span class="dialog-value" id="dialogRpuContentLightText"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogL5ActiveArea" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_l5_active_area"></span>
+                    <span class="dialog-value" id="dialogL5ActiveAreaText"></span>
                 </div>
                 <div class="dialog-info-item" id="dialogCmVersion" style="display: none;">
                     <span class="dialog-label" data-i18n="dialog_cm_version"></span>

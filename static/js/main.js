@@ -1754,7 +1754,64 @@ function formatFileSize(bytes) {
     return `${formattedSize} GB`;
 }
 
-function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename, dvCmVersion, filePath) {
+function formatLuminance(value) {
+    // Luminances come from hdrprobe as cd/m² floats (e.g. 4000 or 0.005);
+    // print them without trailing zeros and fall back to 0 when unavailable
+    const num = Number(value);
+    if (!isFinite(num) || num <= 0) return '0';
+    return String(parseFloat(num.toFixed(4)));
+}
+
+function formatNits(value) {
+    // Whole-nit values (MaxCLL / MaxFALL), 0 when unavailable
+    const num = Number(value);
+    if (!isFinite(num) || num <= 0) return '0';
+    return String(Math.round(num));
+}
+
+function formatOffset(value) {
+    const num = Number(value);
+    if (!isFinite(num) || num < 0) return '0';
+    return String(Math.round(num));
+}
+
+function updateHdrMetadataRows(hdrFormat, hdrMetadata) {
+    // HDR10 mastering display and content light apply to every HDR10 base
+    // (plain HDR10 as well as HDR10+); the RPU and L5 rows only exist on
+    // Dolby Vision. SDR and everything else shows none of them.
+    const format = (hdrFormat || '').toLowerCase();
+    const isDolbyVision = format.includes('dolby vision');
+    const showHdr10 = isDolbyVision || format.includes('hdr10');
+    const meta = hdrMetadata || {};
+
+    const rows = [
+        ['dialogHdr10Mdl', 'dialogHdr10MdlText', showHdr10,
+            `${formatLuminance(meta.hdr10_mdl_max)} | ${formatLuminance(meta.hdr10_mdl_min)} cd/m²`],
+        ['dialogHdr10ContentLight', 'dialogHdr10ContentLightText', showHdr10,
+            `${formatNits(meta.hdr10_max_cll)} | ${formatNits(meta.hdr10_max_fall)} cd/m²`],
+        ['dialogRpuMdl', 'dialogRpuMdlText', isDolbyVision,
+            `${formatLuminance(meta.rpu_mdl_max)} | ${formatLuminance(meta.rpu_mdl_min)} cd/m²`],
+        ['dialogRpuContentLight', 'dialogRpuContentLightText', isDolbyVision,
+            `${formatNits(meta.rpu_max_cll)} | ${formatNits(meta.rpu_max_fall)} cd/m²`],
+        ['dialogL5ActiveArea', 'dialogL5ActiveAreaText', isDolbyVision,
+            `${formatOffset(meta.l5_left)} | ${formatOffset(meta.l5_right)} | ` +
+            `${formatOffset(meta.l5_top)} | ${formatOffset(meta.l5_bottom)}`]
+    ];
+
+    rows.forEach(([itemId, valueId, visible, text]) => {
+        const item = document.getElementById(itemId);
+        const value = document.getElementById(valueId);
+        if (!item || !value) return;
+        if (visible) {
+            value.textContent = text;
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata) {
     const overlay = document.getElementById('mediaDialogOverlay');
     const dialogTitle = document.getElementById('dialogTitle');
     const dialogDuration = document.getElementById('dialogDuration');
@@ -1865,6 +1922,9 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         dialogAudioBitrate.textContent = t('unknown');
     }
 
+    // Show the static HDR metadata rows that apply to this file's format
+    updateHdrMetadataRows(hdrFormat, hdrMetadata);
+
     // Show CM Version when available
     if (dialogCmVersion && dialogCmVersionText) {
         if (dvCmVersion && dvCmVersion !== '') {
@@ -1946,8 +2006,18 @@ function showMediaDialogFromData(element) {
     const filename = element.getAttribute('data-filename') || '';
     const dvCmVersion = element.getAttribute('data-dv-cm-version') || '';
     const filePath = element.getAttribute('data-path') || '';
-    
-    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename, dvCmVersion, filePath);
+    const hdrFormat = element.getAttribute('data-hdr-format') || '';
+
+    // Entries scanned before the HDR metadata was collected carry no payload;
+    // the dialog then falls back to zeroed values
+    let hdrMetadata = {};
+    try {
+        hdrMetadata = JSON.parse(element.getAttribute('data-hdr-metadata') || '{}') || {};
+    } catch (e) {
+        hdrMetadata = {};
+    }
+
+    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata);
 }
 
 async function deleteCurrentEntry() {
