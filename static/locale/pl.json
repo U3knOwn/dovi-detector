@@ -56,6 +56,8 @@
   "dialog_file_size": "Rozmiar pliku:",
   "dialog_video_bitrate": "Bitrate wideo:",
   "dialog_audio_bitrate": "Bitrate audio:",
+  "unit_Kb": "Kb/s",
+  "unit_Mb": "Mb/s",
   "dialog_hdr10_mdl": "HDR10 MDL:",
   "dialog_hdr10_content_light": "HDR10 MaxCLL/FALL:",
   "dialog_rpu_mdl": "RPU MDL:",

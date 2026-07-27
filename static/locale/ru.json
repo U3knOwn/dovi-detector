@@ -56,6 +56,8 @@
   "dialog_file_size": "Размер файла:",
   "dialog_video_bitrate": "Битрейт видео:",
   "dialog_audio_bitrate": "Битрейт аудио:",
+  "unit_Kb": "Кбит/с",
+  "unit_Mb": "Мбит/с",
   "dialog_hdr10_mdl": "HDR10 MDL:",
   "dialog_hdr10_content_light": "HDR10 MaxCLL/FALL:",
   "dialog_rpu_mdl": "RPU MDL:",

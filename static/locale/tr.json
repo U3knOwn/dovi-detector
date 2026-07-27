@@ -56,6 +56,8 @@
   "dialog_file_size": "Dosya boyutu:",
   "dialog_video_bitrate": "Video bit hızı:",
   "dialog_audio_bitrate": "Ses bit hızı:",
+  "unit_Kb": "Kb/sn",
+  "unit_Mb": "Mb/sn",
   "dialog_hdr10_mdl": "HDR10 MDL:",
   "dialog_hdr10_content_light": "HDR10 MaxCLL/FALL:",
   "dialog_rpu_mdl": "RPU MDL:",

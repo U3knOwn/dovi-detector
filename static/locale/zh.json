@@ -56,6 +56,8 @@
   "dialog_file_size": "文件大小：",
   "dialog_video_bitrate": "视频码率：",
   "dialog_audio_bitrate": "音频码率：",
+  "unit_Kb": "Kb/秒",
+  "unit_Mb": "Mb/秒",
   "dialog_hdr10_mdl": "HDR10 MDL：",
   "dialog_hdr10_content_light": "HDR10 MaxCLL/FALL：",
   "dialog_rpu_mdl": "RPU MDL：",

@@ -1754,6 +1754,14 @@ function formatFileSize(bytes) {
     return `${formattedSize} GB`;
 }
 
+function formatMbps(kbitPerSec) {
+    const mbps = kbitPerSec / 1000;
+    const formatted = currentLang === 'de'
+        ? mbps.toFixed(2).replace('.', ',')  // German: comma
+        : mbps.toFixed(2);                    // English: period
+    return formatted;
+}
+
 function formatLuminance(value) {
     // Luminances come from hdrprobe as cd/m² floats (e.g. 4000 or 0.005);
     // print them without trailing zeros and fall back to 0 when unavailable
@@ -1910,14 +1918,14 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     
     // Set video bitrate
     if (videoBitrate && videoBitrate > 0) {
-        dialogVideoBitrate.textContent = `${videoBitrate} kbit/s`;
+        dialogVideoBitrate.textContent = `${formatMbps(videoBitrate)} ${t('unit_mbit')}`;
     } else {
         dialogVideoBitrate.textContent = t('unknown');
     }
-    
+
     // Set audio bitrate
     if (audioBitrate && audioBitrate > 0) {
-        dialogAudioBitrate.textContent = `${audioBitrate} kbit/s`;
+        dialogAudioBitrate.textContent = `${audioBitrate} ${t('unit_kbit')}`;
     } else {
         dialogAudioBitrate.textContent = t('unknown');
     }
@@ -2046,6 +2054,7 @@ async function deleteCurrentEntry() {
             updateFileCount();
             updateProfileStats();
             currentDialogFilePath = '';
+            loadFileList();
         } else {
             alert(t('delete_entry_error') + ': ' + (data.error || ''));
         }
