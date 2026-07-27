@@ -61,6 +61,16 @@ def run_hdrprobe(video_file):
     return None
 
 
+def _abbreviate_dv_structure(structure):
+    """
+    Abbreviate hdrprobe's Dolby Vision 'structure' string, e.g.
+    "Single track, dual layer" -> "ST-DL", "Dual track, dual layer" -> "DT-DL".
+    """
+    parts = [p.strip() for p in (structure or '').split(',') if p.strip()]
+    abbrevs = [''.join(w[0].upper() for w in part.split() if w) for part in parts]
+    return '-'.join(a for a in abbrevs if a)
+
+
 def detect_hdr_format(video_file, report=None):
     """
     Detect HDR format using hdrprobe: SDR, HDR10, HDR10+, HLG, Dolby Vision (FEL/MEL)
@@ -95,6 +105,11 @@ def detect_hdr_format(video_file, report=None):
             el_type = (dv.get('el_type') or '').upper()
             # Normalize "CM v4.0" / "CM v2.9" -> "CMv4.0" / "CMv2.9"
             cm_version = ''.join((dv.get('cm_version') or '').split())
+            # For CMv2.9/CMv4.0, append the DV structure, e.g. "CMv2.9 (ST-DL)"
+            if cm_version in ('CMv2.9', 'CMv4.0'):
+                structure_abbrev = _abbreviate_dv_structure(dv.get('structure'))
+                if structure_abbrev:
+                    cm_version = f'{cm_version} ({structure_abbrev})'
             detail = f'DV Profile {profile}' if profile else 'Dolby Vision'
             print(
                 f"  -> Dolby Vision detected: Profile {profile or 'Unknown'}, "
