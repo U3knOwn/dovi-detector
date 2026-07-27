@@ -588,6 +588,80 @@ def get_hdrprobe_video_bitrate(report):
     return None
 
 
+# Static HDR metadata as shown in the media dialog. Everything defaults to 0
+# so a file whose stream carries no such metadata renders as "0 | 0" instead
+# of dropping the row.
+HDR_METADATA_DEFAULTS = {
+    'hdr10_mdl_max': 0,
+    'hdr10_mdl_min': 0,
+    'hdr10_max_cll': 0,
+    'hdr10_max_fall': 0,
+    'rpu_mdl_max': 0,
+    'rpu_mdl_min': 0,
+    'rpu_max_cll': 0,
+    'rpu_max_fall': 0,
+    'l5_left': 0,
+    'l5_right': 0,
+    'l5_top': 0,
+    'l5_bottom': 0,
+}
+
+
+def get_hdrprobe_hdr_metadata(report):
+    """
+    Get the static HDR metadata of a file from an hdrprobe report.
+
+    Returns a dict with the base layer's mastering display luminances
+    (``hdr10_mdl_*``, cd/m²) and content light levels (``hdr10_max_cll`` /
+    ``hdr10_max_fall``), the Dolby Vision grade's own mastering display
+    (``rpu_mdl_*``) and L6 content light levels (``rpu_max_*``), plus the L5
+    active-area crop offsets. Values the stream does not carry are 0.
+    """
+    track = get_hdrprobe_video_track(report)
+    metadata = dict(HDR_METADATA_DEFAULTS)
+
+    # --- Base layer (HDR10 static metadata) ---
+    hdr = track.get('hdr') or {}
+    mastering = hdr.get('mastering') or {}
+    metadata['hdr10_mdl_max'] = parse_mediainfo_float(mastering.get('max_luminance')) or 0
+    metadata['hdr10_mdl_min'] = parse_mediainfo_float(mastering.get('min_luminance')) or 0
+
+    content_light = hdr.get('content_light') or {}
+    metadata['hdr10_max_cll'] = parse_mediainfo_int(content_light.get('max_cll')) or 0
+    metadata['hdr10_max_fall'] = parse_mediainfo_int(content_light.get('max_fall')) or 0
+
+    # --- Dolby Vision RPU ---
+    dv = track.get('dolby_vision') or {}
+    l6 = dv.get('l6') or {}
+
+    # hdrprobe reports the DV grade's own display in cd/m², while L6 carries
+    # the same pair in raw bitstream units (its minimum in steps of 0.0001
+    # cd/m²). L6 is the fallback for RPUs that yielded no DM mastering header.
+    dv_mastering = dv.get('mastering_display') or {}
+    rpu_mdl_max = parse_mediainfo_float(dv_mastering.get('max_luminance'))
+    if rpu_mdl_max is None:
+        rpu_mdl_max = parse_mediainfo_float(l6.get('max_mastering'))
+    rpu_mdl_min = parse_mediainfo_float(dv_mastering.get('min_luminance'))
+    if rpu_mdl_min is None:
+        l6_min = parse_mediainfo_float(l6.get('min_mastering'))
+        rpu_mdl_min = l6_min / 10000 if l6_min is not None else None
+    metadata['rpu_mdl_max'] = rpu_mdl_max or 0
+    metadata['rpu_mdl_min'] = rpu_mdl_min or 0
+
+    metadata['rpu_max_cll'] = parse_mediainfo_int(l6.get('max_cll')) or 0
+    metadata['rpu_max_fall'] = parse_mediainfo_int(l6.get('max_fall')) or 0
+
+    # L5 crop offsets of the primary active area (hdrprobe lists every
+    # distinct area it saw; the first one is the title's main framing)
+    areas = dv.get('l5_active_areas') or []
+    if areas:
+        area = areas[0] or {}
+        for side in ('left', 'right', 'top', 'bottom'):
+            metadata[f'l5_{side}'] = parse_mediainfo_int(area.get(side)) or 0
+
+    return metadata
+
+
 def get_hdrprobe_main_clip(report):
     """
     Get the main-feature clip that hdrprobe selected from a disc image.
@@ -1068,7 +1142,8 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         'video_bitrate': video_bitrate,
         'audio_bitrate': audio_bitrate,
         'file_size': file_size,
-        'dv_cm_version': hdr_info.get('cm_version', '')
+        'dv_cm_version': hdr_info.get('cm_version', ''),
+        'hdr_metadata': get_hdrprobe_hdr_metadata(hdr_report)
     }
 
     with scan_lock:
