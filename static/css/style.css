@@ -1734,7 +1734,7 @@ tbody tr:hover td {
     /* Labels differ in line count ("Rotten Tomatoes" wraps), so the values are
        pinned to the bottom to keep them on one line across the row. */
     justify-content: space-between;
-    min-height: 62px;
+    min-height: 64px;
     gap: 6px;
     padding: 8px 4px;
     border-radius: var(--radius);
@@ -1743,14 +1743,20 @@ tbody tr:hover td {
     min-width: 0;
 }
 
-.dialog-rating-source {
-    color: var(--text-faint);
-    text-transform: uppercase;
-    font-size: 0.6rem;
-    letter-spacing: 0.08em;
-    font-weight: 600;
-    text-align: center;
-    line-height: 1.25;
+.dialog-rating-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* The IMDb and TMDb marks are dense wordmarks - below ~26px they stop
+       being readable, so the row is sized around them rather than the icons */
+    height: 26px;
+    line-height: 1;
+}
+
+.dialog-rating-logo svg {
+    width: 26px;
+    height: 26px;
+    display: block;
 }
 
 .dialog-rating-value {
@@ -1760,19 +1766,19 @@ tbody tr:hover td {
     line-height: 1;
 }
 
-.dialog-rating-imdb .dialog-rating-value {
+.dialog-rating-imdb :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #f5c518;
 }
 
-.dialog-rating-tmdb .dialog-rating-value {
+.dialog-rating-tmdb :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #67d3f5;
 }
 
-.dialog-rating-rt .dialog-rating-value {
+.dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #fa7a68;
 }
 
-.dialog-rating-metacritic .dialog-rating-value {
+.dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #7ed957;
 }
 
@@ -2158,19 +2164,19 @@ tbody tr:hover td {
     color: #1d4ed8;
 }
 
-:root[data-theme="light"] .dialog-rating-imdb .dialog-rating-value {
+:root[data-theme="light"] .dialog-rating-imdb :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #a16207;
 }
 
-:root[data-theme="light"] .dialog-rating-tmdb .dialog-rating-value {
+:root[data-theme="light"] .dialog-rating-tmdb :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #0284c7;
 }
 
-:root[data-theme="light"] .dialog-rating-rt .dialog-rating-value {
+:root[data-theme="light"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #dc2626;
 }
 
-:root[data-theme="light"] .dialog-rating-metacritic .dialog-rating-value {
+:root[data-theme="light"] .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #15803d;
 }
 
