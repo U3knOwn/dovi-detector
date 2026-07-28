@@ -1457,12 +1457,19 @@ def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
 
 
 def background_scan_new_files(scanned_paths, scan_video_file_func,
-                              save_database_func=None, max_workers=None):
-    """Background task to scan new files (batched, optionally parallel)"""
+                              save_database_func=None, max_workers=None,
+                              progress_cb=None):
+    """
+    Background task to scan new files (batched, optionally parallel).
+
+    ``progress_cb`` is forwarded to bulk_scan_files so the startup scan drives
+    the same progress bar as a manual one.
+    """
     new_files = scan_directory(config.MEDIA_PATH, scanned_paths)
     print(f"Found {len(new_files)} new files to scan")
     if not new_files:
-        return
+        return 0
 
     workers = config.SCAN_WORKERS if max_workers is None else max_workers
-    bulk_scan_files(new_files, scan_video_file_func, save_database_func, workers)
+    return bulk_scan_files(new_files, scan_video_file_func, save_database_func,
+                           workers, progress_cb)

@@ -44,6 +44,38 @@ app = Flask(__name__,
 deletion_event_queue = queue.Queue()
 scan_progress_queue = queue.Queue()
 
+# Last published scan progress. The queue only carries events to whoever is
+# listening at that moment, so a page reload mid-scan would otherwise show no
+# progress bar at all. This is the authoritative state /scan_status serves.
+scan_state = {'status': 'idle', 'current': 0, 'total': 0, 'percent': 0, 'filename': ''}
+scan_state_lock = threading.Lock()
+
+
+def publish_scan_progress(payload):
+    """Record the progress state and push it to connected clients."""
+    with scan_state_lock:
+        if payload.get('status') == 'scanning':
+            scan_state.update(payload)
+        else:
+            # A finished or failed run leaves no bar behind on the next reload
+            scan_state.update(payload)
+            scan_state['filename'] = ''
+    try:
+        scan_progress_queue.put(json.dumps(payload))
+    except Exception as e:
+        print(f"Error queuing scan progress: {e}")
+
+
+def report_scan_progress(current, total, file_path, result):
+    """Progress callback shared by the manual and the startup scan."""
+    publish_scan_progress({
+        'current': current,
+        'total': total,
+        'percent': int((current / total) * 100) if total else 0,
+        'status': 'scanning',
+        'filename': os.path.basename(file_path)
+    })
+
 
 # Helper function wrappers to pass dependencies to scan_video_file
 def _scan_video_file_wrapper(file_path, defer_save=False):
@@ -165,42 +197,34 @@ def manual_scan():
             total = len(new_files)
 
             if total == 0:
-                scan_progress_queue.put(json.dumps({
+                publish_scan_progress({
                     'current': 0, 'total': 0, 'percent': 0,
                     'status': 'done', 'new_files': 0,
                     'removed_files': removed_count,
                     'total_files': len(database.scanned_files)
-                }))
+                })
                 return
 
             # Scan the new files (batched DB writes, optional parallelism),
             # streaming progress to the UI as each file finishes.
-            def _report_progress(current, total_count, file_path, result):
-                percent = int((current / total_count) * 100)
-                scan_progress_queue.put(json.dumps({
-                    'current': current, 'total': total_count, 'percent': percent,
-                    'status': 'scanning',
-                    'filename': os.path.basename(file_path)
-                }))
-
             scanned_new_count = bulk_scan_files(
                 new_files,
                 _scan_video_file_wrapper,
                 lambda: database.save_database(config.DB_FILE),
                 config.SCAN_WORKERS,
-                _report_progress)
+                report_scan_progress)
 
             final_count = len(database.scanned_files)
-            scan_progress_queue.put(json.dumps({
+            publish_scan_progress({
                 'current': total, 'total': total, 'percent': 100,
                 'status': 'done', 'new_files': scanned_new_count,
                 'removed_files': removed_count,
                 'total_files': final_count
-            }))
+            })
         except Exception as e:
-            scan_progress_queue.put(json.dumps({
+            publish_scan_progress({
                 'status': 'error', 'error': str(e)
-            }))
+            })
 
     thread = threading.Thread(target=_run_scan, daemon=True)
     thread.start()
@@ -310,39 +334,31 @@ def scan_multiple_files():
             total = len(valid_paths)
 
             if total == 0:
-                scan_progress_queue.put(json.dumps({
+                publish_scan_progress({
                     'current': 0, 'total': 0, 'percent': 0,
                     'status': 'done', 'new_files': 0,
                     'removed_files': 0,
                     'total_files': len(database.scanned_files)
-                }))
+                })
                 return
-
-            def _report_progress(current, total_count, file_path, result):
-                percent = int((current / total_count) * 100)
-                scan_progress_queue.put(json.dumps({
-                    'current': current, 'total': total_count, 'percent': percent,
-                    'status': 'scanning',
-                    'filename': os.path.basename(file_path)
-                }))
 
             scanned_new_count = bulk_scan_files(
                 valid_paths,
                 _scan_video_file_wrapper,
                 lambda: database.save_database(config.DB_FILE),
                 config.SCAN_WORKERS,
-                _report_progress)
+                report_scan_progress)
 
-            scan_progress_queue.put(json.dumps({
+            publish_scan_progress({
                 'current': total, 'total': total, 'percent': 100,
                 'status': 'done', 'new_files': scanned_new_count,
                 'removed_files': 0,
                 'total_files': len(database.scanned_files)
-            }))
+            })
         except Exception as e:
-            scan_progress_queue.put(json.dumps({
+            publish_scan_progress({
                 'status': 'error', 'error': str(e)
-            }))
+            })
 
     thread = threading.Thread(target=_run_scan, daemon=True)
     thread.start()
@@ -380,6 +396,18 @@ def serve_poster(filename):
     except Exception as e:
         print(f"Error serving poster {filename}: {e}")
         return "Error serving poster", 500
+
+
+@app.route('/scan_status', methods=['GET'])
+def scan_status():
+    """
+    Current scan progress, so a page loaded mid-scan can restore the bar.
+
+    The SSE stream only delivers events as they happen; a client that reloads
+    has missed them and needs this snapshot to catch up.
+    """
+    with scan_state_lock:
+        return jsonify(dict(scan_state))
 
 
 @app.route('/events')
@@ -636,13 +664,37 @@ def main():
     else:
         print("Metadata retry disabled (METADATA_RETRY_INTERVAL=0)")
 
-    # Start initial scan automatically in background
-    threading.Thread(
-        target=background_scan_new_files,
-        args=(database.scanned_paths, _scan_video_file_wrapper,
-              lambda: database.save_database(config.DB_FILE), config.SCAN_WORKERS),
-        daemon=True
-    ).start()
+    # Start initial scan automatically in background, reporting progress so the
+    # UI shows the same bar as a manual scan - and can restore it after a reload
+    def _run_initial_scan():
+        seen = {'total': 0}
+
+        def _progress(current, total, file_path, result):
+            seen['total'] = total
+            report_scan_progress(current, total, file_path, result)
+
+        try:
+            scanned_new = background_scan_new_files(
+                database.scanned_paths,
+                _scan_video_file_wrapper,
+                lambda: database.save_database(config.DB_FILE),
+                config.SCAN_WORKERS,
+                _progress)
+        except Exception as e:
+            print(f"Error during initial scan: {e}")
+            publish_scan_progress({'status': 'error', 'error': str(e)})
+            return
+
+        # Only close out the bar when there was something to show; a startup
+        # with nothing new should not push a "scan finished" message at clients
+        if seen['total']:
+            publish_scan_progress({
+                'current': seen['total'], 'total': seen['total'], 'percent': 100,
+                'status': 'done', 'new_files': scanned_new or 0,
+                'removed_files': 0, 'total_files': len(database.scanned_files)
+            })
+
+    threading.Thread(target=_run_initial_scan, daemon=True).start()
     print("Initial scan started...")
 
     # Start Flask app

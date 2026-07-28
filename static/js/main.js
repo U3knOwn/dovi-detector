@@ -1671,6 +1671,32 @@ function setupSSE() {
         }
     });
 
+    // The SSE stream only carries events as they happen, so a page loaded
+    // while a scan is running would show no bar until the next file finishes.
+    // This asks the server for the current state and restores it right away.
+    (async function restoreScanProgress() {
+        try {
+            const response = await fetch('/scan_status');
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data.status !== 'scanning') return;
+
+            const scanProgress = document.getElementById('scanProgress');
+            const scanProgressBar = document.getElementById('scanProgressBar');
+            const scanProgressText = document.getElementById('scanProgressText');
+            if (!scanProgress) return;
+
+            if (scanProgressBar) scanProgressBar.style.width = data.percent + '%';
+            if (scanProgressText) {
+                scanProgressText.textContent =
+                    data.current + '/' + data.total + ' (' + data.percent + '%)';
+            }
+            scanProgress.style.display = 'inline-flex';
+        } catch (error) {
+            console.error('Error restoring scan progress:', error);
+        }
+    })();
+
     eventSource.addEventListener('scan_progress', function(e) {
         try {
             const data = JSON.parse(e.data);
