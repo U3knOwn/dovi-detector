@@ -1841,6 +1841,48 @@ tbody tr:hover td {
     max-width: 42ch;
 }
 
+/* A long synopsis would push everything below it out of view, so it is folded
+   to five lines until the button under it expands it. -webkit-line-clamp is
+   the only cross-browser way to cut at a line boundary; it is supported
+   everywhere including Firefox. */
+.dialog-plot-text.clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dialog-plot-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.dialog-plot-toggle:hover {
+    color: var(--text);
+    border-color: var(--accent-soft);
+}
+
+.dialog-plot-toggle-caret {
+    transition: transform 0.2s ease;
+}
+
+.dialog-plot-toggle.expanded .dialog-plot-toggle-caret {
+    transform: rotate(180deg);
+}
+
 .dialog-filename-item .dialog-value {
     word-break: break-all;
     overflow-wrap: break-word;

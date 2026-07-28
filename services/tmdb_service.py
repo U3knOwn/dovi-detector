@@ -297,6 +297,88 @@ def get_tmdb_credits(tmdb_id, media_type, tmdb_api_key):
     return [], []
 
 
+def get_tmdb_genres(tmdb_id, media_type, tmdb_api_key, content_language):
+    """
+    Fetch the genre names of a title from TMDB by ID. Returns a list of names.
+
+    The names come back translated by TMDB itself, so the dialog shows them in
+    the configured content language; English is used as a fallback when that
+    language has no genre list for the title. An empty list means "no genres
+    known", which is a valid answer and is stored as such.
+    """
+    if not tmdb_api_key or not REQUESTS_AVAILABLE:
+        return []
+
+    if not tmdb_id or not isinstance(tmdb_id, (str, int)) or not str(tmdb_id).isdigit():
+        print(f"Invalid TMDB ID for genres: {tmdb_id}")
+        return []
+
+    url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}'
+    languages = [content_language]
+    if content_language != 'en':
+        languages.append('en')
+
+    try:
+        for language in languages:
+            params = {'api_key': tmdb_api_key, 'language': language}
+            response = requests.get(url, params=params, timeout=10)
+
+            if response.status_code == 200:
+                genres = [g.get('name', '').strip()
+                          for g in response.json().get('genres') or []]
+                genres = [name for name in genres if name]
+                if genres:
+                    return genres
+            elif response.status_code == 404:
+                return []
+            else:
+                print(f"TMDB genres API error for ID {tmdb_id}: HTTP {response.status_code}")
+                return []
+    except requests.exceptions.Timeout:
+        print(f"TMDB genres API timeout for ID {tmdb_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"TMDB genres API request error for ID {tmdb_id}: {e}")
+    except Exception as e:
+        print(f"Error fetching TMDB genres for ID {tmdb_id}: {e}")
+
+    return []
+
+
+def backfill_tmdb_genres(scanned_files, scan_lock, save_database_func,
+                         get_tmdb_genres_func):
+    """
+    Add the genre list to entries scanned before genres were collected.
+
+    Without this an existing library would show no genres until every file is
+    rescanned. Entries are only looked up once: the key is written even when
+    the title genuinely has no genres, so the lookup is not repeated on every
+    start.
+    """
+    if not get_tmdb_genres_func:
+        return 0
+
+    with scan_lock:
+        entries = [info for info in scanned_files.values()
+                   if info.get('tmdb_id') and 'tmdb_genres' not in info]
+
+    if not entries:
+        return 0
+
+    filled = 0
+    for file_info in entries:
+        tmdb_id = file_info.get('tmdb_id')
+        genres = get_tmdb_genres_func(tmdb_id, 'movie') or get_tmdb_genres_func(tmdb_id, 'tv')
+        file_info['tmdb_genres'] = genres or []
+        if genres:
+            filled += 1
+
+    with scan_lock:
+        save_database_func()
+    print(f"✓ TMDB genres updated - {filled} of {len(entries)} entr(ies)")
+
+    return filled
+
+
 def get_imdb_id(tmdb_id, media_type, tmdb_api_key):
     """
     Look up the IMDb id for a TMDB id via TMDB's external_ids endpoint.
