@@ -23,7 +23,10 @@ from utils.i18n import translate, get_request_language
 
 # Import service modules
 from services import database
-from services.tmdb_service import get_tmdb_poster, get_tmdb_poster_by_id, get_tmdb_credits, get_imdb_id
+from services.tmdb_service import (
+    get_tmdb_poster, get_tmdb_poster_by_id, get_tmdb_credits, get_tmdb_genres,
+    get_imdb_id, backfill_tmdb_genres
+)
 from services.imdb_service import get_omdb_ratings, get_top250_rank, load_top250, backfill_imdb_data
 from services.fanart_service import get_fanart_poster
 from services.poster_service import delete_cached_poster, get_cached_backdrop_path, migrate_poster_urls_to_cache
@@ -94,6 +97,7 @@ def _scan_video_file_wrapper(file_path, defer_save=False):
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
         lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
         lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL),
+        lambda tmdb_id, media_type: get_tmdb_genres(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE),
         defer_save=defer_save
     )
 
@@ -109,7 +113,8 @@ def _fetch_online_metadata_wrapper(filename):
         lambda tmdb_id, poster_url: get_cached_backdrop_path(tmdb_id, poster_url, config.POSTER_CACHE_DIR),
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
         lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
-        lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL)
+        lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL),
+        lambda tmdb_id, media_type: get_tmdb_genres(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE)
     )
 
 
@@ -151,6 +156,22 @@ def _refresh_imdb_data():
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
         lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
         top250_map
+    )
+
+
+def _refresh_tmdb_genres():
+    """
+    Backfill the genre list into entries scanned before genres were collected.
+
+    Runs on a background thread at startup for the same reason as the IMDb
+    backfill: an existing library should show the new field without every file
+    having to be rescanned by hand.
+    """
+    backfill_tmdb_genres(
+        database.scanned_files,
+        database.scan_lock,
+        lambda: database.save_database(config.DB_FILE),
+        lambda tmdb_id, media_type: get_tmdb_genres(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE)
     )
 
 
@@ -631,6 +652,10 @@ def main():
         # not each wait on it) and bring existing database entries up to date -
         # both in the background, as they only touch the network.
         threading.Thread(target=_refresh_imdb_data, daemon=True).start()
+
+        # Same idea for the genres, which older entries do not carry yet
+        if config.TMDB_API_KEY:
+            threading.Thread(target=_refresh_tmdb_genres, daemon=True).start()
 
         print("Migrating poster URLs to cache...")
         migrate_poster_urls_to_cache(

@@ -1036,7 +1036,8 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
                     get_fanart_poster_func, get_tmdb_poster_func, get_tmdb_poster_by_id_func,
                     get_tmdb_credits_func, get_cached_backdrop_path_func,
                     get_imdb_id_func=None, get_omdb_ratings_func=None,
-                    get_top250_rank_func=None, defer_save=False):
+                    get_top250_rank_func=None, get_tmdb_genres_func=None,
+                    defer_save=False):
     """
     Scan a video file and extract all metadata.
 
@@ -1127,7 +1128,7 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         filename, get_fanart_poster_func, get_tmdb_poster_func,
         get_tmdb_poster_by_id_func, get_tmdb_credits_func,
         get_cached_backdrop_path_func, get_imdb_id_func,
-        get_omdb_ratings_func, get_top250_rank_func)
+        get_omdb_ratings_func, get_top250_rank_func, get_tmdb_genres_func)
 
     file_info = {
         'filename': filename,
@@ -1165,11 +1166,12 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
 def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func,
                           get_tmdb_poster_by_id_func, get_tmdb_credits_func,
                           get_cached_backdrop_path_func, get_imdb_id_func=None,
-                          get_omdb_ratings_func=None, get_top250_rank_func=None):
+                          get_omdb_ratings_func=None, get_top250_rank_func=None,
+                          get_tmdb_genres_func=None):
     """
     Fetch everything about a title that comes from the network: poster, TMDB
-    metadata and credits, the IMDb id with its OMDb ratings, and the Top 250
-    rank. Returns the fields as they are stored in the database.
+    metadata, credits and genres, the IMDb id with its OMDb ratings, and the
+    Top 250 rank. Returns the fields as they are stored in the database.
 
     Kept separate from the file probing so an entry whose lookups failed - an
     API that was down, a key added later - can be refreshed without reading
@@ -1217,6 +1219,14 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
         if tmdb_directors or tmdb_cast:
             print(f"  [TMDB] Credits found - Directors: {len(tmdb_directors)}, Cast: {len(tmdb_cast)}")
 
+    # Get the genres if we have a TMDB ID - shown next to the directors
+    tmdb_genres = []
+    if tmdb_id and config.TMDB_API_KEY and get_tmdb_genres_func:
+        tmdb_genres = (get_tmdb_genres_func(tmdb_id, 'movie')
+                       or get_tmdb_genres_func(tmdb_id, 'tv'))
+        if tmdb_genres:
+            print(f"  [TMDB] Genres found: {', '.join(tmdb_genres)}")
+
     # Get the IMDb / Rotten Tomatoes / Metacritic ratings and the Top 250 rank.
     # The filename only carries a TMDB id, so IMDb is reached via TMDB's
     # external_ids; without an OMDb key the ratings stay empty and the UI falls
@@ -1254,6 +1264,7 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
         'tmdb_plot': tmdb_plot,
         'tmdb_directors': tmdb_directors,
         'tmdb_cast': tmdb_cast,
+        'tmdb_genres': tmdb_genres,
         'imdb_id': imdb_id,
         'imdb_rating': imdb_rating,
         'imdb_votes': imdb_votes,

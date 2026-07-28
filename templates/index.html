@@ -133,6 +133,11 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     data-hdr-detail="{{ file.hdr_detail }}"
                     data-el-type="{{ file.el_type or '' }}"
                     data-rating="{{ rating or '0' }}"
+                    {# Per-source scores so the sort dropdown can order by IMDb,
+                       TMDb, Rotten Tomatoes or Metacritic individually. #}
+                    data-tmdb-rating="{{ file.tmdb_rating or '0' }}"
+                    data-rt-rating="{{ file.rt_rating or '0' }}"
+                    data-metacritic="{{ file.metacritic or '0' }}"
                     data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                     data-file-size="{{ file.file_size|default('0') }}" 
                     data-video-bitrate="{{ file.video_bitrate|default('0') }}" 
@@ -161,6 +166,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                              data-plot="{{ file.tmdb_plot|default('') }}"
                              data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
+                             data-genres="{{ file.tmdb_genres|default([])|join(', ') }}"
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                              data-filename="{{ file.filename }}"
                              data-dv-cm-version="{{ file.dv_cm_version|default('') }}"
@@ -205,6 +211,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                              data-plot="{{ file.tmdb_plot|default('') }}"
                              data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
+                             data-genres="{{ file.tmdb_genres|default([])|join(', ') }}"
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                              data-filename="{{ file.filename }}"
                              data-dv-cm-version="{{ file.dv_cm_version|default('') }}"
@@ -419,11 +426,21 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             <div class="dialog-info">
                 <div class="dialog-info-item" id="dialogPlot" style="display: none;">
                     <span class="dialog-label" data-i18n="dialog_plot"></span>
-                    <p class="dialog-plot-text" id="dialogPlotText"></p>
+                    {# Long synopses are cut off after five lines; the button
+                       below expands them and is hidden when nothing is cut. #}
+                    <p class="dialog-plot-text clamped" id="dialogPlotText"></p>
+                    <button type="button" class="dialog-plot-toggle" id="dialogPlotToggle" aria-expanded="false" aria-controls="dialogPlotText" onclick="toggleDialogPlot()" style="display: none;">
+                        <span id="dialogPlotToggleLabel" data-i18n="dialog_plot_more"></span>
+                        <svg class="dialog-plot-toggle-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
                 </div>
                 <div class="dialog-info-item" id="dialogDirectors" style="display: none;">
                     <span class="dialog-label" data-i18n="dialog_directors"></span>
                     <span class="dialog-value" id="dialogDirectorsText"></span>
+                </div>
+                <div class="dialog-info-item" id="dialogGenres" style="display: none;">
+                    <span class="dialog-label" data-i18n="dialog_genres"></span>
+                    <span class="dialog-value" id="dialogGenresText"></span>
                 </div>
                 <div class="dialog-info-item" id="dialogCast" style="display: none;">
                     <span class="dialog-label" data-i18n="dialog_cast"></span>
