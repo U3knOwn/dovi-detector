@@ -23,7 +23,8 @@ from utils.i18n import translate, get_request_language
 
 # Import service modules
 from services import database
-from services.tmdb_service import get_tmdb_poster, get_tmdb_poster_by_id, get_tmdb_credits
+from services.tmdb_service import get_tmdb_poster, get_tmdb_poster_by_id, get_tmdb_credits, get_imdb_id
+from services.imdb_service import get_omdb_ratings, get_top250_rank, load_top250, backfill_imdb_data
 from services.fanart_service import get_fanart_poster
 from services.poster_service import delete_cached_poster, get_cached_backdrop_path, migrate_poster_urls_to_cache
 from services.video_scanner import scan_video_file, scan_directory, background_scan_new_files, bulk_scan_files
@@ -55,7 +56,29 @@ def _scan_video_file_wrapper(file_path, defer_save=False):
         lambda tmdb_id, media_type: get_tmdb_poster_by_id(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE),
         lambda tmdb_id, media_type: get_tmdb_credits(tmdb_id, media_type, config.TMDB_API_KEY),
         lambda tmdb_id, poster_url: get_cached_backdrop_path(tmdb_id, poster_url, config.POSTER_CACHE_DIR),
+        lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
+        lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
+        lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL),
         defer_save=defer_save
+    )
+
+
+def _refresh_imdb_data():
+    """
+    Load the IMDb Top 250 chart and backfill IMDb data into the database.
+
+    Runs on a background thread at startup: entries scanned before the IMDb
+    integration existed get their IMDb id and rating, and every entry's Top 250
+    rank is refreshed against the current chart.
+    """
+    top250_map = load_top250(config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL)
+    backfill_imdb_data(
+        database.scanned_files,
+        database.scan_lock,
+        lambda: database.save_database(config.DB_FILE),
+        lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
+        lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
+        top250_map
     )
 
 
@@ -482,6 +505,16 @@ def main():
                 print("✓ TMDB API key configured")
             else:
                 print("⚠ Warning: TMDB_API_KEY not configured - no posters will be fetched")
+        if config.OMDB_API_KEY:
+            print("✓ OMDb API key configured - IMDb ratings enabled")
+        else:
+            print("⚠ Warning: OMDB_API_KEY not configured - falling back to TMDB ratings")
+
+        # Load the Top 250 list once at startup (so the first scanned files do
+        # not each wait on it) and bring existing database entries up to date -
+        # both in the background, as they only touch the network.
+        threading.Thread(target=_refresh_imdb_data, daemon=True).start()
+
         print("Migrating poster URLs to cache...")
         migrate_poster_urls_to_cache(
             database.scanned_files,

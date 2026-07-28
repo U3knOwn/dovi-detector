@@ -13,6 +13,7 @@ services:
       - AUTO_REFRESH_INTERVAL=10 # Interval for automatic updating of the web UI in seconds
       - TMDB_API_KEY=${TMDB_API_KEY:-}  # Add your TMDB API key here or set via .env file
       - FANART_API_KEY=${FANART_API_KEY:-}  # Add your Fanart.tv API key here or set via .env file
+      - OMDB_API_KEY=${OMDB_API_KEY:-}  # OMDb API key for IMDb ratings (optional; without it the TMDB rating is shown)
       - IMAGE_SOURCE=${IMAGE_SOURCE:-tmdb}  # Image source: 'tmdb' (default) or 'fanart'
       - CONTENT_LANGUAGE=${CONTENT_LANGUAGE:-en}  # Preferred content language: ISO 639-1 code (default: en)
       - SCAN_WORKERS=${SCAN_WORKERS:-1}  # Files probed in parallel during a bulk scan. 1 = sequential (safest for a single HDD). Try 2-4 for a NAS / SSD to scan faster

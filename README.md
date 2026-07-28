@@ -11,6 +11,7 @@ Universal Video Scanner with Web Interface - Automatic detection of HDR formats 
 - **hdrprobe Integration**: Complete HDR metadata and RPU analysis including enhancement layer detection
 - **Docker-based**: Simple deployment with Docker Compose
 - **Manual Scan**: Fallback button for on-demand scanning
+- **IMDb Ratings**: Posters show the IMDb rating (via the OMDb API), with the TMDB rating as fallback, plus an IMDb Top 250 rank badge for listed films
 
 ## Software on Docker Hub 🐳
 
@@ -208,6 +209,7 @@ docker-compose up -d
 | `SCAN_SAVE_BATCH` | `25` | How many newly scanned files to buffer before writing the database. Avoids rewriting the whole database after every file on a large library; an interrupted scan re-reads at most this many files. `1` persists after every file |
 | `TMDB_API_KEY` | `` | TMDB API key for fetching movie posters (optional) |
 | `FANART_API_KEY` | `` | Fanart.tv API key for fetching thumb posters (optional) |
+| `OMDB_API_KEY` | `` | [OMDb API](https://www.omdbapi.com/apikey.aspx) key used to fetch IMDb ratings (optional - without it the TMDB rating is shown instead) |
 | `IMAGE_SOURCE` | `tmdb` | Image source selection: `tmdb` (default) or `fanart` |
 | `CONTENT_LANGUAGE` | `en` | Preferred content language (ISO 639-1 code) for TMDB/Fanart.tv content and audio track selection |
 

@@ -125,30 +125,40 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             </thead>
             <tbody id="collapsed_button">
                 {% for file in files %}
+                {# The IMDb rating is what is shown; entries without one (no OMDb key,
+                   unknown title) keep falling back to the TMDB rating. #}
+                {% set rating = file.imdb_rating or file.tmdb_rating %}
                 {# We add data attributes so JS can handle sorting #}
-                <tr data-hdr-format="{{ file.hdr_format }}" 
-                    data-hdr-detail="{{ file.hdr_detail }}" 
-                    data-el-type="{{ file.el_type or '' }}" 
-                    data-tmdb-rating="{{ file.tmdb_rating or '0' }}" 
+                <tr data-hdr-format="{{ file.hdr_format }}"
+                    data-hdr-detail="{{ file.hdr_detail }}"
+                    data-el-type="{{ file.el_type or '' }}"
+                    data-rating="{{ rating or '0' }}"
+                    data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                     data-file-size="{{ file.file_size|default('0') }}" 
                     data-video-bitrate="{{ file.video_bitrate|default('0') }}" 
                     data-audio-bitrate="{{ file.audio_bitrate|default('0') }}"
-                    data-year="{{ file.tmdb_year|default('') }}"
+                    data-year="{{ file.tmdb_year|default('', true) }}"
                     data-duration="{{ file.duration|default('') }}"
                     data-mtime="{{ file.mtime|default('0') }}"
                     data-dv-cm-version="{{ file.dv_cm_version|default('') }}">
                     <td data-label-i18n="table_header_poster" data-label="Poster / Dateiname" title="{{ file.filename }}">
                         {% if file.poster_url %}
                         <div class="poster-container" 
-                             data-title="{{ file.tmdb_title|default(file.filename) }}" 
-                             data-year="{{ file.tmdb_year|default('') }}"
+                             data-title="{{ file.tmdb_title|default(file.filename, true) }}" 
+                             data-year="{{ file.tmdb_year|default('', true) }}"
                              data-duration="{{ file.duration|default('') }}"
                              data-video-bitrate="{{ file.video_bitrate|default('') }}"
                              data-audio-bitrate="{{ file.audio_bitrate|default('') }}"
                              data-file-size="{{ file.file_size|default('') }}"
                              data-poster-url="{{ file.poster_url|default('') }}"
                              data-tmdb-id="{{ file.tmdb_id|default('') }}"
-                             data-tmdb-rating="{{ file.tmdb_rating|default('') }}"
+                             data-imdb-id="{{ file.imdb_id|default('', true) }}"
+                             data-rating="{{ rating|default('', true) }}"
+                             data-imdb-rating="{{ file.imdb_rating|default('', true) }}"
+                             data-tmdb-rating="{{ file.tmdb_rating|default('', true) }}"
+                             data-rt-rating="{{ file.rt_rating|default('', true) }}"
+                             data-metacritic="{{ file.metacritic|default('', true) }}"
+                             data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                              data-plot="{{ file.tmdb_plot|default('') }}"
                              data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
@@ -158,18 +168,21 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-hdr-metadata='{{ file.hdr_metadata|default({})|tojson }}'
                              data-path="{{ file.path }}"
                              onclick="showMediaDialogFromData(this)">
-                            {% if file.tmdb_title %}
+                            {# Entries scanned without a TMDB key have no title - the
+                               filename stands in, as it does on the poster-less card. #}
                             <span class="poster-title">
-                                {{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}
+                                {% if file.tmdb_title %}{{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}{% else %}{{ file.filename }}{% endif %}
                             </span>
-                            {% endif %}
                             <div class="poster-img-wrapper">
                                 <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy">
-                                {% if file.tmdb_rating %}
-                                <div class="tmdb-badge">
-                                    <span class="tmdb-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
-                                    <span class="tmdb-rating">{{ "%.1f"|format(file.tmdb_rating) }}</span>
+                                {% if rating %}
+                                <div class="rating-badge">
+                                    <span class="rating-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
+                                    <span class="rating-value">{{ "%.1f"|format(rating) }}</span>
                                 </div>
+                                {% endif %}
+                                {% if file.imdb_top250 %}
+                                <div class="top250-badge" title="IMDb Top 250 - #{{ file.imdb_top250 }}">#{{ file.imdb_top250 }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -183,7 +196,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-file-size="{{ file.file_size|default('') }}"
                              data-poster-url="{{ file.poster_url|default('') }}"
                              data-tmdb-id="{{ file.tmdb_id|default('') }}"
-                             data-tmdb-rating="{{ file.tmdb_rating|default('') }}"
+                             data-imdb-id="{{ file.imdb_id|default('', true) }}"
+                             data-rating="{{ rating|default('', true) }}"
+                             data-imdb-rating="{{ file.imdb_rating|default('', true) }}"
+                             data-tmdb-rating="{{ file.tmdb_rating|default('', true) }}"
+                             data-rt-rating="{{ file.rt_rating|default('', true) }}"
+                             data-metacritic="{{ file.metacritic|default('', true) }}"
+                             data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                              data-plot="{{ file.tmdb_plot|default('') }}"
                              data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
@@ -360,10 +379,29 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             <div class="dialog-poster" id="dialogPoster" style="display: none;">
                 <div class="dialog-poster-wrapper">
                     <img id="dialogPosterImg" class="dialog-poster-img" src="" alt="Poster">
-                    <div class="tmdb-badge dialog-tmdb-badge" id="dialogTmdbBadge" style="display: none;">
-                        <span class="tmdb-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
-                        <span class="tmdb-rating" id="dialogTmdbRating"></span>
+                    <div class="rating-badge dialog-rating-badge" id="dialogRatingBadge" style="display: none;">
+                        <span class="rating-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
+                        <span class="rating-value" id="dialogRatingValue"></span>
                     </div>
+                    <div class="top250-badge dialog-top250-badge" id="dialogTop250Badge" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="dialog-ratings" id="dialogRatings" style="display: none;">
+                <div class="dialog-rating dialog-rating-imdb" id="dialogRatingImdb" style="display: none;">
+                    <span class="dialog-rating-source">IMDb</span>
+                    <span class="dialog-rating-value" id="dialogRatingImdbValue"></span>
+                </div>
+                <div class="dialog-rating dialog-rating-tmdb" id="dialogRatingTmdb" style="display: none;">
+                    <span class="dialog-rating-source">TMDb</span>
+                    <span class="dialog-rating-value" id="dialogRatingTmdbValue"></span>
+                </div>
+                <div class="dialog-rating dialog-rating-rt" id="dialogRatingRt" style="display: none;">
+                    <span class="dialog-rating-source">Rotten Tomatoes</span>
+                    <span class="dialog-rating-value" id="dialogRatingRtValue"></span>
+                </div>
+                <div class="dialog-rating dialog-rating-metacritic" id="dialogRatingMetacritic" style="display: none;">
+                    <span class="dialog-rating-source">Metacritic</span>
+                    <span class="dialog-rating-value" id="dialogRatingMetacriticValue"></span>
                 </div>
             </div>
             <div class="dialog-info">
@@ -443,6 +481,12 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 <div class="dialog-info-item" id="dialogLinksContainer">
                     <span class="dialog-label" data-i18n="dialog_links"></span>
                     <div class="dialog-links">
+                        <a id="dialogImdbLink" class="dialog-link imdb" href="#" target="_blank" rel="noopener noreferrer" style="display: none;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/>
+                            </svg>
+                            IMDb
+                        </a>
                         <a id="dialogTmdbLink" class="dialog-link tmdb" href="#" target="_blank" rel="noopener noreferrer" style="display: none;">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <rect width="18" height="18" x="3" y="3" rx="2"/>

@@ -297,6 +297,42 @@ def get_tmdb_credits(tmdb_id, media_type, tmdb_api_key):
     return [], []
 
 
+def get_imdb_id(tmdb_id, media_type, tmdb_api_key):
+    """
+    Look up the IMDb id for a TMDB id via TMDB's external_ids endpoint.
+
+    This is what ties a scanned file to IMDb: the filename only carries a TMDB
+    id, and IMDb ratings / Top 250 ranks are keyed by IMDb id. Returns the
+    'tt...' id or None.
+    """
+    if not tmdb_api_key or not REQUESTS_AVAILABLE:
+        return None
+
+    if not tmdb_id or not isinstance(tmdb_id, (str, int)) or not str(tmdb_id).isdigit():
+        print(f"Invalid TMDB ID for external IDs: {tmdb_id}")
+        return None
+
+    try:
+        url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}/external_ids'
+        params = {'api_key': tmdb_api_key}
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code == 200:
+            imdb_id = (response.json().get('imdb_id') or '').strip()
+            return imdb_id or None
+
+        if response.status_code not in [200, 404]:
+            print(f"TMDB external IDs API error for ID {tmdb_id}: HTTP {response.status_code}")
+    except requests.exceptions.Timeout:
+        print(f"TMDB external IDs API timeout for ID {tmdb_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"TMDB external IDs API request error for ID {tmdb_id}: {e}")
+    except Exception as e:
+        print(f"Error fetching TMDB external IDs for ID {tmdb_id}: {e}")
+
+    return None
+
+
 def is_valid_tmdb_url(url):
     """Validate URL is from TMDB to prevent SSRF attacks"""
     if not url:

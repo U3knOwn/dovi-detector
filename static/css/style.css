@@ -1032,6 +1032,10 @@ tbody tr:hover td {
     max-width: 260px;
     line-height: 1.35;
     transition: color 0.15s ease;
+    /* A filename is one long token - dots offer no break opportunity, so
+       without this it overflows max-width instead of wrapping inside it. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .poster-img-wrapper {
@@ -1071,15 +1075,10 @@ tbody tr:hover td {
     border: 1px solid var(--border-strong);
 }
 
-.poster-fallback .poster-title {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-.tmdb-badge {
+.rating-badge {
     position: absolute;
     top: 6px;
-    right: 6px;
+    left: 6px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -1096,7 +1095,7 @@ tbody tr:hover td {
     z-index: 10;
 }
 
-.tmdb-logo {
+.rating-logo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1104,16 +1103,39 @@ tbody tr:hover td {
     line-height: 1;
 }
 
-.tmdb-logo svg {
+.rating-logo svg {
     width: 1em;
     height: 1em;
     display: block;
 }
 
-.tmdb-rating {
+.rating-value {
     font-weight: 700;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
+}
+
+/* IMDb Top 250 rank - same treatment as the rating badge, opposite corner */
+.top250-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(8, 10, 15, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 0.74em;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    z-index: 10;
 }
 
 /* ============================================================
@@ -1669,6 +1691,9 @@ tbody tr:hover td {
 }
 
 .dialog-poster-img {
+    /* Block, so the wrapper does not keep the inline baseline gap under the
+       image - that gap would push the bottom-anchored Top 250 badge inwards. */
+    display: block;
     width: 100%;
     max-width: 460px;
     aspect-ratio: 16 / 9;
@@ -1678,10 +1703,77 @@ tbody tr:hover td {
     box-shadow: var(--shadow-md);
 }
 
-.dialog-tmdb-badge {
+.dialog-rating-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+}
+
+.dialog-top250-badge {
     position: absolute;
     top: 8px;
     right: 8px;
+}
+
+/* Row of external ratings directly under the cover */
+/* Flex, not a fixed 4-column grid: without an OMDb key only the TMDb rating
+   remains, and the surviving tiles should share the full width instead of
+   clinging to the left with empty columns beside them. */
+.dialog-ratings {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0 20px;
+}
+
+.dialog-rating {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    /* Labels differ in line count ("Rotten Tomatoes" wraps), so the values are
+       pinned to the bottom to keep them on one line across the row. */
+    justify-content: space-between;
+    min-height: 62px;
+    gap: 6px;
+    padding: 8px 4px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    min-width: 0;
+}
+
+.dialog-rating-source {
+    color: var(--text-faint);
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.25;
+}
+
+.dialog-rating-value {
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.dialog-rating-imdb .dialog-rating-value {
+    color: #f5c518;
+}
+
+.dialog-rating-tmdb .dialog-rating-value {
+    color: #67d3f5;
+}
+
+.dialog-rating-rt .dialog-rating-value {
+    color: #fa7a68;
+}
+
+.dialog-rating-metacritic .dialog-rating-value {
+    color: #7ed957;
 }
 
 .dialog-info {
@@ -1783,6 +1875,17 @@ tbody tr:hover td {
 
 .dialog-link svg {
     flex-shrink: 0;
+}
+
+.dialog-link.imdb {
+    background: rgba(245, 197, 24, 0.12);
+    border-color: rgba(245, 197, 24, 0.4);
+    color: #f5c518;
+}
+
+.dialog-link.imdb:hover {
+    background: rgba(245, 197, 24, 0.22);
+    border-color: rgba(245, 197, 24, 0.6);
 }
 
 .dialog-link.tmdb {
@@ -2020,6 +2123,27 @@ tbody tr:hover td {
 
 :root[data-theme="light"] .audio-dolby-digital {
     color: #1d4ed8;
+}
+
+:root[data-theme="light"] .dialog-rating-imdb .dialog-rating-value {
+    color: #a16207;
+}
+
+:root[data-theme="light"] .dialog-rating-tmdb .dialog-rating-value {
+    color: #0284c7;
+}
+
+:root[data-theme="light"] .dialog-rating-rt .dialog-rating-value {
+    color: #dc2626;
+}
+
+:root[data-theme="light"] .dialog-rating-metacritic .dialog-rating-value {
+    color: #15803d;
+}
+
+:root[data-theme="light"] .dialog-link.imdb {
+    /* The brand yellow is unreadable on a light surface */
+    color: #a16207;
 }
 
 :root[data-theme="light"] .dialog-link.tmdb {

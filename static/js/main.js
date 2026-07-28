@@ -1196,7 +1196,32 @@ function sortTableByCmVersion() {
 }
 
 function sortTableByRating() {
-    sortTableByNumericAttribute('data-tmdb-rating');
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        // Rating first, highest on top
+        const aValue = parseFloat(a.getAttribute('data-rating')) || 0;
+        const bValue = parseFloat(b.getAttribute('data-rating')) || 0;
+        if (bValue !== aValue) return bValue - aValue;
+
+        // Ratings are coarse, so several films share the same score - the IMDb
+        // Top 250 rank breaks the tie, best rank first, chart entries ahead of
+        // everything unranked.
+        const aRank = parseInt(a.getAttribute('data-imdb-top250'), 10) || Infinity;
+        const bRank = parseInt(b.getAttribute('data-imdb-top250'), 10) || Infinity;
+        if (aRank !== bRank) return aRank - bRank;
+
+        const aName = getFilenameFromRow(a).toLowerCase();
+        const bName = getFilenameFromRow(b).toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByFileSize() {
@@ -1835,7 +1860,44 @@ function updateHdrMetadataRows(hdrFormat, hdrMetadata) {
     });
 }
 
-function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata) {
+/**
+ * Fill the row of external ratings under the cover. Each entry is hidden when
+ * that source has no rating for the title; the whole row disappears when none
+ * of them do. `ratings` holds the raw attribute values.
+ */
+function updateDialogRatings(ratings) {
+    const container = document.getElementById('dialogRatings');
+    if (!container) return;
+
+    // A 0 is a real score for the percentage-based critics but means "no
+    // rating" for the 0-10 user scores, hence the differing minimum.
+    const entries = [
+        ['dialogRatingImdb', 'dialogRatingImdbValue', ratings.imdb, v => `${v.toFixed(1)}`, false],
+        ['dialogRatingTmdb', 'dialogRatingTmdbValue', ratings.tmdb, v => `${v.toFixed(1)}`, false],
+        ['dialogRatingRt', 'dialogRatingRtValue', ratings.rt, v => `${Math.round(v)}%`, true],
+        ['dialogRatingMetacritic', 'dialogRatingMetacriticValue', ratings.metacritic, v => `${Math.round(v)}`, true]
+    ];
+
+    let shown = 0;
+    entries.forEach(([itemId, valueId, raw, format, allowZero]) => {
+        const item = document.getElementById(itemId);
+        const value = document.getElementById(valueId);
+        if (!item || !value) return;
+
+        const parsed = parseFloat(raw);
+        if (raw !== '' && raw !== 'None' && !isNaN(parsed) && (allowZero ? parsed >= 0 : parsed > 0)) {
+            value.textContent = format(parsed);
+            item.style.display = 'flex';
+            shown++;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+
+    container.style.display = shown > 0 ? 'flex' : 'none';
+}
+
+function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, rating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata, imdbId, imdbTop250, ratings) {
     const overlay = document.getElementById('mediaDialogOverlay');
     const dialogTitle = document.getElementById('dialogTitle');
     const dialogDuration = document.getElementById('dialogDuration');
@@ -1844,8 +1906,10 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     const dialogAudioBitrate = document.getElementById('dialogAudioBitrate');
     const dialogPoster = document.getElementById('dialogPoster');
     const dialogPosterImg = document.getElementById('dialogPosterImg');
-    const dialogTmdbBadge = document.getElementById('dialogTmdbBadge');
-    const dialogTmdbRatingElement = document.getElementById('dialogTmdbRating');
+    const dialogRatingBadge = document.getElementById('dialogRatingBadge');
+    const dialogRatingValue = document.getElementById('dialogRatingValue');
+    const dialogTop250Badge = document.getElementById('dialogTop250Badge');
+    const dialogImdbLink = document.getElementById('dialogImdbLink');
     const dialogTmdbLink = document.getElementById('dialogTmdbLink');
     const dialogTrailer = document.getElementById('dialogTrailer');
     const dialogTrailerLink = document.getElementById('dialogTrailerLink');
@@ -1865,11 +1929,15 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     // Store current file path for delete
     currentDialogFilePath = filePath || '';
     
-    // Set title with year if available
-    if (year && year !== '') {
-        dialogTitle.textContent = `${title} (${year})`;
+    // Set title with year if available. Entries scanned without a TMDB key
+    // have no title or year at all, so the filename stands in - and a stored
+    // null must never surface as the literal "None".
+    const safeTitle = (title && title !== 'None') ? title : (filename || '');
+    const safeYear = (year && year !== 'None') ? year : '';
+    if (safeYear !== '') {
+        dialogTitle.textContent = `${safeTitle} (${safeYear})`;
     } else {
-        dialogTitle.textContent = title;
+        dialogTitle.textContent = safeTitle;
     }
     
     // Set poster image if available
@@ -1886,15 +1954,34 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         }
     } else {
         dialogPoster.style.display = 'none';
+        // Without a poster the dialog title already is the filename, so the
+        // separate row stays hidden - and must be reset, otherwise it would
+        // keep showing the previously opened entry's filename.
+        if (dialogFilenameItem) dialogFilenameItem.style.display = 'none';
     }
     
-    // Set TMDB rating badge if available
-    if (dialogTmdbBadge && dialogTmdbRatingElement) {
-        if (tmdbRating && tmdbRating !== '' && tmdbRating !== 'None' && parseFloat(tmdbRating) > 0) {
-            dialogTmdbRatingElement.textContent = parseFloat(tmdbRating).toFixed(1);
-            dialogTmdbBadge.style.display = 'flex';
+    // Set rating badge if available - IMDb when known, otherwise TMDb
+    if (dialogRatingBadge && dialogRatingValue) {
+        if (rating && rating !== '' && rating !== 'None' && parseFloat(rating) > 0) {
+            dialogRatingValue.textContent = parseFloat(rating).toFixed(1);
+            dialogRatingBadge.style.display = 'flex';
         } else {
-            dialogTmdbBadge.style.display = 'none';
+            dialogRatingBadge.style.display = 'none';
+        }
+    }
+
+    // Fill the IMDb / TMDb / Rotten Tomatoes / Metacritic row under the cover
+    updateDialogRatings(ratings || {});
+
+    // Set IMDb Top 250 badge if the title is on the chart
+    if (dialogTop250Badge) {
+        const rank = parseInt(imdbTop250, 10);
+        if (rank > 0) {
+            dialogTop250Badge.textContent = `#${rank}`;
+            dialogTop250Badge.title = `IMDb Top 250 - #${rank}`;
+            dialogTop250Badge.style.display = 'flex';
+        } else {
+            dialogTop250Badge.style.display = 'none';
         }
     }
     
@@ -1965,10 +2052,24 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
     
     // Set up links
+    if (dialogImdbLink) {
+        dialogImdbLink.classList.remove(...dialogImdbLink.classList);
+        dialogImdbLink.classList.add('dialog-link', 'imdb');
+    }
     dialogTmdbLink.classList.remove(...dialogTmdbLink.classList);
     dialogTmdbLink.classList.add('dialog-link', 'tmdb');
     dialogTrailerLink.classList.remove(...dialogTrailerLink.classList);
     dialogTrailerLink.classList.add('dialog-link', 'youtube');
+
+    // IMDb link - only for entries that resolved to an IMDb ID
+    if (dialogImdbLink) {
+        if (imdbId && imdbId !== 'None' && /^tt\d+$/.test(imdbId)) {
+            dialogImdbLink.href = `https://www.imdb.com/title/${imdbId}/`;
+            dialogImdbLink.style.display = 'inline-flex';
+        } else {
+            dialogImdbLink.style.display = 'none';
+        }
+    }
 
     if (tmdbId && tmdbId !== 'None') {
         // TMDb link - direct to movie page
@@ -1976,10 +2077,10 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         dialogTmdbLink.style.display = 'inline-flex';
         
         // Set up YouTube trailer link
-        if (title && title !== '') {
-            const searchQuery = year && year !== '' ?
-                `${title} (${year}) - Trailer` :
-                `${title} - Trailer`;
+        if (safeTitle !== '') {
+            const searchQuery = safeYear !== '' ?
+                `${safeTitle} (${safeYear}) - Trailer` :
+                `${safeTitle} - Trailer`;
             const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
             dialogTrailerLink.href = youtubeUrl;
             dialogTrailerLink.style.display = 'inline-flex';
@@ -1992,12 +2093,13 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         // Show links container
         if (dialogLinksContainer) dialogLinksContainer.style.display = '';
     } else {
-        // Hide links if no TMDb ID
+        // Hide TMDb/YouTube if no TMDb ID
         dialogTmdbLink.style.display = 'none';
         dialogTrailerLink.style.display = 'none';
-        
-        // Hide entire links container
-        if (dialogLinksContainer) dialogLinksContainer.style.display = 'none';
+
+        // Hide the container only when no link at all is left to show
+        const hasImdbLink = dialogImdbLink && dialogImdbLink.style.display !== 'none';
+        if (dialogLinksContainer) dialogLinksContainer.style.display = hasImdbLink ? '' : 'none';
     }
     
     // Show dialog
@@ -2023,7 +2125,15 @@ function showMediaDialogFromData(element) {
     const fileSize = parseInt(element.getAttribute('data-file-size')) || null;
     const posterUrl = element.getAttribute('data-poster-url') || '';
     const tmdbId = element.getAttribute('data-tmdb-id') || '';
-    const tmdbRating = element.getAttribute('data-tmdb-rating') || '';
+    const imdbId = element.getAttribute('data-imdb-id') || '';
+    const rating = element.getAttribute('data-rating') || '';
+    const imdbTop250 = element.getAttribute('data-imdb-top250') || '';
+    const ratings = {
+        imdb: element.getAttribute('data-imdb-rating') || '',
+        tmdb: element.getAttribute('data-tmdb-rating') || '',
+        rt: element.getAttribute('data-rt-rating') || '',
+        metacritic: element.getAttribute('data-metacritic') || ''
+    };
     const plot = element.getAttribute('data-plot') || '';
     const directors = element.getAttribute('data-directors') || '';
     const cast = element.getAttribute('data-cast') || '';
@@ -2041,7 +2151,7 @@ function showMediaDialogFromData(element) {
         hdrMetadata = {};
     }
 
-    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, tmdbRating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata);
+    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, rating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata, imdbId, imdbTop250, ratings);
 }
 
 async function deleteCurrentEntry() {

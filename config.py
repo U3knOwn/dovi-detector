@@ -19,10 +19,17 @@ MEDIA_PATH = '/media'
 DATA_DIR = '/app/data'
 DB_FILE = os.path.join(DATA_DIR, 'scanned_files.json')
 POSTER_CACHE_DIR = os.path.join(DATA_DIR, 'posters')
+# The IMDb Top 250 chart is downloaded once and cached here; it changes at most
+# marginally from day to day, so a daily refresh is plenty.
+IMDB_TOP250_CACHE_FILE = os.path.join(DATA_DIR, 'imdb_top250.json')
+IMDB_TOP250_TTL = 24 * 60 * 60
 
 # API Keys and Configuration
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 FANART_API_KEY = os.environ.get('FANART_API_KEY', '')
+# Optional OMDb key - the source of the IMDb ratings shown on the posters.
+# Without it the scanner falls back to the TMDB rating.
+OMDB_API_KEY = os.environ.get('OMDB_API_KEY', '')
 IMAGE_SOURCE = os.environ.get('IMAGE_SOURCE', 'tmdb').lower()
 CONTENT_LANGUAGE = os.environ.get('CONTENT_LANGUAGE', 'en').lower()
 

@@ -1006,7 +1006,9 @@ def get_audio_codec(tracks):
 
 def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_database_func,
                     get_fanart_poster_func, get_tmdb_poster_func, get_tmdb_poster_by_id_func,
-                    get_tmdb_credits_func, get_cached_backdrop_path_func, defer_save=False):
+                    get_tmdb_credits_func, get_cached_backdrop_path_func,
+                    get_imdb_id_func=None, get_omdb_ratings_func=None,
+                    get_top250_rank_func=None, defer_save=False):
     """
     Scan a video file and extract all metadata.
 
@@ -1136,6 +1138,34 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         if tmdb_directors or tmdb_cast:
             print(f"  [TMDB] Credits found - Directors: {len(tmdb_directors)}, Cast: {len(tmdb_cast)}")
 
+    # Get the IMDb / Rotten Tomatoes / Metacritic ratings and the Top 250 rank.
+    # The filename only carries a TMDB id, so IMDb is reached via TMDB's
+    # external_ids; without an OMDb key the ratings stay empty and the UI falls
+    # back to the TMDB rating.
+    imdb_id = None
+    imdb_rating = None
+    imdb_votes = None
+    rt_rating = None
+    metacritic = None
+    imdb_top250 = None
+    if tmdb_id and get_imdb_id_func:
+        imdb_id = get_imdb_id_func(tmdb_id, 'movie') or get_imdb_id_func(tmdb_id, 'tv')
+        if imdb_id:
+            print(f"  [IMDb] IMDb ID: {imdb_id}")
+            if get_omdb_ratings_func:
+                ratings = get_omdb_ratings_func(imdb_id) or {}
+                imdb_rating = ratings.get('imdb_rating')
+                imdb_votes = ratings.get('imdb_votes')
+                rt_rating = ratings.get('rt_rating')
+                metacritic = ratings.get('metacritic')
+                if imdb_rating:
+                    print(f"  [IMDb] Rating: {imdb_rating} ({imdb_votes} votes), "
+                          f"RT: {rt_rating}, Metacritic: {metacritic}")
+            if get_top250_rank_func:
+                imdb_top250 = get_top250_rank_func(imdb_id)
+                if imdb_top250:
+                    print(f"  [IMDb] Top 250 rank: #{imdb_top250}")
+
     file_info = {
         'filename': filename,
         'path': file_path,
@@ -1150,6 +1180,12 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         'tmdb_title': tmdb_title,
         'tmdb_year': tmdb_year,
         'tmdb_rating': tmdb_rating,
+        'imdb_id': imdb_id,
+        'imdb_rating': imdb_rating,
+        'imdb_votes': imdb_votes,
+        'rt_rating': rt_rating,
+        'metacritic': metacritic,
+        'imdb_top250': imdb_top250,
         'tmdb_plot': tmdb_plot,
         'tmdb_directors': tmdb_directors,
         'tmdb_cast': tmdb_cast,
