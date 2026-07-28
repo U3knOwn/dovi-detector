@@ -2154,6 +2154,40 @@ function showMediaDialogFromData(element) {
     showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, rating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata, imdbId, imdbTop250, ratings);
 }
 
+async function rescanCurrentEntry() {
+    if (!currentDialogFilePath) return;
+
+    if (!window.confirm(t('rescan_entry_confirm'))) return;
+
+    const btn = document.getElementById('dialogRescanBtn');
+    const label = btn ? btn.querySelector('span') : null;
+    const originalLabel = label ? label.textContent : '';
+    if (btn) btn.disabled = true;
+    if (label) label.textContent = t('rescan_entry_running');
+
+    try {
+        const response = await fetch('/rescan_entry', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({file_path: currentDialogFilePath})
+        });
+        const data = await response.json();
+        if (data.success) {
+            // The row is server-rendered, so a reload is how the app already
+            // picks up scan results elsewhere
+            closeMediaDialog();
+            location.reload();
+            return;
+        }
+        alert(t('rescan_entry_error') + ': ' + (data.error || ''));
+    } catch (e) {
+        alert(t('rescan_entry_error') + ': ' + e.message);
+    }
+
+    if (btn) btn.disabled = false;
+    if (label) label.textContent = originalLabel;
+}
+
 async function deleteCurrentEntry() {
     if (!currentDialogFilePath) return;
 

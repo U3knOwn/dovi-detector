@@ -1122,8 +1122,59 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
 
     file_size = os.path.getsize(file_path)
 
-    # Get poster, title, and year based on IMAGE_SOURCE setting
     filename = os.path.basename(file_path)
+    online = fetch_online_metadata(
+        filename, get_fanart_poster_func, get_tmdb_poster_func,
+        get_tmdb_poster_by_id_func, get_tmdb_credits_func,
+        get_cached_backdrop_path_func, get_imdb_id_func,
+        get_omdb_ratings_func, get_top250_rank_func)
+
+    file_info = {
+        'filename': filename,
+        'path': file_path,
+        'hdr_format': hdr_info.get('format', 'Unknown'),
+        'hdr_detail': hdr_info.get('detail', 'Unknown'),
+        'profile': hdr_info.get('profile'),
+        'el_type': hdr_info.get('el_type'),
+        'resolution': resolution,
+        'audio_codec': audio_codec,
+        'duration': duration,
+        'video_bitrate': video_bitrate,
+        'audio_bitrate': audio_bitrate,
+        'file_size': file_size,
+        'dv_cm_version': hdr_info.get('cm_version', ''),
+        'hdr_metadata': get_hdrprobe_hdr_metadata(hdr_report)
+    }
+    file_info.update(online)
+
+    with scan_lock:
+        scanned_files[file_path] = file_info
+        scanned_paths.add(file_path)
+        if not defer_save:
+            save_database_func()
+
+    print(f"✓ Scanned: {file_path} ({hdr_info.get('format')})")
+
+    return {
+        'success': True,
+        'message': f'{hdr_info.get("format")} detected',
+        'file_info': file_info
+    }
+
+
+def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func,
+                          get_tmdb_poster_by_id_func, get_tmdb_credits_func,
+                          get_cached_backdrop_path_func, get_imdb_id_func=None,
+                          get_omdb_ratings_func=None, get_top250_rank_func=None):
+    """
+    Fetch everything about a title that comes from the network: poster, TMDB
+    metadata and credits, the IMDb id with its OMDb ratings, and the Top 250
+    rank. Returns the fields as they are stored in the database.
+
+    Kept separate from the file probing so an entry whose lookups failed - an
+    API that was down, a key added later - can be refreshed without reading
+    the video again.
+    """
     tmdb_id = None
     poster_url = None
     tmdb_title = None
@@ -1194,50 +1245,103 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
                 if imdb_top250:
                     print(f"  [IMDb] Top 250 rank: #{imdb_top250}")
 
-    file_info = {
-        'filename': filename,
-        'path': file_path,
-        'hdr_format': hdr_info.get('format', 'Unknown'),
-        'hdr_detail': hdr_info.get('detail', 'Unknown'),
-        'profile': hdr_info.get('profile'),
-        'el_type': hdr_info.get('el_type'),
-        'resolution': resolution,
-        'audio_codec': audio_codec,
+    return {
         'tmdb_id': tmdb_id,
         'poster_url': cached_backdrop_path if cached_backdrop_path else poster_url,
         'tmdb_title': tmdb_title,
         'tmdb_year': tmdb_year,
         'tmdb_rating': tmdb_rating,
+        'tmdb_plot': tmdb_plot,
+        'tmdb_directors': tmdb_directors,
+        'tmdb_cast': tmdb_cast,
         'imdb_id': imdb_id,
         'imdb_rating': imdb_rating,
         'imdb_votes': imdb_votes,
         'rt_rating': rt_rating,
         'metacritic': metacritic,
         'imdb_top250': imdb_top250,
-        'tmdb_plot': tmdb_plot,
-        'tmdb_directors': tmdb_directors,
-        'tmdb_cast': tmdb_cast,
-        'duration': duration,
-        'video_bitrate': video_bitrate,
-        'audio_bitrate': audio_bitrate,
-        'file_size': file_size,
-        'dv_cm_version': hdr_info.get('cm_version', ''),
-        'hdr_metadata': get_hdrprobe_hdr_metadata(hdr_report)
     }
 
+
+def is_metadata_incomplete(file_info):
+    """
+    True when an entry is missing metadata that a later lookup could still
+    supply - the state left behind by an API outage, a rate limit, or a key
+    that was only configured afterwards.
+
+    Deliberately conservative: a title that genuinely has no TMDB match would
+    otherwise be retried forever. Only the cases that a working API would fill
+    in count as incomplete.
+    """
+    if not isinstance(file_info, dict):
+        return False
+
+    # No TMDB match at all - retried because this is what an outage looks like
+    if not file_info.get('tmdb_id'):
+        return True
+
+    # Matched, but parts of the lookup did not come back
+    if not file_info.get('poster_url'):
+        return True
+    if not file_info.get('tmdb_title'):
+        return True
+    if config.TMDB_API_KEY and 'imdb_id' not in file_info:
+        return True
+    if config.OMDB_API_KEY and file_info.get('imdb_id') and 'rt_rating' not in file_info:
+        return True
+
+    return False
+
+
+def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
+                               fetch_online_metadata_func):
+    """
+    Re-run the online lookups for every entry that is still missing metadata.
+
+    Only the network part is repeated - the video is not probed again, so this
+    is cheap enough to run on a timer. Fields are merged rather than replaced:
+    a refresh that comes back empty never wipes data that was already there.
+
+    Returns the number of entries that gained something.
+    """
     with scan_lock:
-        scanned_files[file_path] = file_info
-        scanned_paths.add(file_path)
-        if not defer_save:
+        candidates = [(path, info) for path, info in scanned_files.items()
+                      if is_metadata_incomplete(info)]
+
+    if not candidates:
+        return 0
+
+    print(f"[RETRY] {len(candidates)} incomplete entr(ies) - retrying lookups")
+    updated = 0
+
+    for file_path, file_info in candidates:
+        try:
+            fresh = fetch_online_metadata_func(file_info.get('filename') or os.path.basename(file_path))
+        except Exception as e:
+            print(f"[RETRY] Lookup failed for {file_path}: {e}")
+            continue
+
+        # Keep only what the refresh actually resolved, so a still-failing API
+        # cannot turn an existing poster or title back into None.
+        gained = {k: v for k, v in (fresh or {}).items()
+                  if v not in (None, '', [], {}) and not file_info.get(k)}
+        if not gained:
+            continue
+
+        with scan_lock:
+            current = scanned_files.get(file_path)
+            if current is None:
+                continue  # entry was removed while we were fetching
+            current.update(gained)
+        updated += 1
+        print(f"[RETRY] Updated {file_info.get('filename')}: {', '.join(sorted(gained))}")
+
+    if updated:
+        with scan_lock:
             save_database_func()
+        print(f"✓ Refreshed {updated} previously incomplete entr(ies)")
 
-    print(f"✓ Scanned: {file_path} ({hdr_info.get('format')})")
-
-    return {
-        'success': True,
-        'message': f'{hdr_info.get("format")} detected',
-        'file_info': file_info
-    }
+    return updated
 
 
 def scan_directory(directory, scanned_paths):

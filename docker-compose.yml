@@ -11,6 +11,7 @@ services:
     environment:
       - FILE_WRITE_DELAY=5 # Interval in seconds between file size checks before scanning new files
       - AUTO_REFRESH_INTERVAL=10 # Interval for automatic updating of the web UI in seconds
+      - METADATA_RETRY_INTERVAL=${METADATA_RETRY_INTERVAL:-30} # Minutes between retries for entries with incomplete metadata (0 = off)
       - TMDB_API_KEY=${TMDB_API_KEY:-}  # Add your TMDB API key here or set via .env file
       - FANART_API_KEY=${FANART_API_KEY:-}  # Add your Fanart.tv API key here or set via .env file
       - OMDB_API_KEY=${OMDB_API_KEY:-}  # OMDb API key for IMDb ratings (optional; without it the TMDB rating is shown)

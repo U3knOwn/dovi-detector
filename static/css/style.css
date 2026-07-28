@@ -1850,10 +1850,11 @@ tbody tr:hover td {
     padding-top: 6px;
     justify-content: center;
     align-items: center;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    /* Three buttons at their minimum width exceed a phone-sized dialog, so
+       they wrap onto a second line instead of scrolling out of view. */
+    flex-wrap: wrap;
     padding-bottom: 6px;
+    width: 100%;
 }
 
 .dialog-link {
@@ -1914,29 +1915,61 @@ tbody tr:hover td {
     transform: translateY(-1px);
 }
 
-.dialog-delete-btn {
+.dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 420px;
+}
+
+.dialog-action-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    background: rgba(248, 113, 113, 0.12);
-    color: var(--danger);
-    border: 1px solid rgba(248, 113, 113, 0.4);
-    padding: 12px 24px;
+    flex: 1 1 160px;
+    min-width: 0;
+    padding: 12px 20px;
     border-radius: var(--radius);
     font-weight: 600;
     font-size: 0.92rem;
     cursor: pointer;
+    border: 1px solid transparent;
     transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-    width: 100%;
-    max-width: 300px;
 }
 
-.dialog-delete-btn svg {
+.dialog-action-btn svg {
     flex: 0 0 auto;
 }
 
-.dialog-delete-btn:hover {
+.dialog-action-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+
+.dialog-rescan-btn {
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent-soft);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.dialog-rescan-btn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.22);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.15);
+}
+
+.dialog-delete-btn {
+    background: rgba(248, 113, 113, 0.12);
+    color: var(--danger);
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+.dialog-delete-btn:hover:not(:disabled) {
     background: rgba(248, 113, 113, 0.22);
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(248, 113, 113, 0.15);
@@ -2197,6 +2230,16 @@ tbody tr:hover td {
 }
 
 @media screen and (max-width: 915px) {
+    /* The three links keep their single row on a phone by sharing the width
+       instead of each demanding its desktop minimum */
+    .dialog-link {
+        flex: 1 1 0;
+        min-width: 0;
+        gap: 6px;
+        padding: 0 10px;
+        font-size: 0.82rem;
+    }
+
     body {
         padding: 10px;
     }

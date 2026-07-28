@@ -116,6 +116,12 @@ def _env_int(name, default):
 FILE_WRITE_DELAY = _env_int('FILE_WRITE_DELAY', 5)
 AUTO_REFRESH_INTERVAL = _env_int('AUTO_REFRESH_INTERVAL', 10)
 
+# How often (in minutes) entries with missing metadata are retried. Covers the
+# case where TMDB/OMDb were unreachable during the scan, a rate limit was hit,
+# or an API key was only added afterwards - the entry then fills itself in
+# without a rescan. Set to 0 to disable the retries entirely.
+METADATA_RETRY_INTERVAL = max(0, _env_int('METADATA_RETRY_INTERVAL', 30))
+
 # Number of files probed at once during a bulk scan (initial + manual scan).
 # hdrprobe and MediaInfo run as external processes, so a small worker pool
 # overlaps their I/O and cuts the total time to scan a large library.

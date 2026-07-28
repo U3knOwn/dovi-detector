@@ -27,7 +27,10 @@ from services.tmdb_service import get_tmdb_poster, get_tmdb_poster_by_id, get_tm
 from services.imdb_service import get_omdb_ratings, get_top250_rank, load_top250, backfill_imdb_data
 from services.fanart_service import get_fanart_poster
 from services.poster_service import delete_cached_poster, get_cached_backdrop_path, migrate_poster_urls_to_cache
-from services.video_scanner import scan_video_file, scan_directory, background_scan_new_files, bulk_scan_files
+from services.video_scanner import (
+    scan_video_file, scan_directory, background_scan_new_files, bulk_scan_files,
+    fetch_online_metadata, refresh_incomplete_entries
+)
 
 # Import watcher
 from watchers.media_watcher import start_file_observer
@@ -61,6 +64,43 @@ def _scan_video_file_wrapper(file_path, defer_save=False):
         lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL),
         defer_save=defer_save
     )
+
+
+def _fetch_online_metadata_wrapper(filename):
+    """Wrapper for fetch_online_metadata with all dependencies"""
+    return fetch_online_metadata(
+        filename,
+        lambda fn: get_fanart_poster(fn, config.FANART_API_KEY, config.CONTENT_LANGUAGE),
+        lambda fn: get_tmdb_poster(fn, config.TMDB_API_KEY, config.CONTENT_LANGUAGE),
+        lambda tmdb_id, media_type: get_tmdb_poster_by_id(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE),
+        lambda tmdb_id, media_type: get_tmdb_credits(tmdb_id, media_type, config.TMDB_API_KEY),
+        lambda tmdb_id, poster_url: get_cached_backdrop_path(tmdb_id, poster_url, config.POSTER_CACHE_DIR),
+        lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
+        lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
+        lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL)
+    )
+
+
+def _metadata_retry_loop():
+    """
+    Periodically retry entries whose online lookups came back incomplete.
+
+    This is what makes an entry heal itself once an API is reachable again or
+    a key is added - without it, a failed lookup would stay empty until the
+    file is rescanned by hand.
+    """
+    interval = config.METADATA_RETRY_INTERVAL * 60
+    while True:
+        time.sleep(interval)
+        try:
+            refresh_incomplete_entries(
+                database.scanned_files,
+                database.scan_lock,
+                lambda: database.save_database(config.DB_FILE),
+                _fetch_online_metadata_wrapper
+            )
+        except Exception as e:
+            print(f"Error during metadata retry: {e}")
 
 
 def _refresh_imdb_data():
@@ -443,6 +483,55 @@ def delete_entry():
         return jsonify({'success': False, 'error': translate('delete_entry_error', lang)}), 500
 
 
+@app.route('/rescan_entry', methods=['POST'])
+def rescan_entry():
+    """
+    Re-read a single entry from scratch: probe the file again and redo every
+    online lookup. Used by the dialog's "re-scan" button when an entry is
+    stale or was scanned while an API was unavailable.
+    """
+    lang = 'en'
+    try:
+        lang = get_request_language(request)
+        data = request.get_json()
+        file_path = data.get('file_path')
+
+        if not file_path:
+            return jsonify({'success': False, 'error': translate('api_no_file_path_provided', lang)}), 400
+
+        if not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': translate('api_file_not_found', lang)}), 404
+
+        # Drop the old record first - scan_video_file skips paths it already
+        # knows, and the cached poster is replaced by the fresh one.
+        with database.scan_lock:
+            old_info = database.scanned_files.pop(file_path, None)
+            database.scanned_paths.discard(file_path)
+        if old_info:
+            _delete_cached_poster_wrapper(old_info)
+
+        result = _scan_video_file_wrapper(file_path)
+
+        if result and result.get('success'):
+            return jsonify({
+                'success': True,
+                'message': translate('api_file_scanned_successfully', lang),
+                'file_info': result.get('file_info')
+            })
+
+        # Scanning failed - put the previous record back so the entry does not
+        # silently vanish from the library.
+        if old_info:
+            with database.scan_lock:
+                database.scanned_files[file_path] = old_info
+                database.scanned_paths.add(file_path)
+                database.save_database(config.DB_FILE)
+        return jsonify({'success': False, 'error': translate('rescan_entry_error', lang)}), 500
+    except Exception as e:
+        print(f"Error in rescan_entry: {e}")
+        return jsonify({'success': False, 'error': translate('rescan_entry_error', lang)}), 500
+
+
 def main():
     """Main application entry point"""
     print("=" * 50)
@@ -538,6 +627,14 @@ def main():
         _delete_cached_poster_wrapper,
         deletion_event_queue
     )
+
+    # Retry entries whose metadata lookups failed, so they heal themselves
+    # once the API is reachable again
+    if config.METADATA_RETRY_INTERVAL > 0:
+        threading.Thread(target=_metadata_retry_loop, daemon=True).start()
+        print(f"Metadata retry every {config.METADATA_RETRY_INTERVAL} min for incomplete entries")
+    else:
+        print("Metadata retry disabled (METADATA_RETRY_INTERVAL=0)")
 
     # Start initial scan automatically in background
     threading.Thread(
