@@ -17,6 +17,29 @@ from utils.media_utils import (
 )
 import config
 
+# Major version of the hdrprobe JSON schema this module reads (hdrprobe v1.0.0).
+# Schema 3.0 renamed and reshaped fields relative to 2.x, so a mismatch means
+# the report may be parsed into empty metadata without any other symptom.
+HDRPROBE_SCHEMA_MAJOR = '3'
+_schema_warning_shown = False
+
+
+def _warn_on_schema_mismatch(report):
+    """Warn once when hdrprobe emits a schema this module was not written for."""
+    global _schema_warning_shown
+    if _schema_warning_shown or not isinstance(report, dict):
+        return
+
+    version = str(report.get('hdrprobe_schema_version') or '').strip()
+    if not version or version.split('.')[0] == HDRPROBE_SCHEMA_MAJOR:
+        return
+
+    _schema_warning_shown = True
+    print(
+        f"  [HDR] Warning: hdrprobe reports JSON schema {version}, but this "
+        f"version expects {HDRPROBE_SCHEMA_MAJOR}.x - some HDR metadata may be "
+        f"missing. Rebuild the image to get the matching hdrprobe release.")
+
 
 def run_hdrprobe(video_file):
     """
@@ -48,7 +71,9 @@ def run_hdrprobe(video_file):
                 f"{os.path.basename(video_file)}: {stderr}")
             return None
 
-        return json.loads(result.stdout)
+        report = json.loads(result.stdout)
+        _warn_on_schema_mismatch(report)
+        return report
 
     except subprocess.TimeoutExpired:
         print(f"  [HDR] hdrprobe timed out for {os.path.basename(video_file)}")
@@ -636,8 +661,11 @@ def get_hdrprobe_hdr_metadata(report):
     metadata = dict(HDR_METADATA_DEFAULTS)
 
     # --- Base layer (HDR10 static metadata) ---
+    # Schema 3.0 renamed 'mastering' to 'mastering_display'; the old name is
+    # still read so an image running an older hdrprobe does not silently
+    # report every luminance as 0.
     hdr = track.get('hdr') or {}
-    mastering = hdr.get('mastering') or {}
+    mastering = hdr.get('mastering_display') or hdr.get('mastering') or {}
     metadata['hdr10_mdl_max'] = parse_mediainfo_float(mastering.get('max_luminance')) or 0
     metadata['hdr10_mdl_min'] = parse_mediainfo_float(mastering.get('min_luminance')) or 0
 

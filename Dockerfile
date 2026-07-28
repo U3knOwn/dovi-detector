@@ -30,7 +30,8 @@ RUN wget -qO /etc/apt/trusted.gpg.d/mediaarea.asc https://mediaarea.net/repo/deb
     && rm -rf /var/lib/apt/lists/*
 
 # Download and install hdrprobe
-RUN wget https://github.com/matthane/hdrprobe/releases/download/v0.8.0/hdrprobe-0.8.0-linux-x64-static.tar.gz -O /tmp/hdrprobe.tar.gz \
+# v1.0.0 emits JSON schema 3.0; services/video_scanner.py reads that layout.
+RUN wget https://github.com/matthane/hdrprobe/releases/download/v1.0.0/hdrprobe-1.0.0-linux-x64-static.tar.gz -O /tmp/hdrprobe.tar.gz \
     && mkdir -p /tmp/hdrprobe \
     && tar -xzf /tmp/hdrprobe.tar.gz -C /tmp/hdrprobe \
     && find /tmp/hdrprobe -type f -name hdrprobe -exec mv {} /usr/local/bin/hdrprobe \; \

@@ -395,6 +395,7 @@ docker-compose restart
 pip3 install -r requirements.txt
 
 # mediainfo and hdrprobe must be installed manually
+# hdrprobe >= 1.0.0 is required (it emits the JSON schema 3.0 this app reads)
 
 # Start app
 python3 app.py
