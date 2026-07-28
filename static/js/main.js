@@ -866,10 +866,17 @@ function getProfileRank(hdrFormat, hdrDetail, elType) {
 }
 
 function getCmVersionRank(cmVersion) {
+    // cmVersion may carry the DV structure, e.g. "CMv4.0 (ST-DL)" -> rank by version only
     const v = (cmVersion || '').toLowerCase().trim();
-    if (v === 'cmv4.0') return 0;
-    if (v === 'cmv2.9') return 1;
+    if (v.startsWith('cmv4.0')) return 0;
+    if (v.startsWith('cmv2.9')) return 1;
     return 2;
+}
+
+function getCmStructureKey(cmVersion) {
+    // Extract the structure abbreviation, e.g. "CMv4.0 (ST-DL)" -> "st-dl"
+    const m = (cmVersion || '').toLowerCase().match(/\(([^)]+)\)/);
+    return m ? m[1].trim() : '';
 }
 
 function getFilenameFromRow(row) {
@@ -1156,6 +1163,15 @@ function sortTableByCmVersion() {
         const bRank = getCmVersionRank(bCmv);
 
         if (aRank !== bRank) return aRank - bRank;
+
+        // Within the same CM version, group by DV structure (ST-DL, DT-DL, ...)
+        const aStruct = getCmStructureKey(aCmv);
+        const bStruct = getCmStructureKey(bCmv);
+        if (aStruct !== bStruct) {
+            if (!aStruct) return 1;
+            if (!bStruct) return -1;
+            return aStruct < bStruct ? -1 : 1;
+        }
 
         const aFmt = a.getAttribute('data-hdr-format') || '';
         const aDet = a.getAttribute('data-hdr-detail') || '';
