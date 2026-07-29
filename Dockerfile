@@ -50,6 +50,8 @@ RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 # Copy application files
 COPY app.py .
 COPY config.py .
+COPY core/ ./core/
+COPY routes/ ./routes/
 COPY services/ ./services/
 COPY utils/ ./utils/
 COPY watchers/ ./watchers/

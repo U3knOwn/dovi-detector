@@ -1,0 +1,779 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* The two dialogs: file selection and entry details. */
+
+/* ============================================================
+   File Selection Dialog
+   ============================================================ */
+
+.file-dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    overflow-y: auto;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.file-dialog-overlay.active {
+    display: flex;
+}
+
+.file-dialog {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 22px;
+    max-width: 880px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    margin: 20px auto;
+    padding: 28px 22px 22px;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+
+.file-dialog .dialog-title {
+    margin: 4px 36px 18px;
+}
+
+.file-dialog-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    flex: 0 0 auto;
+}
+
+.file-dialog-search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-faint);
+    pointer-events: none;
+}
+
+#fileDialogSearch {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: var(--control-h);
+    background-color: var(--control-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0 14px 0 42px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    border-radius: var(--radius);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#fileDialogSearch:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.file-dialog-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 120px;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.file-dialog-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.file-dialog-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+}
+
+.file-dialog-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+.file-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.file-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 4px 4px;
+    position: sticky;
+    top: 0;
+    background: var(--surface-2);
+    z-index: 1;
+}
+
+.file-group-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.file-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+}
+
+.file-item {
+    -webkit-appearance: none;
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 12px;
+    background: var(--control-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.file-item:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-3);
+}
+
+.file-item:active {
+    transform: scale(0.99);
+}
+
+.file-item:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.file-item.selected {
+    border-color: rgba(99, 102, 241, 0.7);
+    background: rgba(99, 102, 241, 0.12);
+}
+
+/* Custom selection checkbox (left) */
+.file-item-checkbox {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid var(--border-strong);
+    color: transparent;
+    background: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.file-item:hover .file-item-checkbox {
+    border-color: var(--text-faint);
+}
+
+.file-item.selected .file-item-checkbox {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.file-item-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-item.scanned .file-item-name {
+    color: var(--text-muted);
+}
+
+/* Scan-status badge (right) */
+.file-item-status {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+.file-item.scanned .file-item-status {
+    color: #fff;
+    background: var(--success);
+}
+
+.file-item.unscanned .file-item-status {
+    background: transparent;
+    border: 2px dashed var(--text-faint);
+}
+
+.file-dialog-empty {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 0.92rem;
+    padding: 40px 20px;
+}
+
+/* ---------- File dialog footer ---------- */
+
+.file-dialog-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.file-dialog-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.file-dialog-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 40px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--control-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+}
+
+.file-dialog-btn:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-3);
+}
+
+.file-dialog-btn:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.file-dialog-btn.primary {
+    background: var(--accent-grad);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+}
+
+.file-dialog-btn.primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 22px rgba(99, 102, 241, 0.45);
+}
+
+.file-dialog-btn.primary:active {
+    transform: translateY(0);
+}
+
+.file-dialog-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.file-dialog-btn.primary:disabled {
+    box-shadow: none;
+    filter: none;
+}
+/* ============================================================
+   Media Details Dialog
+   ============================================================ */
+
+.media-dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    overflow-y: auto;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.media-dialog-overlay.active {
+    display: flex;
+}
+
+.media-dialog {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 22px;
+    max-width: 520px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    margin: 20px auto;
+    padding: 28px 26px;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.media-dialog::-webkit-scrollbar {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(24px) scale(0.98);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.dialog-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    z-index: 5;
+}
+
+.dialog-close svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+.dialog-close:hover {
+    color: var(--text);
+    background: rgba(248, 113, 113, 0.16);
+    border-color: rgba(248, 113, 113, 0.4);
+    transform: rotate(90deg);
+}
+
+.dialog-title {
+    text-align: center;
+    color: var(--text);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 4px 36px 24px;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.dialog-poster {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.dialog-poster-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.dialog-poster-img {
+    /* Block, so the wrapper does not keep the inline baseline gap under the
+       image - that gap would push the bottom-anchored Top 250 badge inwards. */
+    display: block;
+    width: 100%;
+    max-width: 460px;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    object-fit: cover;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+}
+
+.dialog-rating-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+}
+
+.dialog-top250-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+/* Row of external ratings directly under the cover */
+/* Flex, not a fixed 4-column grid: without an OMDb key only the TMDb rating
+   remains, and the surviving tiles should share the full width instead of
+   clinging to the left with empty columns beside them. */
+.dialog-ratings {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0 20px;
+}
+
+.dialog-rating {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    /* Labels differ in line count ("Rotten Tomatoes" wraps), so the values are
+       pinned to the bottom to keep them on one line across the row. */
+    justify-content: space-between;
+    min-height: 64px;
+    gap: 6px;
+    padding: 8px 4px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    min-width: 0;
+}
+
+.dialog-rating-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* The IMDb and TMDb marks are dense wordmarks - below ~26px they stop
+       being readable, so the row is sized around them rather than the icons */
+    height: 26px;
+    line-height: 1;
+}
+
+.dialog-rating-logo svg {
+    width: 26px;
+    height: 26px;
+    display: block;
+}
+
+.dialog-rating-value {
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.dialog-rating-imdb :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #f5c518;
+}
+
+.dialog-rating-tmdb :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #67d3f5;
+}
+
+.dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #fa7a68;
+}
+
+.dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #7ed957;
+}
+
+.dialog-info {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.dialog-info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dialog-info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.dialog-info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.dialog-info-left {
+    text-align: left;
+}
+
+.dialog-info-right {
+    text-align: right;
+}
+
+.dialog-label {
+    color: var(--text-faint);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+}
+
+.dialog-value {
+    color: var(--text);
+    font-size: 0.93rem;
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+.dialog-plot-text {
+    color: var(--text);
+    line-height: 1.6;
+    text-align: center;
+    font-size: 0.93rem;
+    font-weight: 500;
+    max-width: 42ch;
+}
+
+/* A long synopsis would push everything below it out of view, so it is folded
+   to five lines until the button under it expands it. -webkit-line-clamp is
+   the only cross-browser way to cut at a line boundary; it is supported
+   everywhere including Firefox. */
+.dialog-plot-text.clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dialog-plot-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.dialog-plot-toggle:hover {
+    color: var(--text);
+    border-color: var(--accent-soft);
+}
+
+.dialog-plot-toggle-caret {
+    transition: transform 0.2s ease;
+}
+
+.dialog-plot-toggle.expanded .dialog-plot-toggle-caret {
+    transform: rotate(180deg);
+}
+
+.dialog-filename-item .dialog-value {
+    word-break: break-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+}
+
+.dialog-links {
+    display: flex;
+    gap: 12px;
+    padding-top: 6px;
+    justify-content: center;
+    align-items: center;
+    /* Three buttons at their minimum width exceed a phone-sized dialog, so
+       they wrap onto a second line instead of scrolling out of view. */
+    flex-wrap: wrap;
+    padding-bottom: 6px;
+    width: 100%;
+}
+
+.dialog-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 20px;
+    min-width: 124px;
+    height: 40px;
+    border-radius: var(--radius-pill);
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.88rem;
+    letter-spacing: 0.01em;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.dialog-link svg {
+    flex-shrink: 0;
+}
+
+.dialog-link.imdb {
+    background: rgba(245, 197, 24, 0.12);
+    border-color: rgba(245, 197, 24, 0.4);
+    color: #f5c518;
+}
+
+.dialog-link.imdb:hover {
+    background: rgba(245, 197, 24, 0.22);
+    border-color: rgba(245, 197, 24, 0.6);
+}
+
+.dialog-link.tmdb {
+    background: rgba(1, 180, 228, 0.12);
+    border-color: rgba(1, 180, 228, 0.4);
+    color: #67d3f5;
+}
+
+.dialog-link.tmdb:hover {
+    background: rgba(1, 180, 228, 0.22);
+    border-color: rgba(1, 180, 228, 0.6);
+}
+
+.dialog-link.youtube {
+    background: rgba(255, 64, 64, 0.12);
+    border-color: rgba(255, 64, 64, 0.4);
+    color: #ff7b7b;
+}
+
+.dialog-link.youtube:hover {
+    background: rgba(255, 64, 64, 0.22);
+    border-color: rgba(255, 64, 64, 0.6);
+}
+
+.dialog-link:hover {
+    transform: translateY(-1px);
+}
+
+.dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 420px;
+}
+
+.dialog-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1 1 160px;
+    min-width: 0;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dialog-action-btn svg {
+    flex: 0 0 auto;
+}
+
+.dialog-action-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+
+.dialog-rescan-btn {
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent-soft);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.dialog-rescan-btn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.22);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.15);
+}
+
+.dialog-delete-btn {
+    background: rgba(248, 113, 113, 0.12);
+    color: var(--danger);
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+.dialog-delete-btn:hover:not(:disabled) {
+    background: rgba(248, 113, 113, 0.22);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(248, 113, 113, 0.15);
+}

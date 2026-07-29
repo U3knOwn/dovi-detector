@@ -15,6 +15,7 @@ Universal Video Scanner with Web Interface - Automatic detection of HDR formats 
 - **Sort by Rating Source**: Separate sort filters for IMDb, TMDb, Rotten Tomatoes and Metacritic
 - **Sort Direction**: A toggle next to the sort dropdown flips every sort mode between ascending and descending, remembered across restarts
 - **Title Details**: Genres next to the directors, and a plot folded to five lines that expands on demand
+- **API**: Token-protected `/api/v1` for other services - read the library, its statistics, start scans, follow progress live
 
 ## Software on Docker Hub 🐳
 
@@ -128,18 +129,147 @@ The dashboard displays the following information:
 - 🔄 Auto-refresh every 10 seconds
 - ⚡ Live status during scanning
 
+## API 🔌
+
+Other services (dashboards, automation, scripts) can read the library and drive
+scans through a versioned API at `/api/v1`. It is off until you give it a
+token.
+
+### Enabling it
+
+```yaml
+environment:
+  - API_TOKEN=a-long-random-secret        # required, the API is off without it
+  - API_CORS_ORIGINS=https://dash.local   # only for browser apps, see below
+```
+
+Generate a token with `openssl rand -hex 32`. Without `API_TOKEN` every
+`/api/v1` request answers `503 api_disabled` - an API that can empty the
+database must not be open to whoever reaches the port.
+
+### Authentication
+
+Every request carries the token, in whichever form suits the client:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://host:2367/api/v1/library
+curl -H "X-API-Token: $TOKEN"          http://host:2367/api/v1/library
+curl "http://host:2367/api/v1/library?token=$TOKEN"
+```
+
+The query parameter exists because the browser's `EventSource` cannot send
+headers; prefer a header everywhere else, as URLs end up in logs and history.
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1` | Version and the list of endpoints |
+| `GET` | `/api/v1/library` | Every scanned entry: `{success, count, files:[…]}` |
+| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution and audio codec, plus the total size - without shipping the library |
+| `GET` | `/api/v1/files` | Video files in the media directory: `{name, path, scanned}` |
+| `GET` | `/api/v1/scan/status` | Progress of the running scan |
+| `GET` | `/api/v1/events` | Server-Sent Events: `scan_progress`, `file_deleted` |
+| `POST` | `/api/v1/scan` | Scan everything that is not in the library yet (returns `202`, runs in the background) |
+| `POST` | `/api/v1/scan/files` | Scan `{"file_paths": ["/media/a.mkv", …]}` (`202`) |
+| `POST` | `/api/v1/entries/scan` | Scan one `{"file_path": "…"}` and wait for the result |
+| `POST` | `/api/v1/entries/rescan` | Re-read one `{"file_path": "…"}` from scratch, including every online lookup |
+| `POST` | `/api/v1/entries/delete` | Remove one `{"file_path": "…"}` from the library |
+| `POST` | `/api/v1/database/clear` | Empty the library |
+
+Every answer carries `success`. A failure adds a human-readable `error` and a
+machine-readable `code` (`api_disabled`, `unauthorized`, `missing_file_path`,
+`missing_file_paths`, `file_not_found`, `entry_not_found`, `scan_failed`,
+`rescan_failed`, `delete_failed`, `clear_failed`, `media_unreadable`), with the
+matching HTTP status (`400`, `401`, `404`, `409`, `500`, `503`).
+
+An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
+`hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
+`video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
+`hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
+`tmdb_rating`, `tmdb_plot`, `tmdb_directors`, `tmdb_cast`, `tmdb_genres`,
+`imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`, `metacritic`.
+
+### Examples
+
+```bash
+TOKEN=a-long-random-secret
+API=http://host:2367/api/v1
+
+# How many titles, by HDR format - the cheap call for a dashboard
+curl -s -H "X-API-Token: $TOKEN" $API/library/stats | jq '.hdr_formats'
+
+# Every Dolby Vision FEL title
+curl -s -H "X-API-Token: $TOKEN" $API/library \
+  | jq '.files[] | select(.el_type=="FEL") | .filename'
+
+# Scan everything new and follow along
+curl -s -X POST -H "X-API-Token: $TOKEN" $API/scan
+curl -sN "$API/events?token=$TOKEN"
+
+# Re-read one entry
+curl -s -X POST -H "X-API-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"file_path": "/media/Film.mkv"}' $API/entries/rescan
+```
+
+### Browser apps (CORS)
+
+`curl`, scripts and server-side dashboards are never subject to CORS and need
+nothing beyond the token. A web app served from **another** origin does: list
+its origin in `API_CORS_ORIGINS` (comma-separated, or `*` for any). Left empty,
+no CORS headers are sent and only same-origin requests work.
+
+### What the token does and does not protect
+
+The token guards `/api/v1`. The endpoints the web interface itself uses
+(`/api/library`, `/get_files`, `/scan`, `/delete_entry`, …) stay open, because
+the page has no token to send - anyone who can open the interface can already
+do these things. So the token keeps automation honest and stable; it is not a
+lock on the instance. To actually restrict access, put the whole thing behind a
+reverse proxy with authentication, or keep the port on your LAN.
+
 ## Technical Details 🔧
 
 ### Architecture
 
 ```
-DoVi-Detector/
-├── app.py              # Flask application with scanner logic
+universal-video-scanner/
+├── app.py              # Entry point: builds the app and starts everything
+├── config.py           # Configuration read from the environment
+├── core/               # Events, scan state, scanner wiring, background tasks
+│   ├── api_access.py   # API token check and CORS
+│   ├── compression.py  # Gzip for text responses
+│   ├── events.py       # Server-Sent Events fan-out
+│   ├── library_ops.py  # What can be done with the library, without HTTP
+│   ├── scan_state.py   # Progress of the running scan
+│   ├── scanner.py      # The scanner and its dependencies wired together
+│   └── tasks.py        # Backfills, metadata retry, initial scan
+├── routes/             # HTTP endpoints, grouped by topic
+│   ├── api_v1.py       # The public, versioned API (/api/v1)
+│   ├── library.py      # / and /api/library
+│   ├── scanning.py     # /scan, /scan_file(s), /get_files, /scan_status
+│   ├── entries.py      # /delete_entry, /rescan_entry, /clear_database
+│   ├── posters.py      # /poster/<file>
+│   └── events.py       # /events
+├── services/           # Scanning, online lookups, database
+├── utils/              # File, media and translation helpers
+├── watchers/           # File system watcher
+├── static/
+│   ├── css/            # One stylesheet per part of the interface
+│   ├── js/             # ES modules
+│   │   ├── main.js     # Entry point
+│   │   ├── core/       # Translations, theme, server calls, live updates
+│   │   ├── helpers/    # Formatting, ranking, small DOM helpers
+│   │   ├── library/    # The entries, their sorting and the table
+│   │   └── ui/         # Dialogs, dropdowns, buttons, layout
+│   ├── fonts/          # Bundled fonts
+│   └── locale/         # Translations
+├── templates/          # HTML templates
 ├── Dockerfile          # Container definition
 ├── docker-compose.yml  # Deployment configuration
 ├── requirements.txt    # Python dependencies
-├── media/             # Media directory (volume)
-└── data/              # Database directory (volume)
+├── media/              # Media directory (volume)
+└── data/               # Database directory (volume)
     ├── scanned_files.json  # Video scan results
     ├── posters/           # Cached poster images
     ├── static/            # Static files (CSS, JS, fonts, locales)
@@ -152,6 +282,15 @@ DoVi-Detector/
 2. **hdrprobe** analyzes the video and detects SDR, HDR10, HDR10+, HLG, and Dolby Vision (profile, EL type, CM version) along with the static HDR metadata (mastering display luminance, MaxCLL/MaxFALL, the RPU's L6 values and L5 active area)
 3. **MediaInfo** extracts resolution, duration, audio codec, and bitrate information
 4. **Results** are saved to JSON database
+
+### Web Interface Rendering
+
+The library page ships as a small shell and fetches the scanned entries from
+`/api/library` as JSON. Sorting, searching and the statistics run on that data
+in the browser, and only the rows currently in view are put into the DOM (from
+120 entries upwards) - so a library of several thousand titles loads in a
+fraction of a second instead of shipping megabytes of markup. Text responses
+are gzip-compressed.
 
 ### Static Files and Templates
 
@@ -179,14 +318,17 @@ The application intelligently manages static files and templates with version tr
 
 **Example customizations:**
 ```bash
-# Edit CSS styles
-nano ./data/static/css/style.css
+# Edit CSS styles (one file per part of the interface)
+nano ./data/static/css/table.css
 
 # Modify translations
 nano ./data/static/locale/en.json
 
 # Customize HTML template
 nano ./data/templates/index.html
+
+# Change the behaviour of a part of the interface
+nano ./data/static/js/library/sorting.js
 
 # Restart container to apply changes (customizations preserved)
 docker-compose restart
@@ -210,7 +352,10 @@ docker-compose up -d
 | `ISO_SAMPLE_SIZE_MB` | `16` | Size in MB of the main-feature `.m2ts` sample extracted from Blu-ray disc images (`.iso`) for MediaInfo analysis |
 | `SCAN_WORKERS` | `1` | Files probed at once during a bulk scan. `1` = strictly sequential and light (best for a single spinning disk / NAS). Raise to `2`-`4` for SSD / NVMe / fast storage to scan a large library faster |
 | `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
+| `METADATA_RETRY_BATCH` | `250` | How many incomplete entries one retry run looks up. Keeps a large library from firing thousands of requests every interval; the run rotates, so every entry still gets its turn. `0` retries all of them |
 | `SCAN_SAVE_BATCH` | `25` | How many newly scanned files to buffer before writing the database. Avoids rewriting the whole database after every file on a large library; an interrupted scan re-reads at most this many files. `1` persists after every file |
+| `API_TOKEN` | `` | Token for the `/api/v1` API. Without it the API is disabled (`503`). Generate one with `openssl rand -hex 32` |
+| `API_CORS_ORIGINS` | `` | Comma-separated origins a **browser app** may call `/api/v1` from, or `*`. Empty = same-origin only; does not affect curl or server-side callers |
 | `TMDB_API_KEY` | `` | TMDB API key for fetching movie posters (optional) |
 | `FANART_API_KEY` | `` | Fanart.tv API key for fetching thumb posters (optional) |
 | `OMDB_API_KEY` | `` | [OMDb API](https://www.omdbapi.com/apikey.aspx) key used to fetch IMDb ratings (optional - without it the TMDB rating is shown instead) |

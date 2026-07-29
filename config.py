@@ -64,6 +64,24 @@ LANGUAGE_CODE_MAP = {
     'uk': ['ukr', 'uk', 'ukrainian'],
 }
 
+# --- Public API (/api/v1) ---------------------------------------------------
+# Token every request to /api/v1 has to carry. Without one the versioned API
+# stays switched off (it answers 503) - an API that lets a caller wipe the
+# database must not be open to whoever reaches the port.
+API_TOKEN = os.environ.get('API_TOKEN', '').strip()
+
+
+def _env_list(name):
+    """Read a comma-separated environment variable into a list of values."""
+    raw = os.environ.get(name, '')
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
+# Origins a browser may call /api/v1 from. Empty means no CORS headers at all,
+# so only same-origin requests work; '*' allows every origin. Server-side
+# callers (curl, scripts, dashboards) are not affected by this either way.
+API_CORS_ORIGINS = _env_list('API_CORS_ORIGINS')
+
 # Static files configuration
 # Use bundled static files from /app directory instead of downloading from GitHub
 TEMPLATES_DIR = '/app/templates'
@@ -121,6 +139,13 @@ AUTO_REFRESH_INTERVAL = _env_int('AUTO_REFRESH_INTERVAL', 10)
 # or an API key was only added afterwards - the entry then fills itself in
 # without a rescan. Set to 0 to disable the retries entirely.
 METADATA_RETRY_INTERVAL = max(0, _env_int('METADATA_RETRY_INTERVAL', 30))
+
+# How many incomplete entries one retry run looks up. Titles that genuinely
+# have no TMDB match stay incomplete forever, so on a large library an uncapped
+# run would fire thousands of requests every interval and hit the APIs' rate
+# limits. The run rotates through the candidates, so every entry still gets its
+# turn - just spread over several intervals. Set to 0 to retry all of them.
+METADATA_RETRY_BATCH = max(0, _env_int('METADATA_RETRY_BATCH', 250))
 
 # Number of files probed at once during a bulk scan (initial + manual scan).
 # hdrprobe and MediaInfo run as external processes, so a small worker pool

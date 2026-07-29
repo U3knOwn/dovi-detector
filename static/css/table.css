@@ -1,0 +1,551 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* The media table with its badges, poster cards and the bar below it. */
+
+/* ============================================================
+   Media Table
+   ============================================================ */
+
+table {
+    width: 100%;
+    text-align: center;
+    border-collapse: separate;
+    border-spacing: 0 12px;
+    margin-top: -6px;
+}
+
+thead th {
+    padding: 10px 16px 2px;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+}
+
+tbody tr td {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 16px;
+    vertical-align: middle;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+tbody tr td:first-child {
+    border-left: 1px solid var(--border);
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+tbody tr td:last-child {
+    border-right: 1px solid var(--border);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+tbody tr:hover td {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+}
+
+.collapsible-table.collapsed tbody tr {
+    display: none;
+}
+
+/* Only the rows in view are rendered; these two rows hold the space of all the
+   others, so the scrollbar and every scroll position stay true to the full
+   list. They must not look like a row - in either layout, since the stacked
+   mobile view draws each row as a card. Their outer spacing is deliberately
+   left alone: it is part of the height they stand in for. */
+.media-spacer,
+.media-spacer:hover {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+}
+
+.media-spacer td,
+.media-spacer:hover td {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+.media-spacer td:before {
+    content: none;
+}
+
+.table-container {
+    position: relative;
+}
+/* ============================================================
+   Badges
+   ============================================================ */
+
+.hdr-badge,
+.el-badge,
+.resolution-badge,
+.audio-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 230px;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 3px 2px;
+    padding: 8px 10px;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: 0.84rem;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.35;
+}
+
+/* ---------- HDR formats ---------- */
+
+.hdr-dolby-vision {
+    background: rgba(139, 92, 246, 0.14);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #c4b5fd;
+}
+
+.hdr-dolby-vision.el-fel {
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+}
+
+.hdr-dolby-vision.el-mel {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fcd34d;
+}
+
+.hdr-hdr10plus {
+    background: rgba(249, 115, 22, 0.14);
+    border-color: rgba(249, 115, 22, 0.4);
+    color: #fdba74;
+}
+
+.hdr-hdr10 {
+    background: rgba(14, 165, 233, 0.14);
+    border-color: rgba(14, 165, 233, 0.4);
+    color: #7dd3fc;
+}
+
+.hdr-hlg {
+    background: rgba(20, 184, 166, 0.14);
+    border-color: rgba(20, 184, 166, 0.4);
+    color: #5eead4;
+}
+
+.hdr-sl-hdr,
+.hdr-sl-hdr1,
+.hdr-sl-hdr2,
+.hdr-sl-hdr3 {
+    background: rgba(236, 72, 153, 0.14);
+    border-color: rgba(236, 72, 153, 0.4);
+    color: #f9a8d4;
+}
+
+.hdr-hdr-vivid {
+    background: rgba(6, 182, 212, 0.14);
+    border-color: rgba(6, 182, 212, 0.4);
+    color: #67e8f9;
+}
+
+.hdr-sdr {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #cbd5e1;
+}
+
+.hdr-unknown {
+    background: rgba(148, 163, 184, 0.07);
+    border-color: rgba(148, 163, 184, 0.2);
+    color: var(--text-faint);
+}
+
+/* Standalone enhancement-layer badges */
+
+.el-fel {
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+}
+
+.el-mel {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fcd34d;
+}
+
+/* ---------- Resolutions ---------- */
+
+.resolution-8k-\(uhd\) {
+    background: rgba(217, 70, 239, 0.14);
+    border-color: rgba(217, 70, 239, 0.4);
+    color: #f0abfc;
+}
+
+.resolution-4k-\(uhd\),
+.resolution-4k-dci {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.resolution-1440p {
+    background: rgba(249, 115, 22, 0.14);
+    border-color: rgba(249, 115, 22, 0.4);
+    color: #fdba74;
+}
+
+.resolution-1080p-\(full-hd\) {
+    background: rgba(14, 165, 233, 0.14);
+    border-color: rgba(14, 165, 233, 0.4);
+    color: #7dd3fc;
+}
+
+.resolution-720p-\(hd\),
+.resolution-768p {
+    background: rgba(20, 184, 166, 0.14);
+    border-color: rgba(20, 184, 166, 0.4);
+    color: #5eead4;
+}
+
+.resolution-480p-\(sd\) {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #cbd5e1;
+}
+
+.resolution-unknown {
+    background: rgba(148, 163, 184, 0.07);
+    border-color: rgba(148, 163, 184, 0.2);
+    color: var(--text-faint);
+}
+
+/* ---------- Audio codecs ---------- */
+
+.audio-codec {
+    color: var(--text);
+}
+
+.audio-truehd-atmos {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.audio-dtsx {
+    background: rgba(249, 115, 22, 0.14);
+    border-color: rgba(249, 115, 22, 0.4);
+    color: #fdba74;
+}
+
+.audio-truehd {
+    background: rgba(244, 63, 94, 0.14);
+    border-color: rgba(244, 63, 94, 0.4);
+    color: #fda4af;
+}
+
+.audio-dts-hd-ma {
+    background: rgba(139, 92, 246, 0.14);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #c4b5fd;
+}
+
+.audio-dts-hd-hra {
+    background: rgba(168, 85, 247, 0.14);
+    border-color: rgba(168, 85, 247, 0.4);
+    color: #d8b4fe;
+}
+
+.audio-ddplus-atmos {
+    background: rgba(99, 102, 241, 0.14);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #a5b4fc;
+}
+
+.audio-ddplus {
+    background: rgba(14, 165, 233, 0.14);
+    border-color: rgba(14, 165, 233, 0.4);
+    color: #7dd3fc;
+}
+
+.audio-dolby-digital {
+    background: rgba(59, 130, 246, 0.14);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+}
+
+.audio-dts {
+    background: rgba(217, 70, 239, 0.14);
+    border-color: rgba(217, 70, 239, 0.4);
+    color: #f0abfc;
+}
+
+.audio-aac {
+    background: rgba(20, 184, 166, 0.14);
+    border-color: rgba(20, 184, 166, 0.4);
+    color: #5eead4;
+}
+
+.audio-lossless {
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+}
+
+.audio-unknown {
+    background: rgba(148, 163, 184, 0.07);
+    border-color: rgba(148, 163, 184, 0.2);
+    color: var(--text-faint);
+}
+/* ============================================================
+   Poster / Title Cell
+   ============================================================ */
+
+.poster-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.poster-title {
+    display: inline-block;
+    font-size: 0.98rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    text-align: center;
+    max-width: 260px;
+    line-height: 1.35;
+    transition: color 0.15s ease;
+    /* A filename is one long token - dots offer no break opportunity, so
+       without this it overflows max-width instead of wrapping inside it. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.poster-img-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.poster-img {
+    display: block;
+    width: 320px;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.poster-container:hover .poster-img {
+    transform: scale(1.04) translateY(-2px);
+    box-shadow: var(--glow);
+}
+
+.poster-container:hover .poster-title {
+    color: var(--accent-soft);
+}
+
+.poster-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(130% 140% at 88% 8%, rgba(236, 72, 153, 0.22), transparent 55%),
+        linear-gradient(135deg, #272c55 0%, #462e6e 100%);
+    color: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--border-strong);
+}
+
+.rating-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(8, 10, 15, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 0.74em;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+}
+
+.rating-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fbbf24;
+    line-height: 1;
+}
+
+.rating-logo svg {
+    width: 1em;
+    height: 1em;
+    display: block;
+}
+
+.rating-value {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* IMDb Top 250 rank - same treatment as the rating badge, opposite corner */
+.top250-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(8, 10, 15, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 0.74em;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+}
+/* ============================================================
+   Empty State
+   ============================================================ */
+
+.empty-state {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 24px;
+    margin-bottom: 14px;
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.empty-state h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.empty-state code {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 0.9em;
+    color: var(--accent-soft);
+}
+/* ============================================================
+   Stats Bar
+   ============================================================ */
+
+.controls.statsbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.stats {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.stats strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+#fileCount {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: var(--accent-soft);
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+#profileStats {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.stat-chip strong {
+    color: var(--text);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.language-switcher .custom-select {
+    min-width: 92px;
+}
+
+.language-switcher .custom-select-trigger {
+    font-weight: 600;
+}

@@ -1,0 +1,644 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* The bars above the table: header, controls and status messages. */
+
+/* ============================================================
+   Header
+   ============================================================ */
+
+header {
+    position: sticky;
+    top: 12px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    margin-bottom: 18px;
+    background: var(--header-bg);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.header-logo {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    transform: rotate(-10deg);
+    filter: drop-shadow(0 4px 10px rgba(99, 102, 241, 0.35));
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.header-logo:hover {
+    transform: rotate(0deg) scale(1.08);
+}
+
+.title-text {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: var(--title-grad);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.controls-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.controls-toggle svg {
+    display: block;
+}
+
+.controls-toggle:hover {
+    background: var(--surface-3);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+/* Only the menu button lights up while it is expanded - the show/hide button
+   next to it shares the look but not that state. */
+#toggleControlsBtn[aria-expanded="true"] {
+    background: rgba(99, 102, 241, 0.14);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: var(--accent-soft);
+}
+
+/* ---------- Header action buttons / theme toggle ---------- */
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.header-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Padding, pulled straight back out by the margins, keeps focus outlines
+       clear of the overflow clip below. The right margin is what separates the
+       group from the chevron, so it can fold away with the group itself. */
+    padding: 6px;
+    margin: -6px 2px -6px -6px;
+    /* max-width is what animates the fold, so it needs a number; JS measures the
+       group and sets the property, the literal is only the fallback. */
+    max-width: var(--header-actions-width, 320px);
+    opacity: 1;
+    visibility: visible;
+    overflow: hidden;
+    transition: max-width 0.28s ease, padding 0.28s ease, margin 0.28s ease,
+                opacity 0.2s ease, transform 0.28s ease;
+}
+
+/* Collapsed, the chevron is the only button left in the header. The group
+   folds to zero width rather than display:none so the change can animate;
+   visibility flips only once it is out of sight, which also takes the buttons
+   back out of the tab order. */
+.header-actions.collapsed .header-actions-group {
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: 0;
+    margin-right: 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(10px);
+    transition: max-width 0.28s ease, padding 0.28s ease, margin 0.28s ease,
+                opacity 0.2s ease, transform 0.28s ease,
+                visibility 0s linear 0.28s;
+}
+
+/* Restoring the stored state on load must not look like the group is opening
+   by itself. */
+.header-actions.no-transition .header-actions-group {
+    transition: none;
+}
+
+.header-actions-caret {
+    transition: transform 0.2s ease;
+}
+
+/* Points left while collapsed ("open towards the buttons"), right once the
+   group is out. */
+.header-actions:not(.collapsed) .header-actions-caret {
+    transform: rotate(180deg);
+}
+
+.theme-toggle svg {
+    display: block;
+}
+
+.theme-toggle .icon-moon {
+    display: none;
+}
+
+:root[data-theme="light"] .theme-toggle .icon-sun {
+    display: none;
+}
+
+:root[data-theme="light"] .theme-toggle .icon-moon {
+    display: block;
+}
+/* ============================================================
+   Control Panels
+   ============================================================ */
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.container.controls-hidden .controls-top,
+.container.controls-hidden .controls-bottom {
+    display: none;
+}
+
+.top-group,
+.bottom-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.left-group,
+.right-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ---------- Shared control base ---------- */
+
+#fileSelectTrigger,
+.custom-select-trigger,
+#searchInput {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    height: var(--control-h);
+    background-color: var(--control-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0 14px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border-radius: var(--radius);
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+}
+
+#fileSelectTrigger:hover,
+.custom-select-trigger:hover,
+#searchInput:hover {
+    border-color: var(--border-strong);
+    background-color: var(--surface-3);
+}
+
+#fileSelectTrigger:focus-visible,
+.custom-select-trigger:focus-visible,
+#searchInput:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* ---------- Custom file-select trigger (opens the file dialog) ---------- */
+
+.controls .file-select-trigger {
+    width: 300px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    text-align: left;
+}
+
+.file-select-trigger .file-select-icon {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+}
+
+.file-select-trigger .file-select-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+}
+
+.file-select-trigger.has-selection .file-select-label {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.file-select-trigger .file-select-caret {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.file-select-trigger:hover .file-select-caret {
+    color: var(--text-muted);
+}
+
+/* ---------- Custom dropdowns (sort + language) ---------- */
+
+.custom-select {
+    position: relative;
+    display: inline-block;
+}
+
+/* The sort control is a segmented pair: the dropdown plus the direction
+   toggle glued to its right edge, together as wide as the file selector. */
+.controls .custom-select#sortSelectWrap {
+    width: 300px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* The dropdown takes whatever the square toggle leaves over. */
+#sortSelectWrap .custom-select-trigger {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.sort-dir-toggle {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-h);
+    height: var(--control-h);
+    padding: 0;
+    background-color: var(--control-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    /* No left border: the trigger's right edge is the divider. */
+    border-left: none;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.sort-dir-toggle:hover {
+    border-color: var(--border-strong);
+    background-color: var(--surface-3);
+    color: var(--text);
+}
+
+.sort-dir-toggle:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.sort-dir-icon {
+    flex: 0 0 auto;
+    transition: transform 0.2s ease;
+}
+
+/* The icon is drawn pointing down (descending); ascending flips it. */
+.sort-dir-toggle.asc .sort-dir-icon {
+    transform: rotate(180deg);
+}
+
+.custom-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    padding-right: 12px;
+}
+
+.custom-select-current {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.custom-select-current .custom-select-opt-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.custom-select-caret {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.custom-select.open .custom-select-caret {
+    transform: rotate(180deg);
+    color: var(--text-muted);
+}
+
+.custom-select-opt-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}
+
+.custom-select-opt-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.custom-select-menu {
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-height: 320px;
+    overflow-y: auto;
+    /* Hidden with display:none so a closed menu never reserves scroll height
+       (an absolutely-positioned but merely invisible menu still inflates the
+       page height, leaving dead space below the footer). */
+    display: none;
+}
+
+.custom-select.open .custom-select-menu {
+    display: block;
+    animation: dropdownIn 0.15s ease;
+}
+
+@keyframes dropdownIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The language switcher sits in the footer, so open it upwards to avoid
+   extending the page below the fold. */
+.lang-select .custom-select-menu {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.lang-select.open .custom-select-menu {
+    animation: dropupIn 0.15s ease;
+}
+
+@keyframes dropupIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 9px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.custom-select-option:hover {
+    background: var(--surface-3);
+}
+
+.custom-select-option.selected {
+    background: rgba(99, 102, 241, 0.14);
+    color: var(--accent-soft);
+}
+
+.custom-select-option.selected .custom-select-opt-icon {
+    color: var(--accent-soft);
+}
+
+/* Rounded flag chips in the language switcher */
+.lang-select .custom-select-opt-icon {
+    width: 22px;
+    height: 15px;
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+/* ---------- Collapse (show/hide) button ---------- */
+
+/* Lives in the header between the theme and menu buttons and takes their
+   .controls-toggle look; only the icon layout is its own. */
+.collapse-btn {
+    user-select: none;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.toggle svg {
+    flex-shrink: 0;
+}
+
+/* ---------- Search ---------- */
+
+.search-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+#searchInput {
+    width: 300px;
+    cursor: text;
+    padding-left: 38px;
+    padding-right: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23626c80' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+}
+
+#searchInput::placeholder {
+    color: var(--text-faint);
+    font-weight: 400;
+}
+
+.clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: var(--text-muted);
+    font-size: 0.95em;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.clear-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.clear-btn:hover {
+    color: var(--text);
+    background: var(--surface-3);
+}
+
+.clear-btn:focus {
+    outline: none;
+}
+
+/* ---------- Scan progress ---------- */
+
+.scan-progress {
+    align-items: center;
+    gap: 12px;
+    width: 300px;
+    height: var(--control-h);
+    background-color: var(--control-bg);
+    border: 1px solid var(--border);
+    padding: 0 14px;
+    border-radius: var(--radius);
+}
+
+.scan-progress-bar-container {
+    flex: 1;
+    width: 100%;
+    height: 6px;
+    background: var(--progress-track);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.scan-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent-grad);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.scan-progress-text {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+/* ============================================================
+   Messages
+   ============================================================ */
+
+.message {
+    display: none;
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    margin: 0 0 14px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.message .message-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: -3px;
+    margin-right: 7px;
+}
+
+.message .message-icon svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.message.success {
+    background: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: var(--success);
+}
+
+.message.info {
+    background: rgba(125, 211, 252, 0.1);
+    border-color: rgba(125, 211, 252, 0.3);
+    color: var(--info);
+}
+
+.message.error {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: var(--danger);
+}
