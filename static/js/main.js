@@ -215,10 +215,8 @@ function openFileDialog() {
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 
-    // Focus the search field for quick filtering.
-    if (search) {
-        setTimeout(() => search.focus(), 50);
-    }
+    // Deliberately nothing is focused here: auto-focusing the search field pops
+    // the on-screen keyboard open on mobile before the list can even be seen.
 }
 
 function closeFileDialog(event) {
@@ -1521,93 +1519,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.collapse-btn').forEach(btn => {
-        const controlsAttr = btn.getAttribute('aria-controls') || '';
-        const ids = controlsAttr.split(/\s+/).filter(Boolean);
-        const targets = ids.map(id => document.getElementById(id)).filter(Boolean);
-
-        const extraTargets = [];
-        targets.forEach(t => {
-            if (t.tagName && t.tagName.toLowerCase() === 'tbody') {
-                const table = t.closest('table');
-                if (table) {
-                    const thead = table.querySelector('thead');
-                    if (thead) extraTargets.push(thead);
-                }
-            }
-        });
-
-        const elements = targets.concat(extraTargets);
-        const isExpanded = btn.getAttribute('aria-expanded') === 'true';
-
-        elements.forEach(el => {
-            const tag = el.tagName ? el.tagName.toLowerCase() : '';
-            if (tag === 'thead') {
-                el.style.display = isExpanded ? 'table-header-group' : 'none';
-            } else if (tag === 'tbody') {
-                el.style.display = isExpanded ? 'table-row-group' : 'none';
-            } else {
-                el.style.display = isExpanded ? '' : 'none';
-            }
-        });
-
-        const hideSvg = btn.querySelector('.hide');
-        const showSvg = btn.querySelector('.show');
-        if (hideSvg && showSvg) {
-            hideSvg.style.display = isExpanded ? 'none' : 'flex';
-            showSvg.style.display = isExpanded ? 'flex' : 'none';
-        }
-    });
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.collapse-btn').forEach(btn => {
-        const controlsAttr = btn.getAttribute('aria-controls') || '';
-        const ids = controlsAttr.split(/\s+/).filter(Boolean);
-        const targets = ids.map(id => document.getElementById(id)).filter(Boolean);
-
-        const isMobile = window.matchMedia('(max-width: 900px)').matches;
-        const extraTargets = [];
-        if (!isMobile) {
-            targets.forEach(t => {
-                if (t.tagName && t.tagName.toLowerCase() === 'tbody') {
-                    const table = t.closest('table');
-                    if (table) {
-                        const thead = table.querySelector('thead');
-                        if (thead) extraTargets.push(thead);
-                    }
-                }
-            });
-        }
-
-        const elements = targets.concat(extraTargets);
-        const isExpanded = btn.getAttribute('aria-expanded') === 'true';
-
-        elements.forEach(el => {
-            const tag = el.tagName ? el.tagName.toLowerCase() : '';
-            if (tag === 'thead') {
-                el.style.display = isExpanded ? 'table-header-group' : 'none';
-            } else if (tag === 'tbody') {
-                el.style.display = isExpanded ? 'table-row-group' : 'none';
-            } else {
-                el.style.display = isExpanded ? '' : 'none';
-            }
-        });
-
-        const hideSvg = btn.querySelector('.hide');
-        const showSvg = btn.querySelector('.show');
-        if (hideSvg && showSvg) {
-            hideSvg.style.display = isExpanded ? 'none' : 'flex';
-            showSvg.style.display = isExpanded ? 'flex' : 'none';
-        }
-    });
-});
-
-document.addEventListener('click', e => {
-    const btn = e.target.closest('.collapse-btn');
-    if (!btn) return;
-
+// Elements a show/hide toggle controls: the ids listed in aria-controls, plus -
+// on desktop, where a lone table header would be left dangling - the thead
+// belonging to any tbody among them.
+function getCollapseTargets(btn) {
     const controlsAttr = btn.getAttribute('aria-controls') || '';
     const ids = controlsAttr.split(/\s+/).filter(Boolean);
     const targets = ids.map(id => document.getElementById(id)).filter(Boolean);
@@ -1626,30 +1541,66 @@ document.addEventListener('click', e => {
         });
     }
 
-    const elements = targets.concat(extraTargets);
-    if (elements.length === 0) return;
+    return targets.concat(extraTargets);
+}
 
-    const isExpanded = btn.getAttribute('aria-expanded') === 'true';
-    const next = !isExpanded;
-    btn.setAttribute('aria-expanded', String(next));
+// Keyed by what the button controls, so several toggles each keep their own
+// state.
+function getCollapseStorageKey(btn) {
+    const controlsAttr = (btn.getAttribute('aria-controls') || '').trim();
+    return controlsAttr ? `dovi_collapsed_${controlsAttr}` : null;
+}
 
-    elements.forEach(el => {
+function applyCollapseState(btn, expanded) {
+    btn.setAttribute('aria-expanded', String(expanded));
+
+    getCollapseTargets(btn).forEach(el => {
         const tag = el.tagName ? el.tagName.toLowerCase() : '';
         if (tag === 'thead') {
-            el.style.display = next ? 'table-header-group' : 'none';
+            el.style.display = expanded ? 'table-header-group' : 'none';
         } else if (tag === 'tbody') {
-            el.style.display = next ? 'table-row-group' : 'none';
+            el.style.display = expanded ? 'table-row-group' : 'none';
         } else {
-            el.style.display = next ? '' : 'none';
+            el.style.display = expanded ? '' : 'none';
         }
     });
 
     const hideSvg = btn.querySelector('.hide');
     const showSvg = btn.querySelector('.show');
     if (hideSvg && showSvg) {
-        hideSvg.style.display = next ? 'none' : 'flex';
-        showSvg.style.display = next ? 'flex' : 'none';
+        hideSvg.style.display = expanded ? 'none' : 'flex';
+        showSvg.style.display = expanded ? 'flex' : 'none';
     }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.collapse-btn').forEach(btn => {
+        const key = getCollapseStorageKey(btn);
+        let saved = null;
+        try {
+            if (key) saved = localStorage.getItem(key);
+        } catch (e) { /* localStorage unavailable -> fall back to the markup */ }
+
+        const expanded = saved === null
+            ? btn.getAttribute('aria-expanded') === 'true'
+            : saved === 'true';
+
+        applyCollapseState(btn, expanded);
+    });
+});
+
+document.addEventListener('click', e => {
+    const btn = e.target.closest('.collapse-btn');
+    if (!btn) return;
+    if (getCollapseTargets(btn).length === 0) return;
+
+    const next = btn.getAttribute('aria-expanded') !== 'true';
+    applyCollapseState(btn, next);
+
+    const key = getCollapseStorageKey(btn);
+    try {
+        if (key) localStorage.setItem(key, String(next));
+    } catch (e) { /* localStorage unavailable -> choice won't persist */ }
 });
 
 // Header actions (theme, show/hide, menu) fold behind the chevron next to
