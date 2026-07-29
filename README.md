@@ -1,25 +1,12 @@
 # 🎟️ Universal Video Scanner
 
-Universal Video Scanner with Web Interface - Automatic detection of HDR formats including Dolby Vision enhancement layers in video files.
+Automatic detection of HDR formats - including Dolby Vision enhancement layers -
+in your video library, with a web interface and a versioned HTTP API.
 
-## Features ✨
-
-- **Automatic Scanning**: Watchdog-based detection of new media files
-- **All HDR Formats**: SDR, HDR10, HDR10+, HLG, and Dolby Vision (all profiles)
-- **Dolby Vision Analysis**: Detection of MEL (Minimum Enhancement Layer) and FEL (Full Enhancement Layer) for all Dolby Vision profiles
-- **Web Interface**: Modern dark-theme dashboard on port 2367
-- **hdrprobe Integration**: Complete HDR metadata and RPU analysis including enhancement layer detection
-- **Docker-based**: Simple deployment with Docker Compose
-- **Manual Scan**: Fallback button for on-demand scanning
-- **IMDb Ratings**: Posters show the IMDb rating (via the OMDb API), with the TMDB rating as fallback, plus an IMDb Top 250 rank badge for listed films
-- **Sort by Rating Source**: Separate sort filters for IMDb, TMDb, Rotten Tomatoes and Metacritic
-- **Sort Direction**: A toggle next to the sort dropdown flips every sort mode between ascending and descending, remembered across restarts
-- **Title Details**: Genres next to the directors, and a plot folded to five lines that expands on demand
-- **API**: Token-protected `/api/v1` for other services - read the library filtered, sorted and paged, fetch a single entry or its poster, start and cancel scans, follow progress live
-
-## Software on Docker Hub 🐳
-
-The software is also available on [Docker Hub](https://hub.docker.com/r/u3known/universal-video-scanner/):
+Point it at a directory, and it watches for new files, probes each one with
+[hdrprobe](https://github.com/matthane/hdrprobe) and [MediaInfo](https://mediaarea.net/en/MediaInfo), enriches the
+result with posters and ratings, and shows the whole library on a dashboard at
+port `2367`.
 
 <a href="https://hub.docker.com/r/u3known/universal-video-scanner/" target="_blank">
   <img src="https://github.com/user-attachments/assets/5f58e083-eac7-4eab-84c7-bc75b204f246"
@@ -27,7 +14,44 @@ The software is also available on [Docker Hub](https://hub.docker.com/r/u3known/
        width="250">
 </a>
 
-## Quick Start 🚀
+---
+
+## Table of Contents
+
+1. [Features](#1-features)
+2. [Quick Start](#2-quick-start)
+3. [Using the Scanner](#3-using-the-scanner)
+4. [Configuration](#4-configuration)
+5. [Metadata Sources](#5-metadata-sources)
+6. [Customizing the Interface](#6-customizing-the-interface)
+7. [The API](#7-the-api)
+8. [How It Works](#8-how-it-works)
+9. [Operating the Container](#9-operating-the-container)
+10. [Troubleshooting](#10-troubleshooting)
+11. [Development](#11-development)
+12. [Project Info](#12-project-info)
+
+---
+
+## 1. Features
+
+| | |
+|---|---|
+| **Automatic scanning** | Watchdog-based detection of new media files |
+| **All HDR formats** | SDR, HDR10, HDR10+, HLG and Dolby Vision (all profiles) |
+| **Enhancement layers** | MEL and FEL detection for every Dolby Vision profile |
+| **Full HDR metadata** | Mastering display luminance, MaxCLL/MaxFALL, RPU L5/L6, CM version |
+| **Blu-ray disc images** | `.iso` support - the main feature is found and analyzed in place |
+| **Web interface** | Dark-theme dashboard on port `2367`, virtualized for large libraries |
+| **Posters & ratings** | TMDB or Fanart.tv artwork, IMDb rating (via OMDb) with TMDB fallback and an IMDb Top 250 badge |
+| **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes and Metacritic, with a persistent direction toggle |
+| **Title details** | Genres beside the directors, plot folded to five lines and expandable |
+| **API** | Token-protected `/api/v1` - read the library filtered/sorted/paged, drive scans, follow progress live |
+| **Docker-based** | One `docker-compose up -d` away |
+
+---
+
+## 2. Quick Start
 
 ### Prerequisites
 
@@ -36,118 +60,253 @@ The software is also available on [Docker Hub](https://hub.docker.com/r/u3known/
 
 ### Installation
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/jamal2362/universal-video-scanner.git
 cd universal-video-scanner
-```
-
-2. Create media directory:
-```bash
 mkdir -p media
-```
-
-3. Start container:
-```bash
 docker-compose up -d
 ```
 
-4. Open web interface:
+Then open the web interface:
+
 ```
 http://localhost:2367
 ```
 
-## Usage 📖
+The image is also published on
+[Docker Hub](https://hub.docker.com/r/u3known/universal-video-scanner/) as
+`u3known/universal-video-scanner`.
+
+---
+
+## 3. Using the Scanner
 
 ### Adding Media
 
-Copy your video files to the `media/` directory:
+Copy your video files into the `media/` directory:
 
 ```bash
 cp /path/to/video.mkv ./media/
 ```
 
-The scanner automatically detects new files and analyzes them in the background.
+New files are detected automatically and analyzed in the background. A file is
+only picked up once its size has stopped changing (see `FILE_WRITE_DELAY`), so
+copies still in flight are never scanned half-written.
 
 ### Supported Formats
 
-- MKV (`.mkv`)
-- MP4 (`.mp4`)
-- M4V (`.m4v`)
-- Transport Stream (`.ts`)
-- BDAV Transport Stream (`.m2ts`)
-- HEVC Raw (`.hevc`)
-- Blu-ray Disc Image (`.iso`)
-
-> **Blu-ray disc images (`.iso`):** Decrypted disc images are supported.
-> hdrprobe reads the disc's playlists, automatically picks the main feature
-> (usually the largest main-movie `.m2ts`) and analyzes it as if the stream
-> file had been probed directly. Encrypted images are detected and rejected.
-> To read the audio/video tracks reliably, a minimal BDMV structure is
-> reconstructed for the main feature - the playlist (`.mpls`) and clip info
-> (`.clpi`) plus a short sample of the main-feature `.m2ts` - and analyzed
-> with MediaInfo (via `7z`), no need to extract or mount the full
-> multi-gigabyte file. Because the audio languages live in the playlist,
-> `CONTENT_LANGUAGE` is honored for track selection just like for regular
-> files.
->
-> **Requirement:** a modern 7-Zip (`7z` >= 21.01, the `7zip` package) is
-> needed. The legacy `p7zip` 16.02 cannot read the UDF 2.50 file system used
-> by UHD Blu-ray images, which makes stream extraction fail and audio detection
-> fall back to an unusable raw-image probe. The Docker image installs a
-> compatible version automatically.
->
-> **Performance:** hdrprobe reads the image in place (memory-mapped, only the
-> bytes it needs), and MediaInfo only needs the stream headers, so just a
-> small prefix of the main feature is sampled - configurable via
-> `ISO_SAMPLE_SIZE_MB` (default `16`). Point `TMPDIR` at a tmpfs (e.g.
-> `/dev/shm`) to keep that sample in RAM and avoid disk writes entirely.
+| Extension | Format |
+|-----------|--------|
+| `.mkv` | Matroska |
+| `.mp4` | MP4 |
+| `.m4v` | M4V |
+| `.ts` | Transport Stream |
+| `.m2ts` | BDAV Transport Stream |
+| `.hevc` | HEVC raw stream |
+| `.iso` | Blu-ray disc image (see below) |
 
 ### Manual Scan
 
 If automatic detection missed a file:
 
 1. Open the web interface
-2. Click "🔍 Scan unscanned media"
-3. Wait for completion message
+2. Click **🔍 Scan unscanned media**
+3. Wait for the completion message
 
-## Web Interface 🖥️
-
-The dashboard displays the following information:
+### The Dashboard
 
 | Column | Description |
 |--------|-------------|
-| **Filename** | Name of the media file |
-| **HDR Format** | Detected HDR format (SDR, HDR10, HDR10+, HLG, Dolby Vision with profile) |
-| **Resolution** | Video resolution (e.g. 3840x2160) |
-| **Audio Codec** | Audio codec information (e.g. Dolby TrueHD Atmos) |
+| **Filename** | Name of the media file (or its poster, once artwork is available) |
+| **HDR Format** | Detected format - SDR, HDR10, HDR10+, HLG, Dolby Vision with profile |
+| **Resolution** | Video resolution, e.g. `3840x2160` |
+| **Audio Codec** | Audio codec information, e.g. `Dolby TrueHD Atmos` |
 
-### Features
+On top of the table: a dark theme, auto-refresh every 10 seconds, live status
+while a scan is running, and a search box plus sort controls that work on the
+whole library.
 
-- 📊 Tabular overview of all scanned media
-- 🌙 Dark theme for comfortable viewing
-- 🔄 Auto-refresh every 10 seconds
-- ⚡ Live status during scanning
+---
 
-## API 🔌
+## 4. Configuration
 
-Other services (dashboards, automation, scripts) can read the library and drive
-scans through a versioned API at `/api/v1`. It is off until you give it a
-token.
+Everything is configured through environment variables in `docker-compose.yml`
+(or a `.env` file next to it).
 
-### Enabling it
+### Environment Variables
+
+#### Scanning
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FILE_WRITE_DELAY` | `5` | Seconds between file size checks - a new file is scanned once its size stops changing |
+| `SCAN_WORKERS` | `1` | Files probed at once during a bulk scan. `1` = strictly sequential and light (best for a single spinning disk / NAS). Raise to `2`-`4` for SSD / NVMe / fast storage |
+| `SCAN_SAVE_BATCH` | `25` | Newly scanned files buffered before the database is written. Avoids rewriting the whole database per file on a large library; an interrupted scan re-reads at most this many files. `1` persists after every file |
+| `ISO_SAMPLE_SIZE_MB` | `16` | Size in MB of the main-feature `.m2ts` sample extracted from `.iso` images for MediaInfo analysis |
+
+#### Metadata
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TMDB_API_KEY` | *(empty)* | [TMDB](https://www.themoviedb.org/settings/api) key for posters and movie details (optional) |
+| `FANART_API_KEY` | *(empty)* | [Fanart.tv](https://fanart.tv/get-an-api-key/) key for thumb posters (optional) |
+| `OMDB_API_KEY` | *(empty)* | [OMDb](https://www.omdbapi.com/apikey.aspx) key for IMDb ratings (optional - without it the TMDB rating is shown) |
+| `IMAGE_SOURCE` | `tmdb` | Image source: `tmdb` or `fanart` |
+| `CONTENT_LANGUAGE` | `en` | Preferred content language (ISO 639-1) for TMDB/Fanart.tv content and audio track selection |
+| `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
+| `METADATA_RETRY_BATCH` | `250` | Incomplete entries one retry run looks up. Keeps a large library from firing thousands of requests every interval; the run rotates, so every entry still gets its turn. `0` retries all of them |
+
+#### Interface and API
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTO_REFRESH_INTERVAL` | `10` | Auto-refresh interval of the web UI in seconds |
+| `API_TOKEN` | *(empty)* | Token for the `/api/v1` API. Without it the API is disabled (`503`). Generate one with `openssl rand -hex 32` |
+| `API_CORS_ORIGINS` | *(empty)* | Comma-separated origins a **browser app** may call `/api/v1` from, or `*`. Empty = same-origin only; does not affect curl or server-side callers |
+
+A non-numeric value for any numeric variable is logged and replaced with the
+default rather than taking the service down.
+
+### Volumes
+
+| Host | Container | Contents |
+|------|-----------|----------|
+| `./media` | `/media` | Your media directory |
+| `./data` | `/app/data` | Database, cached posters, static files and templates |
+
+### Content Language
+
+`CONTENT_LANGUAGE` controls two things: the language of TMDB/Fanart.tv titles,
+descriptions and posters, and which audio track is picked as the primary one.
+
+```yaml
+environment:
+  - CONTENT_LANGUAGE=de   # German
+```
+
+**Supported codes (ISO 639-1):** `en` (default), `de`, `ru`, `bg`, `fr`, `es`,
+`it`, `pt`, `ja`, `ko`, `zh`, `nl`, `pl`, `sv`, `no`, `da`, `fi`, `tr`, `ar`,
+`he`, `hi`, `th`, `cs`, `hu`, `ro`, `el`, `uk`.
+
+**Fallbacks:** TMDB queries fall back to English when the content is not
+available in the configured language. Audio track selection prefers the
+configured language, then English (`eng`), then the first available track.
+
+---
+
+## 5. Metadata Sources
+
+All three services are optional - without any key the app works normally and
+shows filenames instead of posters.
+
+### TMDB (posters, titles, plot, cast)
+
+1. Get a free API key from [TMDB](https://www.themoviedb.org/settings/api)
+2. Add it to `docker-compose.yml` or `.env`:
+
+```yaml
+environment:
+  - TMDB_API_KEY=your_api_key_here
+```
+
+**Matching:** include `{tmdb-12345}` in the filename (e.g.
+`Movie Name {tmdb-12345}.mkv`) to pin an entry to a specific TMDB ID. Without
+one, TMDB is searched by the movie name extracted from the filename.
+
+**Poster caching:** posters are downloaded into `/app/data/posters/` and reused
+on later page loads, so bandwidth and load times stay low. Existing posters are
+migrated into the cache at startup.
+
+### Fanart.tv (alternative thumb posters)
+
+1. Get a free API key from [Fanart.tv](https://fanart.tv/get-an-api-key/)
+2. Enable it as the image source:
+
+```yaml
+environment:
+  - FANART_API_KEY=your_api_key_here
+  - IMAGE_SOURCE=fanart
+```
+
+Notes:
+
+- Fanart.tv **requires** a TMDB ID in the filename: `{tmdb-12345}`
+- Only movies are supported (TV shows would need a TVDB ID, which is not extracted)
+- There is no fallback between sources - only the selected one is used
+- Both keys may be configured, but only `IMAGE_SOURCE` decides which is used
+
+### OMDb (IMDb ratings)
+
+An [OMDb](https://www.omdbapi.com/apikey.aspx) key makes the posters show the
+IMDb rating and the IMDb Top 250 rank badge, plus the Rotten Tomatoes and
+Metacritic scores. Without it, the TMDB rating is shown instead.
+
+```yaml
+environment:
+  - OMDB_API_KEY=your_api_key_here
+```
+
+---
+
+## 6. Customizing the Interface
+
+Static files and templates are version-tracked copies under `./data/`, so your
+changes survive restarts but still pick up new releases.
+
+| Location | Path |
+|----------|------|
+| Host | `./data/static/` and `./data/templates/` |
+| Container | `/app/data/static/` and `/app/data/templates/` |
+
+**How it works:**
+
+1. On first startup, `static/` and `templates/` are copied out of the container into `./data/`
+2. You edit whatever you like - CSS, JS, HTML, translations
+3. On restart your customizations are **preserved**; files are not overwritten
+4. When you update the image (`docker-compose pull`), the app detects the new version and refreshes the files
+5. After an update you can customize again, and those changes persist as before
+
+All copied files and directories are writable by user and group, so no special
+permissions are needed. Changes take effect after a container restart.
+
+```bash
+# Edit CSS styles (one file per part of the interface)
+nano ./data/static/css/table.css
+
+# Modify translations
+nano ./data/static/locale/en.json
+
+# Customize the HTML template
+nano ./data/templates/index.html
+
+# Change the behaviour of a part of the interface
+nano ./data/static/js/library/sorting.js
+
+# Apply the changes
+docker-compose restart
+```
+
+---
+
+## 7. The API
+
+Other services - dashboards, automation, scripts - can read the library and
+drive scans through a versioned API at `/api/v1`. It is **off** until you give
+it a token.
+
+### 7.1 Enabling It
 
 ```yaml
 environment:
   - API_TOKEN=a-long-random-secret        # required, the API is off without it
-  - API_CORS_ORIGINS=https://dash.local   # only for browser apps, see below
+  - API_CORS_ORIGINS=https://dash.local   # only for browser apps, see 7.8
 ```
 
 Generate a token with `openssl rand -hex 32`. Without `API_TOKEN` every
 `/api/v1` request answers `503 api_disabled` - an API that can empty the
 database must not be open to whoever reaches the port.
 
-### Authentication
+### 7.2 Authentication
 
 Every request carries the token, in whichever form suits the client:
 
@@ -160,12 +319,12 @@ curl "http://host:2367/api/v1/library?token=$TOKEN"
 The query parameter exists because the browser's `EventSource` cannot send
 headers; prefer a header everywhere else, as URLs end up in logs and history.
 
-### Endpoints
+### 7.3 Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/v1` | Version, the list of endpoints and the query options `/library` accepts |
-| `GET` | `/api/v1/library` | Scanned entries: `{success, count, total, offset, limit, files:[…]}`. Filter, sort and page it - see below |
+| `GET` | `/api/v1/library` | Scanned entries: `{success, count, total, offset, limit, files:[…]}`. Filter, sort and page it - see [7.5](#75-narrowing-the-library-down) |
 | `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution and audio codec, plus the total size - without shipping the library |
 | `GET` | `/api/v1/entries?file_path=…` | One entry by its path, without pulling the whole library |
 | `GET` | `/api/v1/files` | Video files in the media directory: `{name, path, scanned}` |
@@ -184,6 +343,64 @@ Only one scan runs at a time. While one is going - including the one that starts
 with the application - `/scan` and `/scan/files` answer `409 scan_running`
 instead of starting a second walk over the same media directory; follow the
 running one at `/scan/status` or stop it at `/scan/cancel`.
+
+### 7.4 Entry Fields
+
+An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
+`hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
+`video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
+`hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
+`tmdb_rating`, `tmdb_plot`, `tmdb_directors`, `tmdb_cast`, `tmdb_genres`,
+`imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`, `metacritic`.
+
+### 7.5 Narrowing the Library Down
+
+`/api/v1/library` without parameters is the whole library. With them the server
+does the work, instead of the client downloading thousands of entries to find a
+handful:
+
+| Parameter | Meaning |
+|-----------|---------|
+| `hdr_format`, `el_type`, `resolution`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`) |
+| `search` | Substring of the file name or the TMDB title |
+| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating` (default `filename`) |
+| `order` | `asc` (default) or `desc` |
+| `limit`, `offset` | The window to return; `total` always counts every match before it |
+
+An unknown `sort`, a non-numeric `limit` and the like are refused with
+`400 invalid_parameter` rather than quietly ignored.
+
+### 7.6 Posters
+
+An entry's `poster_url` is `/poster/<name>.jpg` once the image has been cached.
+The same file is served inside the API at `/api/v1/posters/<name>.jpg`, so a
+consumer never has to leave the versioned surface:
+
+```bash
+curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
+  | jq -r '.files[0].poster_url | sub("^/poster/"; "")' \
+  | xargs -I{} curl -s -H "X-API-Token: $TOKEN" -o poster.jpg "$API/posters/{}"
+```
+
+An entry whose image could **not** be cached carries the remote URL instead -
+a `poster_url` beginning with `http` is fetched from its own host, not from here.
+
+### 7.7 Following Along Live
+
+`/api/v1/events` is a Server-Sent Events stream. It opens with a `scan_state`
+event carrying the current state (so a client that connects mid-scan is not left
+guessing until the next file finishes), then delivers `scan_progress` and
+`file_deleted` as they happen. A scan reports `status` `scanning`, then `done`,
+`cancelled` or `error`.
+
+Every event carries an `id`. A client that reconnects with `Last-Event-ID` - the
+browser's `EventSource` sends it by itself, others may pass
+`?last_event_id=<id>` - is handed what it missed first, and the current state
+after it. The stream also asks clients to wait 3 seconds before reconnecting,
+and sends a comment every 30 seconds so an idle connection is not dropped as
+dead.
+
+### 7.8 Errors
 
 Every answer carries `success`, **including the errors the framework itself
 produces**: a path that does not exist, a method that is not allowed for one, or
@@ -208,60 +425,23 @@ an unhandled failure are JSON here, not HTML. A failure adds a human-readable
 | `media_unreadable` | `500` | The media directory could not be walked |
 | `internal_error` | `500` | Unhandled failure - the reason is logged, not returned |
 
-An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
-`hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
-`video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
-`hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
-`tmdb_rating`, `tmdb_plot`, `tmdb_directors`, `tmdb_cast`, `tmdb_genres`,
-`imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`, `metacritic`.
+### 7.9 Browser Apps (CORS)
 
-### Narrowing the library down
+`curl`, scripts and server-side dashboards are never subject to CORS and need
+nothing beyond the token. A web app served from **another** origin does: list
+its origin in `API_CORS_ORIGINS` (comma-separated, or `*` for any). Left empty,
+no CORS headers are sent and only same-origin requests work.
 
-`/api/v1/library` without parameters is the whole library, as before. With them
-the server does the work instead of the client downloading thousands of entries
-to find a handful:
+### 7.10 What the Token Does and Does Not Protect
 
-| Parameter | Meaning |
-|-----------|---------|
-| `hdr_format`, `el_type`, `resolution`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`) |
-| `search` | Substring of the file name or the TMDB title |
-| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating` (default `filename`) |
-| `order` | `asc` (default) or `desc` |
-| `limit`, `offset` | The window to return; `total` always counts every match before it |
+The token guards `/api/v1`. The endpoints the web interface itself uses
+(`/api/library`, `/get_files`, `/scan`, `/delete_entry`, …) stay open, because
+the page has no token to send - anyone who can open the interface can already do
+these things. So the token keeps automation honest and stable; it is not a lock
+on the instance. To actually restrict access, put the whole thing behind a
+reverse proxy with authentication, or keep the port on your LAN.
 
-An unknown `sort`, a non-numeric `limit` and the like are refused with
-`400 invalid_parameter` rather than quietly ignored.
-
-### Posters
-
-An entry's `poster_url` is `/poster/<name>.jpg` once the image has been cached.
-The same file is served inside the API at `/api/v1/posters/<name>.jpg`, so a
-consumer never has to leave the versioned surface:
-
-```bash
-curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
-  | jq -r '.files[0].poster_url | sub("^/poster/"; "")' \
-  | xargs -I{} curl -s -H "X-API-Token: $TOKEN" -o poster.jpg "$API/posters/{}"
-```
-
-An entry whose image could **not** be cached carries the remote URL instead -
-`poster_url` beginning with `http` is fetched from its own host, not from here.
-
-### Following along live
-
-`/api/v1/events` is a Server-Sent Events stream. It opens with a `scan_state`
-event carrying the current state (so a client that connects mid-scan is not left
-guessing until the next file finishes), then delivers `scan_progress` and
-`file_deleted` as they happen. A scan reports `status` `scanning`, then `done`,
-`cancelled` or `error`.
-
-Every event carries an `id`. A client that reconnects with `Last-Event-ID` - the
-browser's `EventSource` sends it by itself, others may pass
-`?last_event_id=<id>` - is handed what it missed first, and the current state
-after it. The stream also asks clients to wait 3 seconds before reconnecting, and
-sends a comment every 30 seconds so an idle connection is not dropped as dead.
-
-### Examples
+### 7.11 Examples
 
 ```bash
 TOKEN=a-long-random-secret
@@ -296,25 +476,31 @@ curl -s -X POST -H "X-API-Token: $TOKEN" -H "Content-Type: application/json" \
   -d '{"file_path": "/media/Film.mkv"}' $API/entries/rescan
 ```
 
-### Browser apps (CORS)
+---
 
-`curl`, scripts and server-side dashboards are never subject to CORS and need
-nothing beyond the token. A web app served from **another** origin does: list
-its origin in `API_CORS_ORIGINS` (comma-separated, or `*` for any). Left empty,
-no CORS headers are sent and only same-origin requests work.
+## 8. How It Works
 
-### What the token does and does not protect
+### Scanner Workflow
 
-The token guards `/api/v1`. The endpoints the web interface itself uses
-(`/api/library`, `/get_files`, `/scan`, `/delete_entry`, …) stay open, because
-the page has no token to send - anyone who can open the interface can already
-do these things. So the token keeps automation honest and stable; it is not a
-lock on the instance. To actually restrict access, put the whole thing behind a
-reverse proxy with authentication, or keep the port on your LAN.
+1. **Watchdog** monitors `/media` for new files
+2. **hdrprobe** analyzes the video and detects SDR, HDR10, HDR10+, HLG and
+   Dolby Vision (profile, EL type, CM version) along with the static HDR
+   metadata - mastering display luminance, MaxCLL/MaxFALL, the RPU's L6 values
+   and L5 active area
+3. **MediaInfo** extracts resolution, duration, audio codec and bitrate
+4. **Online lookups** add poster, title, plot, cast and ratings
+5. **Results** are written to the JSON database in batches
 
-## Technical Details 🔧
+### Web Interface Rendering
 
-### Architecture
+The library page ships as a small shell and fetches the scanned entries from
+`/api/library` as JSON. Sorting, searching and the statistics run on that data
+in the browser, and only the rows currently in view are put into the DOM (from
+120 entries upwards) - so a library of several thousand titles loads in a
+fraction of a second instead of shipping megabytes of markup. Text responses are
+gzip-compressed.
+
+### Project Layout
 
 ```
 universal-video-scanner/
@@ -357,308 +543,103 @@ universal-video-scanner/
 ├── media/              # Media directory (volume)
 └── data/               # Database directory (volume)
     ├── scanned_files.json  # Video scan results
-    ├── posters/           # Cached poster images
-    ├── static/            # Static files (CSS, JS, fonts, locales)
-    └── templates/         # HTML templates
+    ├── posters/            # Cached poster images
+    ├── static/             # Static files (CSS, JS, fonts, locales)
+    └── templates/          # HTML templates
 ```
 
-### Scanner Workflow
+### Technology Stack
 
-1. **Watchdog** monitors `/media` for new files
-2. **hdrprobe** analyzes the video and detects SDR, HDR10, HDR10+, HLG, and Dolby Vision (profile, EL type, CM version) along with the static HDR metadata (mastering display luminance, MaxCLL/MaxFALL, the RPU's L6 values and L5 active area)
-3. **MediaInfo** extracts resolution, duration, audio codec, and bitrate information
-4. **Results** are saved to JSON database
+- **Backend**: Python 3 + Flask
+- **Scanner**: watchdog (filesystem events)
+- **Video analysis**: hdrprobe + MediaInfo
+- **Frontend**: HTML5 + CSS3 + vanilla JavaScript (ES modules)
+- **Container**: Docker + Docker Compose
 
-### Web Interface Rendering
+---
 
-The library page ships as a small shell and fetches the scanned entries from
-`/api/library` as JSON. Sorting, searching and the statistics run on that data
-in the browser, and only the rows currently in view are put into the DOM (from
-120 entries upwards) - so a library of several thousand titles loads in a
-fraction of a second instead of shipping megabytes of markup. Text responses
-are gzip-compressed.
+## 9. Operating the Container
 
-### Static Files and Templates
-
-The application intelligently manages static files and templates with version tracking:
-
-- **First run**: Automatically copies `static/` and `templates/` directories to `./data/`
-- **Container restarts**: Your customizations are **preserved** (files are not overwritten)
-- **Docker updates**: New versions are automatically deployed when the container image is updated
-
-**File Locations:**
-- **Host system**: `./data/static/` and `./data/templates/`
-- **Inside container**: `/app/data/static/` and `/app/data/templates/`
-
-**How it works:**
-1. On first startup, files are copied from the container to `./data/`
-2. You can customize any files (CSS, JS, HTML, translations)
-3. On restart, your customizations are **preserved**
-4. When you update the Docker image (`docker-compose pull`), the app detects the change and updates the files
-5. After an update, you can make new customizations that will again persist across restarts
-
-**Access Rights:**
-- All copied files and directories are **writable** by user and group
-- You can modify any file without special permissions
-- Changes take effect after restarting the container
-
-**Example customizations:**
 ```bash
-# Edit CSS styles (one file per part of the interface)
-nano ./data/static/css/table.css
+# Start
+docker-compose up -d
 
-# Modify translations
-nano ./data/static/locale/en.json
+# Follow the logs
+docker-compose logs -f
 
-# Customize HTML template
-nano ./data/templates/index.html
-
-# Change the behaviour of a part of the interface
-nano ./data/static/js/library/sorting.js
-
-# Restart container to apply changes (customizations preserved)
+# Restart (customizations under ./data are preserved)
 docker-compose restart
 
-# Update Docker image (files will be updated to new version)
+# Stop and remove the container
+docker-compose down
+
+# Rebuild after local changes
+docker-compose up -d --build
+
+# Update to a new image
 docker-compose pull
 docker-compose up -d
 ```
 
-### Volumes
+---
 
-- `./media:/media` - Media directory
-- `./data:/app/data` - Persistent database, cached posters, static files, and templates
+## 10. Troubleshooting
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FILE_WRITE_DELAY` | `5` | Interval in seconds between file size checks - new files are scanned once their size stops changing |
-| `AUTO_REFRESH_INTERVAL` | `10` | Auto-refresh interval of web UI in seconds |
-| `ISO_SAMPLE_SIZE_MB` | `16` | Size in MB of the main-feature `.m2ts` sample extracted from Blu-ray disc images (`.iso`) for MediaInfo analysis |
-| `SCAN_WORKERS` | `1` | Files probed at once during a bulk scan. `1` = strictly sequential and light (best for a single spinning disk / NAS). Raise to `2`-`4` for SSD / NVMe / fast storage to scan a large library faster |
-| `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
-| `METADATA_RETRY_BATCH` | `250` | How many incomplete entries one retry run looks up. Keeps a large library from firing thousands of requests every interval; the run rotates, so every entry still gets its turn. `0` retries all of them |
-| `SCAN_SAVE_BATCH` | `25` | How many newly scanned files to buffer before writing the database. Avoids rewriting the whole database after every file on a large library; an interrupted scan re-reads at most this many files. `1` persists after every file |
-| `API_TOKEN` | `` | Token for the `/api/v1` API. Without it the API is disabled (`503`). Generate one with `openssl rand -hex 32` |
-| `API_CORS_ORIGINS` | `` | Comma-separated origins a **browser app** may call `/api/v1` from, or `*`. Empty = same-origin only; does not affect curl or server-side callers |
-| `TMDB_API_KEY` | `` | TMDB API key for fetching movie posters (optional) |
-| `FANART_API_KEY` | `` | Fanart.tv API key for fetching thumb posters (optional) |
-| `OMDB_API_KEY` | `` | [OMDb API](https://www.omdbapi.com/apikey.aspx) key used to fetch IMDb ratings (optional - without it the TMDB rating is shown instead) |
-| `IMAGE_SOURCE` | `tmdb` | Image source selection: `tmdb` (default) or `fanart` |
-| `CONTENT_LANGUAGE` | `en` | Preferred content language (ISO 639-1 code) for TMDB/Fanart.tv content and audio track selection |
-
-### Content Language Configuration
-
-The `CONTENT_LANGUAGE` environment variable controls:
-1. **TMDB/Fanart.tv Content**: Language for movie titles, descriptions, and posters
-2. **Audio Track Selection**: Preferred audio track language
-
-**Supported Language Codes** (ISO 639-1):
-- `en` - English (default)
-- `de` - German
-- `ru` - Russian
-- `bg` - Bulgarian
-- `fr` - French
-- `es` - Spanish
-- `it` - Italian
-- `pt` - Portuguese
-- `ja` - Japanese
-- `ko` - Korean
-- `zh` - Chinese
-- `nl` - Dutch
-- `pl` - Polish
-- `sv` - Swedish
-- `no` - Norwegian
-- `da` - Danish
-- `fi` - Finnish
-- `tr` - Turkish
-- `ar` - Arabic
-- `he` - Hebrew
-- `hi` - Hindi
-- `th` - Thai
-- `cs` - Czech
-- `hu` - Hungarian
-- `ro` - Romanian
-- `el` - Greek
-- `uk` - Ukrainian
-
-**Fallback Behavior**:
-- TMDB queries: If content is not available in the configured language, it falls back to English (`en`)
-- Audio tracks: Prefers configured language → English (`eng`) → first available track
-
-**Example Configuration**:
-
-```yaml
-environment:
-  - CONTENT_LANGUAGE=ru  # Russian for TMDB content + preferred audio track
-```
-
-```yaml
-environment:
-  - CONTENT_LANGUAGE=de  # German
-```
-
-```yaml
-environment:
-  - CONTENT_LANGUAGE=bg  # Bulgarian
-```
-
-### TMDB API Integration (Optional)
-
-To display movie posters instead of filenames in the web interface:
-
-1. Get a free API key from [TMDB](https://www.themoviedb.org/settings/api)
-2. Add it to your `docker-compose.yml`:
-
-```yaml
-environment:
-  - TMDB_API_KEY=your_api_key_here
-```
-
-Or create a `.env` file in the project root:
-
-```
-TMDB_API_KEY=your_api_key_here
-```
-
-**Filename Pattern for TMDB ID:**
-- Include `{tmdb-12345}` in your filename (e.g., `Movie Name {tmdb-12345}.mkv`)
-- If no TMDB ID is found, the app will search TMDB by the extracted movie name
-
-**Poster Caching:**
-- Poster images are automatically downloaded and cached in `/app/data/posters/`
-- Cached posters are reused on subsequent page loads, reducing bandwidth and load times
-- Existing posters are migrated to cache on application startup
-
-**Without TMDB API Key:**
-- The app will still work normally, displaying filenames instead of posters
-
-### Fanart.tv API Integration (Optional)
-
-To use Fanart.tv as an alternative image source for thumb posters:
-
-1. Get a free API key from [Fanart.tv](https://fanart.tv/get-an-api-key/)
-2. Add it to your `docker-compose.yml`:
-
-```yaml
-environment:
-  - FANART_API_KEY=your_api_key_here
-  - IMAGE_SOURCE=fanart
-```
-
-Or create/update a `.env` file in the project root:
-
-```
-FANART_API_KEY=your_api_key_here
-IMAGE_SOURCE=fanart
-```
-
-**Image Source Selection:**
-- `IMAGE_SOURCE=tmdb` (default) - Use TMDB for posters
-- `IMAGE_SOURCE=fanart` - Use Fanart.tv for thumb posters
-
-**Important Notes:**
-- Fanart.tv requires TMDB ID in the filename: `{tmdb-12345}`
-- Only movies are supported (TV shows require TVDB ID which is not currently extracted)
-- No fallback between sources - only the selected source is used
-- Both API keys can be configured, but only the selected source will be used
-- Poster images are automatically cached in `/app/data/posters/`
-
-**Without Fanart.tv API Key:**
-- The app will still work normally with TMDB or displaying filenames
-
-## Docker Compose Options 🐳
-
-### Standard Configuration
-
-```yaml
-docker-compose up -d
-```
-
-### View Logs
+### The container won't start
 
 ```bash
-docker-compose logs -f
+docker-compose logs universal-video-scanner
 ```
 
-### Restart Container
+### No files are being scanned
+
+1. Check that the files really are in the `media/` directory
+2. Trigger the manual scan button in the web interface
+3. Watch the logs: `docker-compose logs -f`
+
+### A Blu-ray image fails to analyze
+
+Encrypted images are rejected by design. For decrypted ones, confirm that a
+7-Zip >= 21.01 is available (the bundled image ships one) and try raising
+`ISO_SAMPLE_SIZE_MB`.
+
+### Posters or ratings are missing
+
+Entries with incomplete online metadata are retried automatically every
+`METADATA_RETRY_INTERVAL` minutes - including after you add an API key later, so
+no rescan is needed. A title with no TMDB match at all stays without a poster.
+
+### Reset the database
 
 ```bash
+rm -f data/scanned_files.json
 docker-compose restart
 ```
 
-### Stop Container
+---
+
+## 11. Development
+
+### Running Locally Without Docker
 
 ```bash
-docker-compose down
-```
-
-### Rebuild After Changes
-
-```bash
-docker-compose up -d --build
-```
-
-## Troubleshooting 🔍
-
-### Container Won't Start
-
-```bash
-docker-compose logs dovi-detector
-```
-
-### No Files Being Scanned
-
-1. Check if files exist in `media/` directory
-2. Use the manual scan button
-3. Check logs: `docker-compose logs -f`
-
-### Reset Database
-
-```bash
-rm -rf data/scanned_files.json
-docker-compose restart
-```
-
-## Development 💻
-
-### Local Development Without Docker
-
-```bash
-# Install dependencies
+# Install the Python dependencies
 pip3 install -r requirements.txt
 
-# mediainfo and hdrprobe must be installed manually
-# hdrprobe >= 1.0.0 is required (it emits the JSON schema 3.0 this app reads)
+# mediainfo and hdrprobe must be installed manually.
+# hdrprobe >= 1.0.0 is required - it emits the JSON schema 3.0 this app reads.
 
-# Start app
+# Start the app, then open http://localhost:2367
 python3 app.py
 ```
 
-### Tests
+Note that `MEDIA_PATH` (`/media`) and `DATA_DIR` (`/app/data`) are absolute
+container paths; a local run expects those to exist or be adjusted in
+[config.py](config.py).
 
-```bash
-# Scan test file
-python3 app.py
-# Open web interface at http://localhost:2367
-```
+### Contributing
 
-## Technology Stack 📚
-
-- **Backend**: Python 3 + Flask
-- **Scanner**: watchdog (Filesystem Events)
-- **Video Analysis**: hdrprobe + MediaInfo
-- **Container**: Docker + Docker Compose
-- **Frontend**: HTML5 + CSS3 + Vanilla JavaScript
-
-## License 📄
-
-MIT License - see LICENSE file
-
-## Contributing 🤝
-
-Pull requests and issues are welcome!
+Pull requests and issues are welcome.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
@@ -666,13 +647,21 @@ Pull requests and issues are welcome!
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a pull request
 
-## Credits 🙏
+---
+
+## 12. Project Info
+
+### License
+
+MIT License - see [LICENSE](LICENSE).
+
+### Credits
 
 - [hdrprobe](https://github.com/matthane/hdrprobe) by matthane
 - [MediaInfo](https://mediaarea.net/en/MediaInfo)
 - [Flask](https://flask.palletsprojects.com/)
 - [Watchdog](https://github.com/gorakhargosh/watchdog)
 
-## Support 💬
+### Support
 
 For questions or issues, please open an issue in the GitHub repository.
