@@ -7,6 +7,7 @@ Flask web application for scanning and managing video files
 """
 import os
 import re
+import gzip
 import json
 import time
 import threading
@@ -43,13 +44,76 @@ app = Flask(__name__,
             template_folder=config.TEMPLATES_DIR,
             static_folder=config.STATIC_DIR)
 
-# Event queues for Server-Sent Events
-deletion_event_queue = queue.Queue()
-scan_progress_queue = queue.Queue()
 
-# Last published scan progress. The queue only carries events to whoever is
-# listening at that moment, so a page reload mid-scan would otherwise show no
-# progress bar at all. This is the authoritative state /scan_status serves.
+class EventHub:
+    """
+    Fan Server-Sent Events out to every connected client.
+
+    One shared queue would hand each event to whichever client happened to read
+    it first, so a second browser tab silently misses updates - and it would
+    grow without bound while nobody is listening at all (a 5000 file scan
+    buffers 5000 payloads that are then flushed at the next visitor). Each
+    subscriber therefore gets its own bounded queue: a client that cannot keep
+    up drops its oldest event instead of the server growing memory.
+    """
+
+    def __init__(self, maxsize=256):
+        self._maxsize = maxsize
+        self._subscribers = []
+        self._lock = threading.Lock()
+
+    def publish(self, event, data):
+        with self._lock:
+            subscribers = list(self._subscribers)
+
+        for subscriber in subscribers:
+            try:
+                subscriber.put_nowait((event, data))
+            except queue.Full:
+                # Slowest client wins nothing: drop its oldest event so the
+                # newest state still gets through.
+                try:
+                    subscriber.get_nowait()
+                    subscriber.put_nowait((event, data))
+                except (queue.Empty, queue.Full):
+                    pass
+
+    def subscribe(self):
+        subscriber = queue.Queue(maxsize=self._maxsize)
+        with self._lock:
+            self._subscribers.append(subscriber)
+        return subscriber
+
+    def unsubscribe(self, subscriber):
+        with self._lock:
+            if subscriber in self._subscribers:
+                self._subscribers.remove(subscriber)
+
+
+event_hub = EventHub()
+
+
+class _EventPublisher:
+    """
+    Queue-shaped adapter around the hub for the callers that only ever put.
+
+    Keeps the watcher's ``deletion_event_queue.put(...)`` calls working while
+    the events themselves are broadcast to every connected client.
+    """
+
+    def __init__(self, hub, event):
+        self._hub = hub
+        self._event = event
+
+    def put(self, payload):
+        self._hub.publish(self._event, payload)
+
+
+deletion_event_queue = _EventPublisher(event_hub, 'file_deleted')
+
+# Last published scan progress. Events only reach whoever is listening at that
+# moment, so a page reload mid-scan would otherwise show no progress bar at
+# all. This is the authoritative state /scan_status serves.
 scan_state = {'status': 'idle', 'current': 0, 'total': 0, 'percent': 0, 'filename': ''}
 scan_state_lock = threading.Lock()
 
@@ -57,14 +121,12 @@ scan_state_lock = threading.Lock()
 def publish_scan_progress(payload):
     """Record the progress state and push it to connected clients."""
     with scan_state_lock:
-        if payload.get('status') == 'scanning':
-            scan_state.update(payload)
-        else:
+        scan_state.update(payload)
+        if payload.get('status') != 'scanning':
             # A finished or failed run leaves no bar behind on the next reload
-            scan_state.update(payload)
             scan_state['filename'] = ''
     try:
-        scan_progress_queue.put(json.dumps(payload))
+        event_hub.publish('scan_progress', json.dumps(payload))
     except Exception as e:
         print(f"Error queuing scan progress: {e}")
 
@@ -134,7 +196,8 @@ def _metadata_retry_loop():
                 database.scanned_files,
                 database.scan_lock,
                 lambda: database.save_database(config.DB_FILE),
-                _fetch_online_metadata_wrapper
+                _fetch_online_metadata_wrapper,
+                config.METADATA_RETRY_BATCH
             )
         except Exception as e:
             print(f"Error during metadata retry: {e}")
@@ -180,23 +243,79 @@ def _delete_cached_poster_wrapper(file_info):
     return delete_cached_poster(file_info, config.POSTER_CACHE_DIR)
 
 
+# Content types worth compressing. Posters are already-compressed JPEGs and
+# would only get bigger, so they are deliberately absent.
+_COMPRESSIBLE_TYPES = {
+    'text/html', 'text/css', 'text/plain', 'text/javascript',
+    'application/javascript', 'application/json', 'image/svg+xml',
+}
+
+# Below this, the gzip header costs more than the compression saves.
+_COMPRESS_MIN_BYTES = 1024
+
+
+@app.after_request
+def compress_response(response):
+    """
+    Gzip text responses when the client accepts it.
+
+    The library page is server-rendered markup that repeats the same attribute
+    names on every row, so it compresses by well over 20x - on a 5000 entry
+    library that is the difference between a ~25 MB and a ~1 MB page. Streamed responses (the SSE endpoint, send_file) are passed
+    through untouched.
+    """
+    if response.direct_passthrough or response.status_code != 200:
+        return response
+    if 'Content-Encoding' in response.headers:
+        return response
+    if (response.content_type or '').split(';')[0].strip() not in _COMPRESSIBLE_TYPES:
+        return response
+    if 'gzip' not in request.headers.get('Accept-Encoding', '').lower():
+        return response
+
+    try:
+        data = response.get_data()
+    except RuntimeError:
+        # Not buffered (streaming response) - nothing to compress
+        return response
+
+    if len(data) < _COMPRESS_MIN_BYTES:
+        return response
+
+    # Level 6 is the usual sweet spot: nearly the ratio of 9 at a fraction of
+    # the CPU, which matters when the payload is megabytes of markup.
+    response.set_data(gzip.compress(data, 6))
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = response.content_length
+    response.vary.add('Accept-Encoding')
+    return response
+
+
 # Flask Routes
 
 @app.route('/')
 def index():
     """Main page showing scanned files"""
-    files_list = list(database.scanned_files.values())
-    
-    # Add modification time for sorting
+    # Snapshot under the lock: a scan or the watcher may be mutating the
+    # database right now, and iterating it while it changes size raises.
+    # The entries are copied so the view can add its own fields without
+    # writing them back into (and persisting them with) the database.
+    with database.scan_lock:
+        files_list = [dict(file_info) for file_info in database.scanned_files.values()]
+
+    # Modification time for the "recently added" sort. Scanning records it, so
+    # only entries from an older database still need a stat call here - which
+    # matters on a large library, where 5000 stats on network storage would
+    # otherwise be paid on every page load.
     for file_info in files_list:
-        file_path = file_info.get('path', '')
-        try:
-            file_info['mtime'] = os.path.getmtime(file_path)
-        except (OSError, TypeError):
-            file_info['mtime'] = 0
-    
+        if not file_info.get('mtime'):
+            try:
+                file_info['mtime'] = os.path.getmtime(file_info.get('path') or '')
+            except (OSError, TypeError):
+                file_info['mtime'] = 0
+
     # Sort by filename
-    files_list.sort(key=lambda x: x['filename'])
+    files_list.sort(key=lambda x: x.get('filename') or '')
 
     return render_template(
         'index.html',
@@ -332,7 +451,7 @@ def scan_single_file():
 def scan_multiple_files():
     """Scan a user-selected set of files in the background with progress updates.
 
-    Mirrors the progress protocol of /scan (via scan_progress_queue) so the
+    Mirrors the progress protocol of /scan (via publish_scan_progress) so the
     existing SSE handler drives the progress bar. Already-scanned files are
     skipped by scan_video_file, so selecting everything effectively scans only
     what is still missing.
@@ -435,33 +554,26 @@ def scan_status():
 def events():
     """Server-Sent Events endpoint for real-time updates"""
     def event_stream():
-        # Send a keep-alive comment every 30 seconds
-        last_keepalive = time.time()
-
-        while True:
-            try:
-                # Check for scan progress events first (non-blocking)
+        subscriber = event_hub.subscribe()
+        try:
+            # Blocking waits instead of polling: events are delivered the
+            # moment they are published, and an idle connection costs nothing
+            # beyond one keep-alive every 30 seconds.
+            while True:
                 try:
-                    progress_data = scan_progress_queue.get_nowait()
-                    yield f"event: scan_progress\ndata: {progress_data}\n\n"
+                    event, data = subscriber.get(timeout=30)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
                     continue
-                except queue.Empty:
-                    pass
+                yield f"event: {event}\ndata: {data}\n\n"
+        finally:
+            event_hub.unsubscribe(subscriber)
 
-                # Check for deletion events (non-blocking with timeout)
-                try:
-                    event_data = deletion_event_queue.get(timeout=0.5)
-                    yield f"event: file_deleted\ndata: {event_data}\n\n"
-                except queue.Empty:
-                    # Send keep-alive every 30 seconds
-                    current_time = time.time()
-                    if current_time - last_keepalive > 30:
-                        yield ": keep-alive\n\n"
-                        last_keepalive = current_time
-            except GeneratorExit:
-                break
-
-    return Response(event_stream(), mimetype='text/event-stream')
+    response = Response(event_stream(), mimetype='text/event-stream')
+    # Long-lived stream: never buffer or cache it on the way to the client.
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
 
 
 @app.route('/clear_database', methods=['POST'])

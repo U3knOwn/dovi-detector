@@ -1121,7 +1121,10 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         if iso_prep and iso_prep.get('temp_dir'):
             shutil.rmtree(iso_prep['temp_dir'], ignore_errors=True)
 
-    file_size = os.path.getsize(file_path)
+    # One stat for both values: the modification time is what the "recently
+    # added" sort orders by, and recording it here saves the page view from
+    # stat'ing every file in the library on every request.
+    file_stat = os.stat(file_path)
 
     filename = os.path.basename(file_path)
     online = fetch_online_metadata(
@@ -1142,7 +1145,8 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         'duration': duration,
         'video_bitrate': video_bitrate,
         'audio_bitrate': audio_bitrate,
-        'file_size': file_size,
+        'file_size': file_stat.st_size,
+        'mtime': file_stat.st_mtime,
         'dv_cm_version': hdr_info.get('cm_version', ''),
         'hdr_metadata': get_hdrprobe_hdr_metadata(hdr_report)
     }
@@ -1304,8 +1308,13 @@ def is_metadata_incomplete(file_info):
     return False
 
 
+# Where the next capped retry run picks up, so a library with more stuck
+# entries than one run covers still rotates through all of them.
+_retry_cursor = 0
+
+
 def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
-                               fetch_online_metadata_func):
+                               fetch_online_metadata_func, max_entries=None):
     """
     Re-run the online lookups for every entry that is still missing metadata.
 
@@ -1313,8 +1322,16 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
     is cheap enough to run on a timer. Fields are merged rather than replaced:
     a refresh that comes back empty never wipes data that was already there.
 
+    ``max_entries`` caps how many entries are looked up per run. Titles that
+    genuinely have no match stay "incomplete" forever, so on a large library
+    an uncapped run would issue thousands of requests every interval and walk
+    straight into the APIs' rate limits. The starting point rotates, so every
+    candidate still gets its turn across successive runs.
+
     Returns the number of entries that gained something.
     """
+    global _retry_cursor
+
     with scan_lock:
         candidates = [(path, info) for path, info in scanned_files.items()
                       if is_metadata_incomplete(info)]
@@ -1322,7 +1339,16 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
     if not candidates:
         return 0
 
-    print(f"[RETRY] {len(candidates)} incomplete entr(ies) - retrying lookups")
+    total_candidates = len(candidates)
+    if max_entries and total_candidates > max_entries:
+        start = _retry_cursor % total_candidates
+        # Wrap around the end so a run is never cut short near the tail
+        candidates = (candidates + candidates)[start:start + max_entries]
+        _retry_cursor = start + max_entries
+        print(f"[RETRY] {total_candidates} incomplete entr(ies) - "
+              f"retrying {len(candidates)} of them this run")
+    else:
+        print(f"[RETRY] {total_candidates} incomplete entr(ies) - retrying lookups")
     updated = 0
 
     for file_path, file_info in candidates:

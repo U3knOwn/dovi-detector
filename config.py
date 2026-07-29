@@ -122,6 +122,13 @@ AUTO_REFRESH_INTERVAL = _env_int('AUTO_REFRESH_INTERVAL', 10)
 # without a rescan. Set to 0 to disable the retries entirely.
 METADATA_RETRY_INTERVAL = max(0, _env_int('METADATA_RETRY_INTERVAL', 30))
 
+# How many incomplete entries one retry run looks up. Titles that genuinely
+# have no TMDB match stay incomplete forever, so on a large library an uncapped
+# run would fire thousands of requests every interval and hit the APIs' rate
+# limits. The run rotates through the candidates, so every entry still gets its
+# turn - just spread over several intervals. Set to 0 to retry all of them.
+METADATA_RETRY_BATCH = max(0, _env_int('METADATA_RETRY_BATCH', 250))
+
 # Number of files probed at once during a bulk scan (initial + manual scan).
 # hdrprobe and MediaInfo run as external processes, so a small worker pool
 # overlaps their I/O and cuts the total time to scan a large library.

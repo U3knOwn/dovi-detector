@@ -155,22 +155,22 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     data-rt-rating="{{ file.rt_rating or '0' }}"
                     data-metacritic="{{ file.metacritic or '0' }}"
                     data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
-                    data-file-size="{{ file.file_size|default('0') }}" 
-                    data-video-bitrate="{{ file.video_bitrate|default('0') }}" 
+                    data-file-size="{{ file.file_size|default('0') }}"
+                    data-video-bitrate="{{ file.video_bitrate|default('0') }}"
                     data-audio-bitrate="{{ file.audio_bitrate|default('0') }}"
                     data-year="{{ file.tmdb_year|default('', true) }}"
                     data-duration="{{ file.duration|default('') }}"
                     data-mtime="{{ file.mtime|default('0') }}"
                     data-dv-cm-version="{{ file.dv_cm_version|default('') }}">
                     <td data-label-i18n="table_header_poster" data-label="Poster / Dateiname" title="{{ file.filename }}">
-                        {% if file.poster_url %}
-                        <div class="poster-container" 
-                             data-title="{{ file.tmdb_title|default(file.filename, true) }}" 
-                             data-year="{{ file.tmdb_year|default('', true) }}"
-                             data-duration="{{ file.duration|default('') }}"
-                             data-video-bitrate="{{ file.video_bitrate|default('') }}"
-                             data-audio-bitrate="{{ file.audio_bitrate|default('') }}"
-                             data-file-size="{{ file.file_size|default('') }}"
+                        {# One card for both cases: with a poster it carries the TMDB
+                           title and year, without one the filename stands in. Values
+                           the row above already carries (duration, bitrates, size,
+                           rank, HDR format) are not repeated here - the dialog reads
+                           them from the row. #}
+                        <div class="poster-container{% if not file.poster_url %} poster-fallback{% endif %}"
+                             data-title="{% if file.poster_url %}{{ file.tmdb_title|default(file.filename, true) }}{% else %}{{ file.filename }}{% endif %}"
+                             data-year="{% if file.poster_url %}{{ file.tmdb_year|default('', true) }}{% endif %}"
                              data-poster-url="{{ file.poster_url|default('') }}"
                              data-tmdb-id="{{ file.tmdb_id|default('') }}"
                              data-imdb-id="{{ file.imdb_id|default('', true) }}"
@@ -179,24 +179,20 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                              data-tmdb-rating="{{ file.tmdb_rating|default('', true) }}"
                              data-rt-rating="{{ file.rt_rating|default('', true) }}"
                              data-metacritic="{{ file.metacritic|default('', true) }}"
-                             data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
                              data-plot="{{ file.tmdb_plot|default('') }}"
                              data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
                              data-genres="{{ file.tmdb_genres|default([])|join(', ') }}"
                              data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
                              data-filename="{{ file.filename }}"
-                             data-dv-cm-version="{{ file.dv_cm_version|default('') }}"
-                             data-hdr-format="{{ file.hdr_format|default('') }}"
                              data-hdr-metadata='{{ file.hdr_metadata|default({})|tojson }}'
                              data-path="{{ file.path }}"
                              onclick="showMediaDialogFromData(this)">
                             {# Entries scanned without a TMDB key have no title - the
                                filename stands in, as it does on the poster-less card. #}
-                            <span class="poster-title">
-                                {% if file.tmdb_title %}{{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}{% else %}{{ file.filename }}{% endif %}
-                            </span>
+                            <span class="poster-title">{% if file.poster_url and file.tmdb_title %}{{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}{% else %}{{ file.filename }}{% endif %}</span>
                             <div class="poster-img-wrapper">
-                                <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy">
+                                {% if file.poster_url %}
+                                <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy" decoding="async">
                                 {% if rating %}
                                 <div class="rating-badge">
                                     <span class="rating-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
@@ -206,37 +202,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                                 {% if file.imdb_top250 %}
                                 <div class="top250-badge" title="IMDb Top 250 - #{{ file.imdb_top250 }}">#{{ file.imdb_top250 }}</div>
                                 {% endif %}
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="poster-container poster-fallback"
-                             data-title="{{ file.filename }}"
-                             data-year=""
-                             data-duration="{{ file.duration|default('') }}"
-                             data-video-bitrate="{{ file.video_bitrate|default('') }}"
-                             data-audio-bitrate="{{ file.audio_bitrate|default('') }}"
-                             data-file-size="{{ file.file_size|default('') }}"
-                             data-poster-url="{{ file.poster_url|default('') }}"
-                             data-tmdb-id="{{ file.tmdb_id|default('') }}"
-                             data-imdb-id="{{ file.imdb_id|default('', true) }}"
-                             data-rating="{{ rating|default('', true) }}"
-                             data-imdb-rating="{{ file.imdb_rating|default('', true) }}"
-                             data-tmdb-rating="{{ file.tmdb_rating|default('', true) }}"
-                             data-rt-rating="{{ file.rt_rating|default('', true) }}"
-                             data-metacritic="{{ file.metacritic|default('', true) }}"
-                             data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
-                             data-plot="{{ file.tmdb_plot|default('') }}"
-                             data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
-                             data-genres="{{ file.tmdb_genres|default([])|join(', ') }}"
-                             data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
-                             data-filename="{{ file.filename }}"
-                             data-dv-cm-version="{{ file.dv_cm_version|default('') }}"
-                             data-hdr-format="{{ file.hdr_format|default('') }}"
-                             data-hdr-metadata='{{ file.hdr_metadata|default({})|tojson }}'
-                             data-path="{{ file.path }}"
-                             onclick="showMediaDialogFromData(this)">
-                            <span class="poster-title">{{ file.filename }}</span>
-                            <div class="poster-img-wrapper">
+                                {% else %}
                                 <div class="poster-img poster-placeholder" aria-hidden="true">
                                     <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                         <rect width="18" height="18" x="3" y="3" rx="2"/>
@@ -250,9 +216,9 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                                         <path d="M17 16.5h4"/>
                                     </svg>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
-                        {% endif %}
                     </td>
 
                     <td data-label-i18n="table_header_hdr">

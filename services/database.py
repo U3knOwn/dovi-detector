@@ -50,16 +50,18 @@ def save_database(db_file):
     tmp_path = None
     try:
         with scan_lock:
-            payload = json.dumps({
-                'files': scanned_files,
-                'paths': list(scanned_paths)
-            }, indent=2)
-
             dir_name = os.path.dirname(db_file) or '.'
             fd, tmp_path = tempfile.mkstemp(
                 dir=dir_name, prefix='.scanned_files_', suffix='.tmp')
+            # Serialized straight into the file rather than into an
+            # intermediate string: a large library is several megabytes of
+            # JSON, which would otherwise be held in memory in full on every
+            # save (and a bulk scan saves repeatedly).
             with os.fdopen(fd, 'w') as f:
-                f.write(payload)
+                json.dump({
+                    'files': scanned_files,
+                    'paths': list(scanned_paths)
+                }, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp_path, db_file)

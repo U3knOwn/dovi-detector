@@ -74,9 +74,20 @@ function t(key, replacements = {}) {
     return text;
 }
 
-function applyTranslations() {
+/**
+ * Apply the loaded translations to the page.
+ *
+ * ``root`` limits the pass to one subtree - the media dialog does that when it
+ * opens, so it does not walk a table of thousands of rows just to relabel its
+ * own fields. A full pass (no root) also refreshes the controls whose labels
+ * are built in JS.
+ */
+function applyTranslations(root) {
+    const scope = root || document;
+    const isFullPass = !root;
+
     // Text content
-    document.querySelectorAll('[data-i18n]').forEach(el => {
+    scope.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (translations[key]) {
             // For option elements, set text property; for others, set textContent
@@ -89,35 +100,37 @@ function applyTranslations() {
     });
     
     // HTML content
-    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    scope.querySelectorAll('[data-i18n-html]').forEach(el => {
         const key = el.getAttribute('data-i18n-html');
         if (translations[key]) el.innerHTML = translations[key];
     });
-    
+
     // Placeholder attributes
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    scope.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (translations[key]) el.placeholder = translations[key];
     });
-    
+
     // Data labels
-    document.querySelectorAll('[data-label-i18n]').forEach(el => {
+    scope.querySelectorAll('[data-label-i18n]').forEach(el => {
         const key = el.getAttribute('data-label-i18n');
         if (translations[key]) el.setAttribute('data-label', translations[key]);
     });
-    
+
     // Tooltips (icon-only controls carry their label there)
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    scope.querySelectorAll('[data-i18n-title]').forEach(el => {
         const key = el.getAttribute('data-i18n-title');
         if (translations[key]) el.setAttribute('title', translations[key]);
     });
 
     // Aria labels
-    document.querySelectorAll('[data-aria-label-i18n]').forEach(el => {
+    scope.querySelectorAll('[data-aria-label-i18n]').forEach(el => {
         const key = el.getAttribute('data-aria-label-i18n');
         if (translations[key]) el.setAttribute('aria-label', translations[key]);
     });
-    
+
+    if (!isFullPass) return;
+
     // Refresh the sort dropdown so its option labels follow the active language.
     if (sortSelectInstance) sortSelectInstance.refresh();
     updateSortDirToggle();
@@ -139,7 +152,12 @@ async function setLanguage(lang) {
     const loaded = await loadTranslations(lang);
     if (loaded) {
         applyTranslations();
-        loadFileList(); // Update dropdown
+        // Only the labels are language-dependent, the file list itself is not -
+        // so the dialog is relabelled instead of the whole media directory
+        // being walked again server-side.
+        updateFileTriggerLabel();
+        updateScanSelectedButton();
+        if (isFileDialogOpen()) renderFileDialogList();
     }
 }
 
@@ -233,7 +251,46 @@ function getFilteredFiles() {
     const term = (searchEl ? searchEl.value : '').trim().toLowerCase();
     return term
         ? availableFiles.filter(f => f.name.toLowerCase().includes(term))
-        : availableFiles.slice();
+        : availableFiles;
+}
+
+// A file row is built by cloning these instead of parsing the same markup
+// again for every entry - on a large library that is thousands of identical
+// SVG parses, which is what made opening the dialog slow.
+let fileItemPrototype = null;
+let fileStatusIconPrototype = null;
+
+function getFileItemPrototype() {
+    if (!fileItemPrototype) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'file-item';
+        item.setAttribute('role', 'checkbox');
+
+        // Custom checkbox (selection state)
+        const checkbox = document.createElement('span');
+        checkbox.className = 'file-item-checkbox';
+        checkbox.setAttribute('aria-hidden', 'true');
+        checkbox.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+        const name = document.createElement('span');
+        name.className = 'file-item-name';
+
+        // Scan-status badge on the right
+        const status = document.createElement('span');
+        status.className = 'file-item-status';
+        status.setAttribute('aria-hidden', 'true');
+
+        item.appendChild(checkbox);
+        item.appendChild(name);
+        item.appendChild(status);
+        fileItemPrototype = item;
+
+        const icon = document.createElement('span');
+        icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+        fileStatusIconPrototype = icon.firstChild;
+    }
+    return fileItemPrototype;
 }
 
 // Build the grouped, multi-selectable file list (unscanned first, then
@@ -255,14 +312,29 @@ function renderFileDialogList() {
         return;
     }
 
-    const unscanned = filtered.filter(f => !f.scanned);
-    const scanned = filtered.filter(f => f.scanned);
+    const unscanned = [];
+    const scanned = [];
+    filtered.forEach(f => (f.scanned ? scanned : unscanned).push(f));
 
+    // One insertion instead of one per group / per item
+    const fragment = document.createDocumentFragment();
     if (unscanned.length > 0) {
-        list.appendChild(buildFileGroup(t('files_unscanned'), unscanned, false));
+        fragment.appendChild(buildFileGroup(t('files_unscanned'), unscanned, false));
     }
     if (scanned.length > 0) {
-        list.appendChild(buildFileGroup(t('files_scanned'), scanned, true));
+        fragment.appendChild(buildFileGroup(t('files_scanned'), scanned, true));
+    }
+    list.appendChild(fragment);
+
+    // One delegated handler for the whole list, however many entries it holds
+    if (!list.dataset.clickBound) {
+        list.addEventListener('click', event => {
+            const item = event.target.closest('.file-item');
+            if (item && list.contains(item)) {
+                toggleFileSelection(item.getAttribute('data-path'), item);
+            }
+        });
+        list.dataset.clickBound = 'true';
     }
 
     updateScanSelectedButton();
@@ -287,40 +359,25 @@ function buildFileGroup(titleText, files, scanned) {
     header.appendChild(count);
     group.appendChild(header);
 
+    const prototype = getFileItemPrototype();
+    const statusTitle = scanned ? t('files_scanned') : t('files_unscanned');
+
     files.forEach(file => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'file-item' + (scanned ? ' scanned' : ' unscanned');
+        const item = prototype.cloneNode(true);
+        item.classList.add(scanned ? 'scanned' : 'unscanned');
         item.setAttribute('data-path', file.path);
-        item.setAttribute('role', 'checkbox');
+
         const isChecked = selectedPaths.has(file.path);
         item.setAttribute('aria-checked', isChecked ? 'true' : 'false');
         if (isChecked) item.classList.add('selected');
 
-        // Custom checkbox (selection state)
-        const checkbox = document.createElement('span');
-        checkbox.className = 'file-item-checkbox';
-        checkbox.setAttribute('aria-hidden', 'true');
-        checkbox.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-
-        const name = document.createElement('span');
-        name.className = 'file-item-name';
+        const name = item.children[1];
         name.textContent = file.name;
         name.title = file.name;
 
-        // Scan-status badge on the right
-        const status = document.createElement('span');
-        status.className = 'file-item-status';
-        status.setAttribute('aria-hidden', 'true');
-        status.title = scanned ? t('files_scanned') : t('files_unscanned');
-        if (scanned) {
-            status.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-        }
-
-        item.appendChild(checkbox);
-        item.appendChild(name);
-        item.appendChild(status);
-        item.addEventListener('click', () => toggleFileSelection(file.path, item));
+        const status = item.children[2];
+        status.title = statusTitle;
+        if (scanned) status.appendChild(fileStatusIconPrototype.cloneNode(true));
 
         group.appendChild(item);
     });
@@ -329,31 +386,46 @@ function buildFileGroup(titleText, files, scanned) {
 }
 
 function toggleFileSelection(path, item) {
-    if (selectedPaths.has(path)) {
-        selectedPaths.delete(path);
-        item.classList.remove('selected');
-        item.setAttribute('aria-checked', 'false');
-    } else {
-        selectedPaths.add(path);
-        item.classList.add('selected');
-        item.setAttribute('aria-checked', 'true');
-    }
+    if (!path) return;
+    setFileSelected(path, !selectedPaths.has(path), item);
     updateScanSelectedButton();
     updateFileTriggerLabel();
 }
 
-// Select every file currently visible in the dialog.
-function selectAllFiles() {
-    getFilteredFiles().forEach(f => selectedPaths.add(f.path));
-    renderFileDialogList();
+// Set one file's selection state, keeping its list entry (if rendered) in sync.
+function setFileSelected(path, selected, item) {
+    if (selected) {
+        selectedPaths.add(path);
+    } else {
+        selectedPaths.delete(path);
+    }
+    if (item) {
+        item.classList.toggle('selected', selected);
+        item.setAttribute('aria-checked', selected ? 'true' : 'false');
+    }
+}
+
+// Select or deselect every file currently visible in the dialog. The rendered
+// entries are updated in place - rebuilding the whole list to flip a class
+// would be the expensive part on a large library.
+function setAllFilesSelected(selected) {
+    const list = document.getElementById('fileDialogList');
+    const items = list ? list.querySelectorAll('.file-item') : [];
+    const rendered = new Map();
+    items.forEach(item => rendered.set(item.getAttribute('data-path'), item));
+
+    getFilteredFiles().forEach(f => setFileSelected(f.path, selected, rendered.get(f.path)));
+
+    updateScanSelectedButton();
     updateFileTriggerLabel();
 }
 
-// Deselect every file currently visible in the dialog.
+function selectAllFiles() {
+    setAllFilesSelected(true);
+}
+
 function deselectAllFiles() {
-    getFilteredFiles().forEach(f => selectedPaths.delete(f.path));
-    renderFileDialogList();
-    updateFileTriggerLabel();
+    setAllFilesSelected(false);
 }
 
 // Keep the primary "scan selected" button label and enabled state in sync.
@@ -689,66 +761,141 @@ function updateSortDirToggle(mode) {
     btn.setAttribute('aria-label', label);
 }
 
+/* -------------------------------
+   Row metadata cache
+
+   Sorting and searching need the same handful of values over and over: the
+   filename, the audio codec, a numeric data attribute, the row's searchable
+   text. Reading those back out of the DOM every time (querySelector plus
+   textContent, inside a comparator) means tens of thousands of DOM lookups for
+   a single sort of a large library. Nothing about a rendered row ever changes,
+   so each value is derived once and remembered per row.
+   ------------------------------- */
+
+const rowMetaCache = new WeakMap();
+
+function rowMeta(row) {
+    let meta = rowMetaCache.get(row);
+    if (!meta) {
+        meta = { numbers: {} };
+        rowMetaCache.set(row, meta);
+    }
+    return meta;
+}
+
+// The table's rows, kept as a plain array: every re-sort, search and stats
+// update would otherwise re-query the whole table. Rows are only ever removed
+// (deletion), never added, so the list is dropped from the array with them.
+let mediaRows = null;
+
+function getMediaRows() {
+    if (!mediaRows) {
+        const table = document.getElementById('mediaTable');
+        mediaRows = table ? Array.from(table.querySelectorAll('tbody tr')) : [];
+    }
+    return mediaRows;
+}
+
+function forgetMediaRow(row) {
+    if (mediaRows) mediaRows = mediaRows.filter(r => r !== row);
+}
+
+// A numeric data attribute of a row, parsed once. Missing / unparsable is 0,
+// which is what every comparator treated it as anyway.
+function rowNumber(row, attribute) {
+    const numbers = rowMeta(row).numbers;
+    if (!(attribute in numbers)) {
+        numbers[attribute] = parseFloat(row.getAttribute(attribute)) || 0;
+    }
+    return numbers[attribute];
+}
+
+// Lower-cased filename, the tie-breaker of every comparator.
+function getFilenameKey(row) {
+    const meta = rowMeta(row);
+    if (meta.filenameKey === undefined) {
+        meta.filenameKey = getFilenameFromRow(row).toLowerCase();
+    }
+    return meta.filenameKey;
+}
+
+// Shared last resort of the comparators: alphabetical by filename.
+function compareByFilename(a, b) {
+    const aName = getFilenameKey(a);
+    const bName = getFilenameKey(b);
+    if (aName < bName) return -1;
+    if (aName > bName) return 1;
+    return 0;
+}
+
 // Sort the table rows with a descending comparator, flipped when the active
 // direction is ascending, and write the result back into the DOM.
 function sortRows(compare) {
     const table = document.getElementById('mediaTable');
     if (!table) return;
     const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const rows = getMediaRows();
+    if (rows.length === 0) return;
 
     rows.sort((a, b) => sortSign * compare(a, b));
 
-    // Rearrange order in DOM
-    rows.forEach(r => tbody.appendChild(r));
+    // Moved through a fragment: appending the rows one by one to the live
+    // table means one DOM mutation per row, where this is a single one.
+    const fragment = document.createDocumentFragment();
+    rows.forEach(r => fragment.appendChild(r));
+    tbody.appendChild(fragment);
+}
+
+// The text a row is matched against: its title/filename plus the HDR, audio
+// and resolution badges. Built once per row - a search over a large library
+// would otherwise walk four cells of every row on every keystroke.
+function getRowSearchText(row) {
+    const meta = rowMeta(row);
+    if (meta.searchText === undefined) {
+        const cells = row.children;
+        const posterCell = cells[0];
+        let text = '';
+
+        if (posterCell) {
+            const posterTitle = posterCell.querySelector('.poster-title');
+            if (posterTitle) {
+                text += posterTitle.textContent + ' ';
+            } else {
+                // Fallback to title attribute
+                const title = posterCell.getAttribute('title');
+                if (title) text += title + ' ';
+            }
+        }
+
+        // HDR, resolution and audio badges
+        for (const index of [1, 3, 2]) {
+            if (cells[index]) text += cells[index].textContent + ' ';
+        }
+
+        meta.searchText = text.toLowerCase();
+    }
+    return meta.searchText;
 }
 
 // Real-time search function
 function searchMedia() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.querySelectorAll('#mediaTable tbody tr');
-    
+    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+
     let visibleRowCount = 0;
-    
-    rows.forEach(row => {
-        // Get searchable content from specific cells only
-        const posterCell = row.querySelector('td:nth-child(1)');
-        const hdrCell = row.querySelector('td:nth-child(2)');
-        const audioCell = row.querySelector('td:nth-child(3)');
-        const resolutionCell = row.querySelector('td:nth-child(4)');
-        
-        // Build searchable text from relevant content
-        let searchableText = '';
-        
-        // From poster cell: get title or filename
-        if (posterCell) {
-            const posterTitle = posterCell.querySelector('.poster-title');
-            const filenameFallback = posterCell.querySelector('.filename-fallback');
-            if (posterTitle) {
-                searchableText += posterTitle.textContent + ' ';
-            } else if (filenameFallback) {
-                searchableText += filenameFallback.textContent + ' ';
-            } else {
-                // Fallback to title attribute
-                const title = posterCell.getAttribute('title');
-                if (title) searchableText += title + ' ';
-            }
-        }
-        
-        // From other cells: get text content
-        if (hdrCell) searchableText += hdrCell.textContent + ' ';
-        if (resolutionCell) searchableText += resolutionCell.textContent + ' ';
-        if (audioCell) searchableText += audioCell.textContent + ' ';
-        
-        // Check if search term is in the searchable text
-        const isVisible = searchableText.toLowerCase().includes(searchTerm);
-        row.style.display = isVisible ? '' : 'none';
-        
+
+    getMediaRows().forEach(row => {
+        const isVisible = searchTerm === '' || getRowSearchText(row).includes(searchTerm);
+        const display = isVisible ? '' : 'none';
+
+        // Only written when it actually changes: assigning the same value to
+        // every row still invalidates layout for all of them.
+        if (row.style.display !== display) row.style.display = display;
+
         if (isVisible) {
             visibleRowCount++;
         }
     });
-    
+
     // Handle table header and no-results message visibility
     const table = document.getElementById('mediaTable');
     const thead = table ? table.querySelector('thead') : null;
@@ -795,6 +942,23 @@ function searchMedia() {
     updateProfileStats();
 }
 
+// Run `fn` once the caller stops calling it for `wait` ms.
+function debounce(fn, wait) {
+    let timer = null;
+    return function (...args) {
+        if (timer !== null) clearTimeout(timer);
+        timer = setTimeout(() => {
+            timer = null;
+            fn.apply(this, args);
+        }, wait);
+    };
+}
+
+// Short enough to still feel live, long enough to skip the intermediate
+// filtering passes while a word is being typed.
+const debouncedSearchMedia = debounce(searchMedia, 120);
+const debouncedRenderFileDialogList = debounce(renderFileDialogList, 120);
+
 // Clear search function
 function clearSearch() {
     const searchInput = document.getElementById('searchInput');
@@ -811,115 +975,103 @@ function updateClearButton() {
     }
 }
 
+// Which stat chip a row is counted under. Derived from the row's HDR
+// attributes, which never change, so the classification is done once.
+function getRowStatKey(row) {
+    const meta = rowMeta(row);
+    if (meta.statKey !== undefined) return meta.statKey;
+
+    const elType = (row.getAttribute('data-el-type') || '').toUpperCase();
+    const hdrFormat = (row.getAttribute('data-hdr-format') || '').toLowerCase();
+    const hdrDetail = (row.getAttribute('data-hdr-detail') || '').toLowerCase();
+
+    let key = null;
+
+    // Check for FEL or MEL
+    if (elType === 'FEL') {
+        key = 'FEL';
+    } else if (elType === 'MEL') {
+        key = 'MEL';
+    }
+    // Check for Profile 8
+    else if (
+        hdrDetail.includes('profile 8') ||
+        hdrDetail.includes('profile8') ||
+        hdrDetail.includes('p8') ||
+        hdrFormat.includes('profile 8') ||
+        hdrFormat.includes('p8')
+    ) {
+        key = 'P8';
+    }
+    // Check for Profile 5
+    else if (
+        hdrDetail.includes('profile 5') ||
+        hdrDetail.includes('profile5') ||
+        hdrDetail.includes('p5')
+    ) {
+        key = 'P5';
+    }
+    // Check for HDR10+ (must check before HDR10 to avoid false matches)
+    else if (
+        hdrFormat.includes('hdr10+') ||
+        hdrDetail.includes('hdr10+') ||
+        hdrFormat.includes('hdr10plus') ||
+        hdrDetail.includes('hdr10plus')
+    ) {
+        key = 'HDR10+';
+    }
+    // Check for SL-HDR1 / SL-HDR2 / SL-HDR3
+    else if (hdrFormat.includes('sl-hdr') || hdrDetail.includes('sl-hdr')) {
+        key = 'SL-HDR';
+    }
+    // Check for HDR Vivid
+    else if (hdrFormat.includes('vivid') || hdrDetail.includes('vivid')) {
+        key = 'HDR Vivid';
+    }
+    // Check for HDR10 (but not HDR10+, already handled above)
+    else if (
+        hdrFormat.includes('hdr10') ||
+        hdrDetail.includes('hdr10') ||
+        hdrFormat.includes('smpte2084')
+    ) {
+        key = 'HDR10';
+    }
+    // Check for HLG
+    else if (hdrFormat.includes('hlg') || hdrDetail.includes('hlg')) {
+        key = 'HLG';
+    }
+    // Check for SDR
+    else if (hdrFormat.includes('sdr') || hdrDetail.includes('sdr')) {
+        key = 'SDR';
+    }
+
+    meta.statKey = key;
+    return key;
+}
+
+// Order the stat chips are shown in; only categories with at least one title
+// are rendered.
+const STAT_CHIP_ORDER = [
+    'FEL', 'MEL', 'P8', 'P5', 'HDR10+', 'SL-HDR', 'HDR Vivid', 'HDR10', 'HLG', 'SDR'
+];
+
 // Update profile statistics
 function updateProfileStats() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    
-    const rows = Array.from(table.querySelectorAll('tbody tr'));
-    const visibleRows = rows.filter(row => row.style.display !== 'none');
-    
-    const stats = {
-        FEL: 0,
-        MEL: 0,
-        'Profile 8': 0,
-        'Profile 5': 0,
-        'HDR10+': 0,
-        'SL-HDR': 0,
-        'HDR Vivid': 0,
-        'HDR10': 0,
-        'HLG': 0,
-        'SDR': 0
-    };
-    
-    visibleRows.forEach(row => {
-        const elType = (row.getAttribute('data-el-type') || '').toUpperCase();
-        const hdrFormat = (row.getAttribute('data-hdr-format') || '').toLowerCase();
-        const hdrDetail = (row.getAttribute('data-hdr-detail') || '').toLowerCase();
-        
-        // Check for FEL or MEL
-        if (elType === 'FEL') {
-            stats.FEL++;
-        } else if (elType === 'MEL') {
-            stats.MEL++;
-        } 
-        // Check for Profile 8
-        else if (
-            hdrDetail.includes('profile 8') ||
-            hdrDetail.includes('profile8') ||
-            hdrDetail.includes('p8') ||
-            hdrFormat.includes('profile 8') ||
-            hdrFormat.includes('p8')
-        ) {
-            stats['Profile 8']++;
-        }
-        // Check for Profile 5
-        else if (
-            hdrDetail.includes('profile 5') ||
-            hdrDetail.includes('profile5') ||
-            hdrDetail.includes('p5')
-        ) {
-            stats['Profile 5']++;
-        }
-        // Check for HDR10+ (must check before HDR10 to avoid false matches)
-        else if (
-            hdrFormat.includes('hdr10+') ||
-            hdrDetail.includes('hdr10+') ||
-            hdrFormat.includes('hdr10plus') ||
-            hdrDetail.includes('hdr10plus')
-        ) {
-            stats['HDR10+']++;
-        }
-        // Check for SL-HDR1 / SL-HDR2 / SL-HDR3
-        else if (hdrFormat.includes('sl-hdr') || hdrDetail.includes('sl-hdr')) {
-            stats['SL-HDR']++;
-        }
-        // Check for HDR Vivid
-        else if (hdrFormat.includes('vivid') || hdrDetail.includes('vivid')) {
-            stats['HDR Vivid']++;
-        }
-        // Check for HDR10 (but not HDR10+) - explicitly exclude HDR10+
-        else if (
-            (hdrFormat.includes('hdr10') ||
-             hdrDetail.includes('hdr10') ||
-             hdrFormat.includes('smpte2084')) &&
-            !hdrFormat.includes('hdr10+') &&
-            !hdrDetail.includes('hdr10+') &&
-            !hdrFormat.includes('hdr10plus') &&
-            !hdrDetail.includes('hdr10plus')
-        ) {
-            stats['HDR10']++;
-        }
-        // Check for HLG
-        else if (hdrFormat.includes('hlg') || hdrDetail.includes('hlg')) {
-            stats['HLG']++;
-        }
-        // Check for SDR
-        else if (hdrFormat.includes('sdr') || hdrDetail.includes('sdr')) {
-            stats['SDR']++;
-        }
-    });
-    
-    // Build stat chips (only show profiles with at least 1 title)
-    const chipOrder = [
-        ['FEL', stats.FEL],
-        ['MEL', stats.MEL],
-        ['P8', stats['Profile 8']],
-        ['P5', stats['Profile 5']],
-        ['HDR10+', stats['HDR10+']],
-        ['SL-HDR', stats['SL-HDR']],
-        ['HDR Vivid', stats['HDR Vivid']],
-        ['HDR10', stats['HDR10']],
-        ['HLG', stats['HLG']],
-        ['SDR', stats['SDR']]
-    ];
-    const statsArray = chipOrder
-        .filter(([, count]) => count > 0)
-        .map(([label, count]) => `<span class="stat-chip">${label} <strong>${count}</strong></span>`);
     const profileStatsElement = document.getElementById('profileStats');
-    if (profileStatsElement) {
-        profileStatsElement.innerHTML = statsArray.join('');
-    }
+    if (!profileStatsElement) return;
+
+    const stats = new Map();
+
+    getMediaRows().forEach(row => {
+        if (row.style.display === 'none') return;
+        const key = getRowStatKey(row);
+        if (key) stats.set(key, (stats.get(key) || 0) + 1);
+    });
+
+    profileStatsElement.innerHTML = STAT_CHIP_ORDER
+        .filter(label => stats.get(label) > 0)
+        .map(label => `<span class="stat-chip">${label} <strong>${stats.get(label)}</strong></span>`)
+        .join('');
 }
 
 function getProfileRank(hdrFormat, hdrDetail, elType) {
@@ -983,149 +1135,133 @@ function getCmStructureKey(cmVersion) {
 }
 
 function getFilenameFromRow(row) {
-    // Try multiple places: title attribute, .poster-title, .filename-fallback
-    const td = row.querySelector('td[data-label-i18n="table_header_poster"]');
-    if (!td) return '';
-    // title attribute on td
-    if (td.getAttribute('title')) return td.getAttribute('title').trim();
-    const posterTitle = td.querySelector('.poster-title');
-    if (posterTitle) return posterTitle.textContent.trim();
-    const fallback = td.querySelector('.filename-fallback');
-    if (fallback) return fallback.textContent.trim();
-    return td.textContent.trim();
+    const meta = rowMeta(row);
+    if (meta.filename !== undefined) return meta.filename;
+
+    // Try multiple places: title attribute, .poster-title, cell text
+    const td = row.children[0];
+    let name = '';
+    if (td) {
+        const title = td.getAttribute('title');
+        if (title) {
+            name = title.trim();
+        } else {
+            const posterTitle = td.querySelector('.poster-title');
+            name = (posterTitle ? posterTitle.textContent : td.textContent).trim();
+        }
+    }
+
+    meta.filename = name;
+    return name;
+}
+
+// Profile rank of a row, derived from its HDR attributes once.
+function getRowProfileRank(row) {
+    const meta = rowMeta(row);
+    if (meta.profileRank === undefined) {
+        meta.profileRank = getProfileRank(
+            row.getAttribute('data-hdr-format') || '',
+            row.getAttribute('data-hdr-detail') || '',
+            row.getAttribute('data-el-type') || '');
+    }
+    return meta.profileRank;
 }
 
 function sortTableByProfile() {
     sortRows((a, b) => {
-        const aFmt = a.getAttribute('data-hdr-format') || '';
-        const aDet = a.getAttribute('data-hdr-detail') || '';
-        const aEl  = a.getAttribute('data-el-type') || '';
-
-        const bFmt = b.getAttribute('data-hdr-format') || '';
-        const bDet = b.getAttribute('data-hdr-detail') || '';
-        const bEl  = b.getAttribute('data-el-type') || '';
-
-        const aRank = getProfileRank(aFmt, aDet, aEl);
-        const bRank = getProfileRank(bFmt, bDet, bEl);
+        const aRank = getRowProfileRank(a);
+        const bRank = getRowProfileRank(b);
 
         if (aRank !== bRank) return aRank - bRank;
 
         // If same priority, sort secondarily by filename
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
 function sortTableByProfileAudio() {
     sortRows((a, b) => {
-        const aFmt = a.getAttribute('data-hdr-format') || '';
-        const aDet = a.getAttribute('data-hdr-detail') || '';
-        const aEl  = a.getAttribute('data-el-type') || '';
-
-        const bFmt = b.getAttribute('data-hdr-format') || '';
-        const bDet = b.getAttribute('data-hdr-detail') || '';
-        const bEl  = b.getAttribute('data-el-type') || '';
-
-        const aRank = getProfileRank(aFmt, aDet, aEl);
-        const bRank = getProfileRank(bFmt, bDet, bEl);
+        const aRank = getRowProfileRank(a);
+        const bRank = getRowProfileRank(b);
 
         if (aRank !== bRank) return aRank - bRank;
 
-        const aAudio = getAudioCodecFromRow(a);
-        const bAudio = getAudioCodecFromRow(b);
-        const aAudioRank = getAudioRank(aAudio);
-        const bAudioRank = getAudioRank(bAudio);
+        const aAudioRank = getRowAudioRank(a);
+        const bAudioRank = getRowAudioRank(b);
 
         if (aAudioRank !== bAudioRank) return aAudioRank - bAudioRank;
 
-        const aChannels = getChannelCount(aAudio);
-        const bChannels = getChannelCount(bAudio);
+        const aChannels = getRowChannelCount(a);
+        const bChannels = getRowChannelCount(b);
         if (aChannels !== bChannels) return bChannels - aChannels;
 
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
 function sortTableByProfileVideoBitrate() {
     sortRows((a, b) => {
-        const aFmt = a. getAttribute('data-hdr-format') || '';
-        const aDet = a. getAttribute('data-hdr-detail') || '';
-        const aEl  = a. getAttribute('data-el-type') || '';
-
-        const bFmt = b.getAttribute('data-hdr-format') || '';
-        const bDet = b.getAttribute('data-hdr-detail') || '';
-        const bEl  = b.getAttribute('data-el-type') || '';
-
-        const aRank = getProfileRank(aFmt, aDet, aEl);
-        const bRank = getProfileRank(bFmt, bDet, bEl);
+        const aRank = getRowProfileRank(a);
+        const bRank = getRowProfileRank(b);
 
         if (aRank !== bRank) return aRank - bRank;
 
-        const aVideoBitrate = parseFloat(a.getAttribute('data-video-bitrate')) || 0;
-        const bVideoBitrate = parseFloat(b.getAttribute('data-video-bitrate')) || 0;
+        const aVideoBitrate = rowNumber(a, 'data-video-bitrate');
+        const bVideoBitrate = rowNumber(b, 'data-video-bitrate');
 
         if (bVideoBitrate !== aVideoBitrate) return bVideoBitrate - aVideoBitrate;
 
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
 function sortTableByProfileAudioBitrate() {
     sortRows((a, b) => {
-        const aFmt = a.getAttribute('data-hdr-format') || '';
-        const aDet = a.getAttribute('data-hdr-detail') || '';
-        const aEl  = a.getAttribute('data-el-type') || '';
-
-        const bFmt = b. getAttribute('data-hdr-format') || '';
-        const bDet = b. getAttribute('data-hdr-detail') || '';
-        const bEl  = b. getAttribute('data-el-type') || '';
-
-        const aRank = getProfileRank(aFmt, aDet, aEl);
-        const bRank = getProfileRank(bFmt, bDet, bEl);
+        const aRank = getRowProfileRank(a);
+        const bRank = getRowProfileRank(b);
 
         if (aRank !== bRank) return aRank - bRank;
 
-        const aAudioBitrate = parseFloat(a.getAttribute('data-audio-bitrate')) || 0;
-        const bAudioBitrate = parseFloat(b.getAttribute('data-audio-bitrate')) || 0;
+        const aAudioBitrate = rowNumber(a, 'data-audio-bitrate');
+        const bAudioBitrate = rowNumber(b, 'data-audio-bitrate');
 
         if (bAudioBitrate !== aAudioBitrate) return bAudioBitrate - aAudioBitrate;
 
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
 function sortTableByFilename() {
     // Descending means Z-A here, so the alphabetical comparison is inverted -
     // sortRows() flips it back for the ascending (default) direction.
-    sortRows((a, b) => {
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return 1;
-        if (aName > bName) return -1;
-        return 0;
-    });
+    sortRows((a, b) => -compareByFilename(a, b));
 }
 
 function getAudioCodecFromRow(row) {
-    // Get audio codec from the audio cell
-    const audioCell = row.querySelector('td.audio-codec');
-    if (!audioCell) return '';
-    return audioCell.textContent.trim();
+    const meta = rowMeta(row);
+    if (meta.audioCodec === undefined) {
+        // Get audio codec from the audio cell
+        const audioCell = row.querySelector('td.audio-codec');
+        meta.audioCodec = audioCell ? audioCell.textContent.trim() : '';
+    }
+    return meta.audioCodec;
+}
+
+// Codec rank and channel count of a row's audio, derived once.
+function getRowAudioRank(row) {
+    const meta = rowMeta(row);
+    if (meta.audioRank === undefined) {
+        meta.audioRank = getAudioRank(getAudioCodecFromRow(row));
+    }
+    return meta.audioRank;
+}
+
+function getRowChannelCount(row) {
+    const meta = rowMeta(row);
+    if (meta.channels === undefined) {
+        meta.channels = getChannelCount(getAudioCodecFromRow(row));
+    }
+    return meta.channels;
 }
 
 function getAudioRank(audioCodec) {
@@ -1186,67 +1322,57 @@ function getChannelCount(audioCodec) {
 
 function sortTableByAudio() {
     sortRows((a, b) => {
-        const aAudio = getAudioCodecFromRow(a);
-        const bAudio = getAudioCodecFromRow(b);
-        
-        const aRank = getAudioRank(aAudio);
-        const bRank = getAudioRank(bAudio);
-        
+        const aRank = getRowAudioRank(a);
+        const bRank = getRowAudioRank(b);
+
         if (aRank !== bRank) return aRank - bRank;
-		
-        const aChannels = getChannelCount(aAudio);
-        const bChannels = getChannelCount(bAudio);
+
+        const aChannels = getRowChannelCount(a);
+        const bChannels = getRowChannelCount(b);
         if (aChannels !== bChannels) return bChannels - aChannels;
-        
-        const aLower = aAudio.toLowerCase();
-        const bLower = bAudio.toLowerCase();
+
+        const aLower = getAudioCodecFromRow(a).toLowerCase();
+        const bLower = getAudioCodecFromRow(b).toLowerCase();
         if (aLower < bLower) return -1;
         if (aLower > bLower) return 1;
-        
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+
+        return compareByFilename(a, b);
     });
+}
+
+// CM version rank and DV structure of a row, derived once.
+function getRowCmKeys(row) {
+    const meta = rowMeta(row);
+    if (meta.cmKeys === undefined) {
+        const cmVersion = row.getAttribute('data-dv-cm-version') || '';
+        meta.cmKeys = {
+            rank: getCmVersionRank(cmVersion),
+            structure: getCmStructureKey(cmVersion)
+        };
+    }
+    return meta.cmKeys;
 }
 
 function sortTableByCmVersion() {
     sortRows((a, b) => {
-        const aCmv = a.getAttribute('data-dv-cm-version') || '';
-        const bCmv = b.getAttribute('data-dv-cm-version') || '';
+        const aCm = getRowCmKeys(a);
+        const bCm = getRowCmKeys(b);
 
-        const aRank = getCmVersionRank(aCmv);
-        const bRank = getCmVersionRank(bCmv);
-
-        if (aRank !== bRank) return aRank - bRank;
+        if (aCm.rank !== bCm.rank) return aCm.rank - bCm.rank;
 
         // Within the same CM version, group by DV structure (ST-DL, DT-DL, ...)
-        const aStruct = getCmStructureKey(aCmv);
-        const bStruct = getCmStructureKey(bCmv);
-        if (aStruct !== bStruct) {
-            if (!aStruct) return 1;
-            if (!bStruct) return -1;
-            return aStruct < bStruct ? -1 : 1;
+        if (aCm.structure !== bCm.structure) {
+            if (!aCm.structure) return 1;
+            if (!bCm.structure) return -1;
+            return aCm.structure < bCm.structure ? -1 : 1;
         }
 
-        const aFmt = a.getAttribute('data-hdr-format') || '';
-        const aDet = a.getAttribute('data-hdr-detail') || '';
-        const aEl  = a.getAttribute('data-el-type') || '';
-        const bFmt = b.getAttribute('data-hdr-format') || '';
-        const bDet = b.getAttribute('data-hdr-detail') || '';
-        const bEl  = b.getAttribute('data-el-type') || '';
-
-        const aProfileRank = getProfileRank(aFmt, aDet, aEl);
-        const bProfileRank = getProfileRank(bFmt, bDet, bEl);
+        const aProfileRank = getRowProfileRank(a);
+        const bProfileRank = getRowProfileRank(b);
 
         if (aProfileRank !== bProfileRank) return aProfileRank - bProfileRank;
 
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
@@ -1259,22 +1385,18 @@ function sortTableByCmVersion() {
 function sortTableByRatingSource(attribute) {
     sortRows((a, b) => {
         // Rating first, highest on top
-        const aValue = parseFloat(a.getAttribute(attribute)) || 0;
-        const bValue = parseFloat(b.getAttribute(attribute)) || 0;
+        const aValue = rowNumber(a, attribute);
+        const bValue = rowNumber(b, attribute);
         if (bValue !== aValue) return bValue - aValue;
 
         // Ratings are coarse, so several films share the same score - the IMDb
         // Top 250 rank breaks the tie, best rank first, chart entries ahead of
         // everything unranked.
-        const aRank = parseInt(a.getAttribute('data-imdb-top250'), 10) || Infinity;
-        const bRank = parseInt(b.getAttribute('data-imdb-top250'), 10) || Infinity;
+        const aRank = rowNumber(a, 'data-imdb-top250') || Infinity;
+        const bRank = rowNumber(b, 'data-imdb-top250') || Infinity;
         if (aRank !== bRank) return aRank - bRank;
 
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
@@ -1312,100 +1434,75 @@ function sortTableByAudioBitrate() {
 function sortTableByAudioAudioBitrate() {
     sortRows((a, b) => {
         // Primary sorting by Audio Codec
-        const aAudio = getAudioCodecFromRow(a);
-        const bAudio = getAudioCodecFromRow(b);
-        
-        const aRank = getAudioRank(aAudio);
-        const bRank = getAudioRank(bAudio);
-        
+        const aRank = getRowAudioRank(a);
+        const bRank = getRowAudioRank(b);
+
         if (aRank !== bRank) return aRank - bRank;
-        
-        const aChannels = getChannelCount(aAudio);
-        const bChannels = getChannelCount(bAudio);
+
+        const aChannels = getRowChannelCount(a);
+        const bChannels = getRowChannelCount(b);
         if (aChannels !== bChannels) return bChannels - aChannels;
 
         // Secondary sorting by Audio Bitrate (descending, highest first)
-        const aAudioBitrate = parseFloat(a.getAttribute('data-audio-bitrate')) || 0;
-        const bAudioBitrate = parseFloat(b.getAttribute('data-audio-bitrate')) || 0;
+        const aAudioBitrate = rowNumber(a, 'data-audio-bitrate');
+        const bAudioBitrate = rowNumber(b, 'data-audio-bitrate');
         if (bAudioBitrate !== aAudioBitrate) return bAudioBitrate - aAudioBitrate;
 
         // Tertiary sorting by Filename (alphabetical)
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
 function sortTableByYear() {
-    sortRows((a, b) => {
-        const aYear = parseInt(a.getAttribute('data-year')) || 0;
-        const bYear = parseInt(b.getAttribute('data-year')) || 0;
-        
-        // Sort descending (newest first)
-        if (bYear !== aYear) return bYear - aYear;
-        
-        // If same year, sort secondarily by filename
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
-    });
+    // Newest first, then alphabetically within the same year
+    sortTableByNumericAttribute('data-year');
 }
 
 function sortTableByDuration() {
-    sortRows((a, b) => {
-        const aDuration = parseFloat(a.getAttribute('data-duration')) || 0;
-        const bDuration = parseFloat(b.getAttribute('data-duration')) || 0;
-        
-        // Sort descending (longest first)
-        if (bDuration !== aDuration) return bDuration - aDuration;
-        
-        // If same duration, sort secondarily by filename
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
-    });
+    // Longest first, then alphabetically within the same duration
+    sortTableByNumericAttribute('data-duration');
 }
 
 function sortTableByNumericAttribute(attribute) {
     sortRows((a, b) => {
-        const aValue = parseFloat(a.getAttribute(attribute)) || 0;
-        const bValue = parseFloat(b.getAttribute(attribute)) || 0;
-        
+        const aValue = rowNumber(a, attribute);
+        const bValue = rowNumber(b, attribute);
+
         // Sort descending (highest/largest first)
         if (bValue !== aValue) return bValue - aValue;
-        
+
         // If same value, sort secondarily by filename
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
+        return compareByFilename(a, b);
     });
 }
 
 function sortTableByAdded() {
     // Sort by file modification time (descending - newest first)
-    sortRows((a, b) => {
-        const aMtime = parseFloat(a.getAttribute('data-mtime') || 0);
-        const bMtime = parseFloat(b.getAttribute('data-mtime') || 0);
-        
-        // Sort descending (newest first)
-        if (bMtime !== aMtime) return bMtime - aMtime;
-        
-        // If same, sort secondarily by filename
-        const aName = getFilenameFromRow(a).toLowerCase();
-        const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
-        return 0;
-    });
+    sortTableByNumericAttribute('data-mtime');
 }
+
+// Sort mode -> the function that applies it. Filename is the fallback for an
+// unknown mode (e.g. one left in localStorage by an older version).
+const SORT_HANDLERS = {
+    profile:              sortTableByProfile,
+    profile_audio:        sortTableByProfileAudio,
+    profile_videobitrate: sortTableByProfileVideoBitrate,
+    profile_audiobitrate: sortTableByProfileAudioBitrate,
+    audio:                sortTableByAudio,
+    audio_audiobitrate:   sortTableByAudioAudioBitrate,
+    rating:               sortTableByRating,
+    rating_tmdb:          sortTableByTmdbRating,
+    rating_rt:            sortTableByRtRating,
+    rating_metacritic:    sortTableByMetacritic,
+    filesize:             sortTableByFileSize,
+    videobitrate:         sortTableByVideoBitrate,
+    audiobitrate:         sortTableByAudioBitrate,
+    year:                 sortTableByYear,
+    duration:             sortTableByDuration,
+    added:                sortTableByAdded,
+    cm_version:           sortTableByCmVersion,
+    filename:             sortTableByFilename
+};
 
 function applySort(mode) {
     if (!mode) mode = localStorage.getItem('dovi_sort_mode') || 'filename';
@@ -1415,43 +1512,7 @@ function applySort(mode) {
     sortSign = getSortDirection(mode) === 'asc' ? -1 : 1;
     updateSortDirToggle(mode);
 
-    if (mode === 'profile') {
-        sortTableByProfile();
-    } else if (mode === 'profile_audio') {
-        sortTableByProfileAudio();
-    } else if (mode === 'profile_videobitrate') {
-        sortTableByProfileVideoBitrate();
-    } else if (mode === 'profile_audiobitrate') {
-        sortTableByProfileAudioBitrate();
-    } else if (mode === 'audio') {
-        sortTableByAudio();
-    } else if (mode === 'rating') {
-        sortTableByRating();
-    } else if (mode === 'rating_tmdb') {
-        sortTableByTmdbRating();
-    } else if (mode === 'rating_rt') {
-        sortTableByRtRating();
-    } else if (mode === 'rating_metacritic') {
-        sortTableByMetacritic();
-    } else if (mode === 'filesize') {
-        sortTableByFileSize();
-    } else if (mode === 'videobitrate') {
-        sortTableByVideoBitrate();
-    } else if (mode === 'audiobitrate') {
-        sortTableByAudioBitrate();
-    } else if (mode === 'audio_audiobitrate') {
-        sortTableByAudioAudioBitrate();
-    } else if (mode === 'year') {
-        sortTableByYear();
-    } else if (mode === 'duration') {
-        sortTableByDuration();
-    } else if (mode === 'added') {
-        sortTableByAdded();
-    } else if (mode === 'cm_version') {
-        sortTableByCmVersion();
-    } else {
-        sortTableByFilename();
-    }
+    (SORT_HANDLERS[mode] || sortTableByFilename)();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1481,16 +1542,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Sort selection is handled by the custom dropdown's onSelect callback
         // (see initCustomSelects), which persists the mode and re-sorts.
 
-        // Listener for search bar
+        // Listener for search bar. Filtering thousands of rows on every single
+        // keystroke makes typing feel sticky, so it runs once the user pauses -
+        // the clear button follows the field immediately.
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
-            searchInput.addEventListener('input', searchMedia);
+            searchInput.addEventListener('input', () => {
+                updateClearButton();
+                debouncedSearchMedia();
+            });
         }
-        
+
         // Listener for the file dialog search field (live filtering)
         const fileDialogSearch = document.getElementById('fileDialogSearch');
         if (fileDialogSearch) {
-            fileDialogSearch.addEventListener('input', renderFileDialogList);
+            fileDialogSearch.addEventListener('input', debouncedRenderFileDialogList);
         }
 
         // Listener for Escape key to close dialogs
@@ -1872,47 +1938,46 @@ function setupSSE() {
     };
 }
 
+// Drop a row from the table and from the cached row list. Returns true when a
+// row was actually removed.
+function removeTableRow(row) {
+    if (!row) return false;
+    row.remove();
+    forgetMediaRow(row);
+    updateFileCount();
+    updateProfileStats();
+    return true;
+}
+
 function removeFileFromTable(filePath) {
-    // Find the table row that corresponds to the deleted file
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    
-    const rows = table.querySelectorAll('tbody tr');
-    
-    for (const row of rows) {
-        // Try to find the title attribute which contains the filename
-        const posterCell = row.querySelector('td[data-label-i18n="table_header_poster"]');
-        if (posterCell && posterCell.getAttribute('title') === filePath) {
-            row.remove();
-            updateFileCount();
-            updateProfileStats();
-            console.log(`Removed deleted file from table: ${filePath}`);
-            return;
-        }
-        
-        // Fallback: check if filename matches (without full path)
-        const filename = filePath.split('/').pop();
-        if (posterCell && posterCell.getAttribute('title') === filename) {
-            row.remove();
-            updateFileCount();
-            updateProfileStats();
-            console.log(`Removed deleted file from table: ${filename}`);
-            return;
-        }
+    // The full path identifies the entry uniquely - matching on the filename
+    // would hit the wrong row when the same name exists in two directories.
+    const card = document.querySelector(
+        `.poster-container[data-path="${CSS.escape(filePath)}"]`);
+    if (card && removeTableRow(card.closest('tr'))) {
+        console.log(`Removed deleted file from table: ${filePath}`);
     }
 }
 
 function updateFileCount() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    
-    const visibleRows = table.querySelectorAll('tbody tr:not([style*="display: none"])');
     const fileCountElement = document.getElementById('fileCount');
-    
-    if (fileCountElement) {
-        const count = visibleRows.length;
-        fileCountElement.innerHTML = `${count} <span data-i18n="media_count"></span>`;
-        applyTranslations();
+    if (!fileCountElement) return;
+
+    const count = getMediaRows().filter(row => row.style.display !== 'none').length;
+
+    // Only the number changes; rewriting the element would mean re-translating
+    // it (and, before, re-running the translation pass over the whole page).
+    const label = fileCountElement.querySelector('[data-i18n="media_count"]');
+    const countNode = fileCountElement.firstChild;
+    if (label && countNode && countNode.nodeType === Node.TEXT_NODE) {
+        countNode.textContent = `${count} `;
+    } else {
+        fileCountElement.innerHTML = '';
+        fileCountElement.appendChild(document.createTextNode(`${count} `));
+        const span = document.createElement('span');
+        span.setAttribute('data-i18n', 'media_count');
+        span.textContent = t('media_count');
+        fileCountElement.appendChild(span);
     }
 }
 
@@ -2126,7 +2191,6 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     const dialogTop250Badge = document.getElementById('dialogTop250Badge');
     const dialogImdbLink = document.getElementById('dialogImdbLink');
     const dialogTmdbLink = document.getElementById('dialogTmdbLink');
-    const dialogTrailer = document.getElementById('dialogTrailer');
     const dialogTrailerLink = document.getElementById('dialogTrailerLink');
     const dialogLinksContainer = document.getElementById('dialogLinksContainer');
     const dialogPlot = document.getElementById('dialogPlot');
@@ -2314,8 +2378,6 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
             const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
             dialogTrailerLink.href = youtubeUrl;
             dialogTrailerLink.style.display = 'inline-flex';
-
-            if (dialogTrailer && dialogTrailer.style) dialogTrailer.style.display = '';
         } else {
             dialogTrailerLink.style.display = 'none';
         }
@@ -2335,9 +2397,10 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     // Show dialog
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
-    
-    // Apply translations
-    applyTranslations();
+
+    // Apply translations - only inside the dialog, the rest of the page is
+    // already translated and may be a very long table.
+    applyTranslations(overlay);
 
     // Now that the dialog is laid out, decide whether the plot is long enough
     // to need its expand button.
@@ -2350,18 +2413,28 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
 }
 
 function showMediaDialogFromData(element) {
-    // Extract data attributes safely from the clicked element
+    // Technical values live on the row (the sorting reads them there), the
+    // title/artwork data on the card - so the markup carries each of them
+    // once. The card is still checked first, so a customised template that
+    // keeps its own copy keeps working.
+    const row = element.closest('tr');
+    const attr = name => {
+        const own = element.getAttribute(name);
+        if (own !== null && own !== '') return own;
+        return (row && row.getAttribute(name)) || '';
+    };
+
     const title = element.getAttribute('data-title') || '';
     const year = element.getAttribute('data-year') || '';
-    const duration = parseFloat(element.getAttribute('data-duration')) || null;
-    const videoBitrate = parseInt(element.getAttribute('data-video-bitrate')) || null;
-    const audioBitrate = parseInt(element.getAttribute('data-audio-bitrate')) || null;
-    const fileSize = parseInt(element.getAttribute('data-file-size')) || null;
+    const duration = parseFloat(attr('data-duration')) || null;
+    const videoBitrate = parseInt(attr('data-video-bitrate')) || null;
+    const audioBitrate = parseInt(attr('data-audio-bitrate')) || null;
+    const fileSize = parseInt(attr('data-file-size')) || null;
     const posterUrl = element.getAttribute('data-poster-url') || '';
     const tmdbId = element.getAttribute('data-tmdb-id') || '';
     const imdbId = element.getAttribute('data-imdb-id') || '';
     const rating = element.getAttribute('data-rating') || '';
-    const imdbTop250 = element.getAttribute('data-imdb-top250') || '';
+    const imdbTop250 = attr('data-imdb-top250');
     const ratings = {
         imdb: element.getAttribute('data-imdb-rating') || '',
         tmdb: element.getAttribute('data-tmdb-rating') || '',
@@ -2373,9 +2446,9 @@ function showMediaDialogFromData(element) {
     const genres = element.getAttribute('data-genres') || '';
     const cast = element.getAttribute('data-cast') || '';
     const filename = element.getAttribute('data-filename') || '';
-    const dvCmVersion = element.getAttribute('data-dv-cm-version') || '';
+    const dvCmVersion = attr('data-dv-cm-version');
     const filePath = element.getAttribute('data-path') || '';
-    const hdrFormat = element.getAttribute('data-hdr-format') || '';
+    const hdrFormat = attr('data-hdr-format');
 
     // Entries scanned before the HDR metadata was collected carry no payload;
     // the dialog then falls back to zeroed values
@@ -2437,17 +2510,8 @@ async function deleteCurrentEntry() {
         const data = await response.json();
         if (data.success) {
             closeMediaDialog();
-            // Remove the row from the DOM by data-path attribute on the poster/fallback element
-            const el = document.querySelector(
-                `.poster-container[data-path="${CSS.escape(currentDialogFilePath)}"], ` +
-                `.filename-fallback[data-path="${CSS.escape(currentDialogFilePath)}"]`
-            );
-            if (el) {
-                const row = el.closest('tr');
-                if (row) row.remove();
-            }
-            updateFileCount();
-            updateProfileStats();
+            // Remove the row from the DOM by data-path attribute on its card
+            removeFileFromTable(currentDialogFilePath);
             currentDialogFilePath = '';
             loadFileList();
         } else {

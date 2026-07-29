@@ -210,6 +210,7 @@ docker-compose up -d
 | `ISO_SAMPLE_SIZE_MB` | `16` | Size in MB of the main-feature `.m2ts` sample extracted from Blu-ray disc images (`.iso`) for MediaInfo analysis |
 | `SCAN_WORKERS` | `1` | Files probed at once during a bulk scan. `1` = strictly sequential and light (best for a single spinning disk / NAS). Raise to `2`-`4` for SSD / NVMe / fast storage to scan a large library faster |
 | `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
+| `METADATA_RETRY_BATCH` | `250` | How many incomplete entries one retry run looks up. Keeps a large library from firing thousands of requests every interval; the run rotates, so every entry still gets its turn. `0` retries all of them |
 | `SCAN_SAVE_BATCH` | `25` | How many newly scanned files to buffer before writing the database. Avoids rewriting the whole database after every file on a large library; an interrupted scan re-reads at most this many files. `1` persists after every file |
 | `TMDB_API_KEY` | `` | TMDB API key for fetching movie posters (optional) |
 | `FANART_API_KEY` | `` | Fanart.tv API key for fetching thumb posters (optional) |
