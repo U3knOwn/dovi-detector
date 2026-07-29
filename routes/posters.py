@@ -4,40 +4,31 @@
 Serving the cached poster images.
 """
 import os
-import re
 
 from flask import Blueprint, send_file
 
-import config
+from core.posters import cached_poster_path
 
 bp = Blueprint('posters', __name__)
 
 
 @bp.route('/poster/<filename>')
 def serve_poster(filename):
-    """Serve cached poster images"""
+    """
+    Serve a cached poster image.
+
+    This is what an entry's ``poster_url`` points at; the API offers the same
+    files under /api/v1/posters/<filename>. The name check both share lives in
+    core/posters.py.
+    """
     try:
-        # Validate filename to prevent path traversal attacks
-        # Only allow alphanumeric, underscore, hyphen, and .jpg extension
-        if not re.match(r'^[a-zA-Z0-9_-]+\.jpg$', filename):
+        poster_path = cached_poster_path(filename)
+        if poster_path is None:
             print(f"Invalid poster filename: {filename}")
             return "Invalid filename", 400
 
-        # Prevent directory traversal
-        if '..' in filename or '/' in filename or '\\' in filename:
-            print(f"Path traversal attempt detected: {filename}")
-            return "Invalid filename", 400
-
-        backdrop_path = os.path.join(config.POSTER_CACHE_DIR, filename)
-
-        # Verify the resolved path is still within POSTER_CACHE_DIR
-        if not os.path.abspath(backdrop_path).startswith(
-                os.path.abspath(config.POSTER_CACHE_DIR)):
-            print(f"Path traversal attempt detected: {filename}")
-            return "Invalid filename", 400
-
-        if os.path.exists(backdrop_path):
-            return send_file(backdrop_path, mimetype='image/jpeg')
+        if os.path.exists(poster_path):
+            return send_file(poster_path, mimetype='image/jpeg')
         else:
             return "Poster not found", 404
     except Exception as e:

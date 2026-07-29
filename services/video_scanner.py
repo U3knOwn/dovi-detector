@@ -1415,7 +1415,7 @@ def _scan_one(scan_video_file_func, file_path):
 
 
 def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
-                    max_workers=1, progress_cb=None):
+                    max_workers=1, progress_cb=None, should_cancel=None):
     """
     Scan many files efficiently and safely.
 
@@ -1427,6 +1427,9 @@ def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
       concurrently. hdrprobe / MediaInfo are external processes, so worker
       threads give real overlap; the scanner's own scan_lock keeps the shared
       database consistent, and save_database snapshots under that lock.
+    - Cancellable: ``should_cancel()`` is consulted between files, so a run can
+      be stopped without killing a probe halfway through and without losing what
+      it has already written.
 
     ``progress_cb(completed, total, file_path, result)`` is invoked after each
     file finishes (in completion order). Returns the count of newly scanned
@@ -1462,8 +1465,19 @@ def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
             except Exception as e:
                 print(f"Error in scan progress callback: {e}")
 
+    def _cancelled():
+        if not should_cancel:
+            return False
+        try:
+            return bool(should_cancel())
+        except Exception as e:
+            print(f"Error in scan cancel check: {e}")
+            return False
+
     if max_workers == 1:
         for file_path in file_paths:
+            if _cancelled():
+                break
             fp, result = _scan_one(scan_video_file_func, file_path)
             _handle(fp, result)
     else:
@@ -1481,7 +1495,10 @@ def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
                 for fut in done:
                     fp, result = fut.result()
                     _handle(fp, result)
-                    nxt = next(pending, None)
+                    # Nothing new is submitted once cancelled; the probes still
+                    # in flight are seen through so their results are not thrown
+                    # away after the work was already done.
+                    nxt = None if _cancelled() else next(pending, None)
                     if nxt is not None:
                         futures.add(
                             executor.submit(_scan_one, scan_video_file_func, nxt))
@@ -1495,12 +1512,13 @@ def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
 
 def background_scan_new_files(scanned_paths, scan_video_file_func,
                               save_database_func=None, max_workers=None,
-                              progress_cb=None):
+                              progress_cb=None, should_cancel=None):
     """
     Background task to scan new files (batched, optionally parallel).
 
-    ``progress_cb`` is forwarded to bulk_scan_files so the startup scan drives
-    the same progress bar as a manual one.
+    ``progress_cb`` and ``should_cancel`` are forwarded to bulk_scan_files, so
+    the startup scan drives the same progress bar as a manual one and can be
+    stopped the same way.
     """
     new_files = scan_directory(config.MEDIA_PATH, scanned_paths)
     print(f"Found {len(new_files)} new files to scan")
@@ -1509,4 +1527,4 @@ def background_scan_new_files(scanned_paths, scan_video_file_func,
 
     workers = config.SCAN_WORKERS if max_workers is None else max_workers
     return bulk_scan_files(new_files, scan_video_file_func, save_database_func,
-                           workers, progress_cb)
+                           workers, progress_cb, should_cancel)

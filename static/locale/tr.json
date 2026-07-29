@@ -43,6 +43,8 @@
   "empty_title": "Medya bulunamadı",
   "empty_description": "Otomatik olarak taranmaları için video dosyalarını <code>media/</code> klasörüne yerleştirin.",
   "scan_complete": "Tarama tamamlandı! {count} yeni dosya bulundu.",
+  "scan_cancelled": "Tarama iptal edildi. {count} yeni dosya bulundu.",
+  "scan_already_running": "Zaten bir tarama sürüyor.",
   "scan_progress": "Taranıyor {current}/{total}...",
   "no_new_files": "Yeni dosya bulunamadı.",
   "scan_error": "Tarama sırasında hata",

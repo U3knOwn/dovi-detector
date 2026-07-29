@@ -15,7 +15,7 @@ Universal Video Scanner with Web Interface - Automatic detection of HDR formats 
 - **Sort by Rating Source**: Separate sort filters for IMDb, TMDb, Rotten Tomatoes and Metacritic
 - **Sort Direction**: A toggle next to the sort dropdown flips every sort mode between ascending and descending, remembered across restarts
 - **Title Details**: Genres next to the directors, and a plot folded to five lines that expands on demand
-- **API**: Token-protected `/api/v1` for other services - read the library, its statistics, start scans, follow progress live
+- **API**: Token-protected `/api/v1` for other services - read the library filtered, sorted and paged, fetch a single entry or its poster, start and cancel scans, follow progress live
 
 ## Software on Docker Hub 🐳
 
@@ -164,24 +164,49 @@ headers; prefer a header everywhere else, as URLs end up in logs and history.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1` | Version and the list of endpoints |
-| `GET` | `/api/v1/library` | Every scanned entry: `{success, count, files:[…]}` |
+| `GET` | `/api/v1` | Version, the list of endpoints and the query options `/library` accepts |
+| `GET` | `/api/v1/library` | Scanned entries: `{success, count, total, offset, limit, files:[…]}`. Filter, sort and page it - see below |
 | `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution and audio codec, plus the total size - without shipping the library |
+| `GET` | `/api/v1/entries?file_path=…` | One entry by its path, without pulling the whole library |
 | `GET` | `/api/v1/files` | Video files in the media directory: `{name, path, scanned}` |
-| `GET` | `/api/v1/scan/status` | Progress of the running scan |
-| `GET` | `/api/v1/events` | Server-Sent Events: `scan_progress`, `file_deleted` |
+| `GET` | `/api/v1/posters/<filename>` | The cached poster image an entry's `poster_url` names |
+| `GET` | `/api/v1/scan/status` | `{running, scan:{…}}` - progress of the running scan |
+| `GET` | `/api/v1/events` | Server-Sent Events: `scan_state`, `scan_progress`, `file_deleted` |
 | `POST` | `/api/v1/scan` | Scan everything that is not in the library yet (returns `202`, runs in the background) |
 | `POST` | `/api/v1/scan/files` | Scan `{"file_paths": ["/media/a.mkv", …]}` (`202`) |
+| `POST` | `/api/v1/scan/cancel` | Stop the running scan (`202`); what it already scanned stays |
 | `POST` | `/api/v1/entries/scan` | Scan one `{"file_path": "…"}` and wait for the result |
 | `POST` | `/api/v1/entries/rescan` | Re-read one `{"file_path": "…"}` from scratch, including every online lookup |
 | `POST` | `/api/v1/entries/delete` | Remove one `{"file_path": "…"}` from the library |
 | `POST` | `/api/v1/database/clear` | Empty the library |
 
-Every answer carries `success`. A failure adds a human-readable `error` and a
-machine-readable `code` (`api_disabled`, `unauthorized`, `missing_file_path`,
-`missing_file_paths`, `file_not_found`, `entry_not_found`, `scan_failed`,
-`rescan_failed`, `delete_failed`, `clear_failed`, `media_unreadable`), with the
-matching HTTP status (`400`, `401`, `404`, `409`, `500`, `503`).
+Only one scan runs at a time. While one is going - including the one that starts
+with the application - `/scan` and `/scan/files` answer `409 scan_running`
+instead of starting a second walk over the same media directory; follow the
+running one at `/scan/status` or stop it at `/scan/cancel`.
+
+Every answer carries `success`, **including the errors the framework itself
+produces**: a path that does not exist, a method that is not allowed for one, or
+an unhandled failure are JSON here, not HTML. A failure adds a human-readable
+`error` and a machine-readable `code`, with the matching HTTP status:
+
+| Code | Status | When |
+|------|--------|------|
+| `api_disabled` | `503` | No `API_TOKEN` is configured |
+| `unauthorized` | `401` | Token missing or wrong |
+| `not_found` | `404` | No such endpoint |
+| `method_not_allowed` | `405` | Wrong method for the endpoint (the answer names the right ones in `Allow`) |
+| `invalid_parameter` | `400` | A query parameter is not a number, or not one of the allowed values |
+| `missing_file_path` / `missing_file_paths` | `400` | The body (or query) lacks the path(s) |
+| `file_not_found` | `404` | The file itself is not there |
+| `entry_not_found` | `404` | The library holds no entry for that path |
+| `invalid_poster_name` / `poster_not_found` | `400` / `404` | Not a poster file name / no such cached poster |
+| `scan_running` | `409` | A scan is already running |
+| `no_scan_running` | `409` | Nothing to cancel |
+| `scan_failed` / `rescan_failed` | `409`, `500` | The file could not be scanned |
+| `delete_failed` / `clear_failed` | `500` | The library could not be changed |
+| `media_unreadable` | `500` | The media directory could not be walked |
+| `internal_error` | `500` | Unhandled failure - the reason is logged, not returned |
 
 An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
 `hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
@@ -189,6 +214,52 @@ An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
 `hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
 `tmdb_rating`, `tmdb_plot`, `tmdb_directors`, `tmdb_cast`, `tmdb_genres`,
 `imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`, `metacritic`.
+
+### Narrowing the library down
+
+`/api/v1/library` without parameters is the whole library, as before. With them
+the server does the work instead of the client downloading thousands of entries
+to find a handful:
+
+| Parameter | Meaning |
+|-----------|---------|
+| `hdr_format`, `el_type`, `resolution`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`) |
+| `search` | Substring of the file name or the TMDB title |
+| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating` (default `filename`) |
+| `order` | `asc` (default) or `desc` |
+| `limit`, `offset` | The window to return; `total` always counts every match before it |
+
+An unknown `sort`, a non-numeric `limit` and the like are refused with
+`400 invalid_parameter` rather than quietly ignored.
+
+### Posters
+
+An entry's `poster_url` is `/poster/<name>.jpg` once the image has been cached.
+The same file is served inside the API at `/api/v1/posters/<name>.jpg`, so a
+consumer never has to leave the versioned surface:
+
+```bash
+curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
+  | jq -r '.files[0].poster_url | sub("^/poster/"; "")' \
+  | xargs -I{} curl -s -H "X-API-Token: $TOKEN" -o poster.jpg "$API/posters/{}"
+```
+
+An entry whose image could **not** be cached carries the remote URL instead -
+`poster_url` beginning with `http` is fetched from its own host, not from here.
+
+### Following along live
+
+`/api/v1/events` is a Server-Sent Events stream. It opens with a `scan_state`
+event carrying the current state (so a client that connects mid-scan is not left
+guessing until the next file finishes), then delivers `scan_progress` and
+`file_deleted` as they happen. A scan reports `status` `scanning`, then `done`,
+`cancelled` or `error`.
+
+Every event carries an `id`. A client that reconnects with `Last-Event-ID` - the
+browser's `EventSource` sends it by itself, others may pass
+`?last_event_id=<id>` - is handed what it missed first, and the current state
+after it. The stream also asks clients to wait 3 seconds before reconnecting, and
+sends a comment every 30 seconds so an idle connection is not dropped as dead.
 
 ### Examples
 
@@ -199,13 +270,26 @@ API=http://host:2367/api/v1
 # How many titles, by HDR format - the cheap call for a dashboard
 curl -s -H "X-API-Token: $TOKEN" $API/library/stats | jq '.hdr_formats'
 
-# Every Dolby Vision FEL title
-curl -s -H "X-API-Token: $TOKEN" $API/library \
-  | jq '.files[] | select(.el_type=="FEL") | .filename'
+# Every Dolby Vision FEL title - filtered by the server, not by jq
+curl -s -H "X-API-Token: $TOKEN" "$API/library?el_type=FEL" | jq '.files[].filename'
+
+# The 20 largest titles, one page at a time
+curl -s -H "X-API-Token: $TOKEN" "$API/library?sort=file_size&order=desc&limit=20"
+
+# The 10 most recently added, and how many there are in total
+curl -s -H "X-API-Token: $TOKEN" "$API/library?sort=mtime&order=desc&limit=10" \
+  | jq '{total, showing: .count}'
+
+# One entry, without downloading the library
+curl -s -H "X-API-Token: $TOKEN" \
+  --get --data-urlencode "file_path=/media/Film.mkv" $API/entries
 
 # Scan everything new and follow along
 curl -s -X POST -H "X-API-Token: $TOKEN" $API/scan
 curl -sN "$API/events?token=$TOKEN"
+
+# Changed your mind - what was scanned so far stays in the library
+curl -s -X POST -H "X-API-Token: $TOKEN" $API/scan/cancel
 
 # Re-read one entry
 curl -s -X POST -H "X-API-Token: $TOKEN" -H "Content-Type: application/json" \
@@ -239,10 +323,12 @@ universal-video-scanner/
 ├── core/               # Events, scan state, scanner wiring, background tasks
 │   ├── api_access.py   # API token check and CORS
 │   ├── compression.py  # Gzip for text responses
-│   ├── events.py       # Server-Sent Events fan-out
+│   ├── events.py       # Server-Sent Events fan-out, with ids and replay
 │   ├── library_ops.py  # What can be done with the library, without HTTP
-│   ├── scan_state.py   # Progress of the running scan
+│   ├── posters.py      # Finding a cached poster on disk, safely
+│   ├── scan_state.py   # Progress of the running scan, and its lifecycle
 │   ├── scanner.py      # The scanner and its dependencies wired together
+│   ├── sse.py          # The event stream both surfaces serve
 │   └── tasks.py        # Backfills, metadata retry, initial scan
 ├── routes/             # HTTP endpoints, grouped by topic
 │   ├── api_v1.py       # The public, versioned API (/api/v1)

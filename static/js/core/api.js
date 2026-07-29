@@ -27,19 +27,24 @@ export function fetchMediaFiles() {
     return fetch('/get_files').then(response => response.json());
 }
 
-// Progress of a scan that is already running, so a page loaded mid-scan can
-// restore the bar. Resolves to null when there is nothing to restore.
+// Progress of a scan that is already running. The page does not need this to
+// restore the bar - the event stream opens with that state (see the scan_state
+// event in sse.js) - so this is the one-off snapshot for the console and for
+// anything that is not holding a stream open. Resolves to null on a failure.
 export async function fetchScanStatus() {
     const response = await fetch('/scan_status');
     if (!response.ok) return null;
     return response.json();
 }
 
-// Start a background scan of the given files. Throws on a server error.
+// Start a background scan of the given files. Throws on a server error, but not
+// when the server answered with a reason of its own (a scan already running):
+// the caller reports that differently from a request that simply broke.
 export async function requestScan(filePaths, lang) {
     const response = await postJson(`/scan_files?lang=${lang}`, { file_paths: filePaths });
-    if (!response.ok) throw new Error('Server error');
-    return response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok && !data.code) throw new Error('Server error');
+    return data;
 }
 
 // Re-read one entry from scratch, including every online lookup.

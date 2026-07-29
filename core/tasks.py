@@ -8,7 +8,8 @@ import threading
 import time
 
 import config
-from core.scan_state import publish_scan_progress, report_scan_progress
+from core.scan_state import (begin_scan, cancel_requested, end_scan,
+                             publish_scan_progress, report_scan_progress)
 from core.scanner import fetch_online_metadata_with_deps, scan_video_file_with_deps
 from services import database
 from services.imdb_service import backfill_imdb_data, load_top250
@@ -79,6 +80,12 @@ def refresh_tmdb_genres():
 # Start initial scan automatically in background, reporting progress so the
 # UI shows the same bar as a manual scan - and can restore it after a reload
 def run_initial_scan():
+    # Claimed like any other scan: it is the one scan a manual request is most
+    # likely to collide with, as it runs right when the interface opens.
+    if not begin_scan():
+        print("Initial scan skipped: a scan is already running")
+        return
+
     seen = {'total': 0}
 
     def _progress(current, total, file_path, result):
@@ -91,18 +98,23 @@ def run_initial_scan():
             scan_video_file_with_deps,
             lambda: database.save_database(config.DB_FILE),
             config.SCAN_WORKERS,
-            _progress)
+            _progress,
+            cancel_requested)
     except Exception as e:
         print(f"Error during initial scan: {e}")
         publish_scan_progress({'status': 'error', 'error': str(e)})
         return
+    finally:
+        was_cancelled = cancel_requested()
+        end_scan()
 
     # Only close out the bar when there was something to show; a startup
     # with nothing new should not push a "scan finished" message at clients
     if seen['total']:
         publish_scan_progress({
             'current': seen['total'], 'total': seen['total'], 'percent': 100,
-            'status': 'done', 'new_files': scanned_new or 0,
+            'status': 'cancelled' if was_cancelled else 'done',
+            'new_files': scanned_new or 0,
             'removed_files': 0, 'total_files': len(database.scanned_files)
         })
 

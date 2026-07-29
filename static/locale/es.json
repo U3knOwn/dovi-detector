@@ -43,6 +43,8 @@
   "empty_title": "No se encontraron medios",
   "empty_description": "Coloca archivos de vídeo en la carpeta <code>media/</code> para que se escaneen automáticamente.",
   "scan_complete": "¡Escaneo completado! Se encontraron {count} archivo(s) nuevo(s).",
+  "scan_cancelled": "Escaneo cancelado. Se encontraron {count} archivo(s) nuevo(s).",
+  "scan_already_running": "Ya hay un escaneo en curso.",
   "scan_progress": "Escaneando {current}/{total}...",
   "no_new_files": "No se encontraron archivos nuevos.",
   "scan_error": "Error durante el escaneo",

@@ -43,6 +43,8 @@
   "empty_title": "Geen media gevonden",
   "empty_description": "Plaats videobestanden in de map <code>media/</code> om ze automatisch te laten scannen.",
   "scan_complete": "Scan voltooid! {count} nieuw(e) bestand(en) gevonden.",
+  "scan_cancelled": "Scan geannuleerd. {count} nieuw(e) bestand(en) gevonden.",
+  "scan_already_running": "Er loopt al een scan.",
   "scan_progress": "Scannen {current}/{total}...",
   "no_new_files": "Geen nieuwe bestanden gevonden.",
   "scan_error": "Fout tijdens het scannen",

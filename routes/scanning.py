@@ -16,10 +16,26 @@ from utils.i18n import get_request_language, translate
 bp = Blueprint('scanning', __name__)
 
 
+def _scan_running(lang):
+    """
+    The answer to a scan request while one is already running.
+
+    Carries a ``code`` so the page can tell this apart from a real failure: the
+    scan the user asked for is not happening, but nothing went wrong and the
+    running one keeps reporting its progress.
+    """
+    return jsonify({
+        'success': False,
+        'code': 'scan_running',
+        'error': translate('scan_already_running', lang)
+    }), 409
+
+
 @bp.route('/scan', methods=['POST'])
 def manual_scan():
     """Endpoint for manual scan trigger - runs scan in background with progress updates"""
-    library_ops.start_full_scan()
+    if not library_ops.start_full_scan():
+        return _scan_running(get_request_language(request))
     return jsonify({'success': True, 'message': 'Scan started'})
 
 
@@ -99,7 +115,9 @@ def scan_multiple_files():
             'error': translate('api_no_file_path_provided', lang)
         }), 400
 
-    library_ops.start_scan_of(file_paths)
+    if library_ops.start_scan_of(file_paths) is None:
+        return _scan_running(get_request_language(request))
+
     return jsonify({'success': True, 'message': 'Scan started'})
 
 
