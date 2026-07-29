@@ -16,6 +16,14 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* The hidden attribute has to win over a component's own display value.
+   Without this, an element the page hides (the empty state, the table while
+   the library is still loading) keeps the display its own rule gives it -
+   the browser's default rule for [hidden] loses to any author rule. */
+[hidden] {
+    display: none !important;
+}
+
 html {
     color-scheme: dark;
 }
