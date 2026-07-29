@@ -286,6 +286,27 @@ header {
     flex-shrink: 0;
 }
 
+.header-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Collapsed, the chevron is the only button left in the header. */
+.header-actions.collapsed .header-actions-group {
+    display: none;
+}
+
+.header-actions-caret {
+    transition: transform 0.2s ease;
+}
+
+/* Points left while collapsed ("open towards the buttons"), right once the
+   group is out. */
+.header-actions:not(.collapsed) .header-actions-caret {
+    transform: rotate(180deg);
+}
+
 .theme-toggle svg {
     display: block;
 }

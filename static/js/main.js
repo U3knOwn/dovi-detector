@@ -1652,6 +1652,41 @@ document.addEventListener('click', e => {
     }
 });
 
+// Header actions (theme, show/hide, menu) fold behind the chevron next to
+// them, so a quiet header keeps just that one button.
+function applyHeaderActionsCollapsed(collapsed) {
+    const actions = document.querySelector('.header-actions');
+    if (!actions) return;
+
+    actions.classList.toggle('collapsed', collapsed);
+
+    const btn = document.getElementById('headerActionsToggle');
+    if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    let saved = null;
+    try {
+        saved = localStorage.getItem('dovi_header_actions_collapsed');
+    } catch (e) { /* localStorage unavailable -> start collapsed */ }
+
+    applyHeaderActionsCollapsed(saved === null ? true : saved === 'true');
+
+    const btn = document.getElementById('headerActionsToggle');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            const actions = document.querySelector('.header-actions');
+            if (!actions) return;
+
+            const next = !actions.classList.contains('collapsed');
+            applyHeaderActionsCollapsed(next);
+            try {
+                localStorage.setItem('dovi_header_actions_collapsed', String(next));
+            } catch (e) { /* localStorage unavailable -> choice won't persist */ }
+        });
+    }
+});
+
 function applyControlsCollapsed(collapsed) {
     const container = document.querySelector('.container');
     const btn = document.getElementById('toggleControlsBtn');
