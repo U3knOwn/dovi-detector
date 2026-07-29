@@ -269,7 +269,9 @@ header {
     border-color: var(--border-strong);
 }
 
-.controls-toggle[aria-expanded="true"] {
+/* Only the menu button lights up while it is expanded - the show/hide button
+   next to it shares the look but not that state. */
+#toggleControlsBtn[aria-expanded="true"] {
     background: rgba(99, 102, 241, 0.14);
     border-color: rgba(99, 102, 241, 0.4);
     color: var(--accent-soft);
@@ -282,6 +284,27 @@ header {
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+}
+
+.header-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Collapsed, the chevron is the only button left in the header. */
+.header-actions.collapsed .header-actions-group {
+    display: none;
+}
+
+.header-actions-caret {
+    transition: transform 0.2s ease;
+}
+
+/* Points left while collapsed ("open towards the buttons"), right once the
+   group is out. */
+.header-actions:not(.collapsed) .header-actions-caret {
+    transform: rotate(180deg);
 }
 
 .theme-toggle svg {
@@ -341,8 +364,7 @@ header {
 
 #fileSelectTrigger,
 .custom-select-trigger,
-#searchInput,
-.collapse-btn {
+#searchInput {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -360,8 +382,7 @@ header {
 
 #fileSelectTrigger:hover,
 .custom-select-trigger:hover,
-#searchInput:hover,
-.collapse-btn:hover {
+#searchInput:hover {
     border-color: var(--border-strong);
     background-color: var(--surface-3);
 }
@@ -421,8 +442,64 @@ header {
     display: inline-block;
 }
 
+/* The sort control is a segmented pair: the dropdown plus the direction
+   toggle glued to its right edge, together as wide as the file selector. */
 .controls .custom-select#sortSelectWrap {
     width: 300px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* The dropdown takes whatever the square toggle leaves over. */
+#sortSelectWrap .custom-select-trigger {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.sort-dir-toggle {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-h);
+    height: var(--control-h);
+    padding: 0;
+    background-color: var(--control-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    /* No left border: the trigger's right edge is the divider. */
+    border-left: none;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.sort-dir-toggle:hover {
+    border-color: var(--border-strong);
+    background-color: var(--surface-3);
+    color: var(--text);
+}
+
+.sort-dir-toggle:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.sort-dir-icon {
+    flex: 0 0 auto;
+    transition: transform 0.2s ease;
+}
+
+/* The icon is drawn pointing down (descending); ascending flips it. */
+.sort-dir-toggle.asc .sort-dir-icon {
+    transform: rotate(180deg);
 }
 
 .custom-select-trigger {
@@ -559,17 +636,12 @@ header {
 
 /* ---------- Collapse (show/hide) button ---------- */
 
+/* Lives in the header between the theme and menu buttons and takes their
+   .controls-toggle look; only the icon layout is its own. */
 .collapse-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
     user-select: none;
     line-height: 1;
-}
-
-.collapse-btn:hover {
-    color: var(--text);
+    cursor: pointer;
 }
 
 .toggle {
