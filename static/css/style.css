@@ -422,17 +422,17 @@ header {
 }
 
 /* The sort control is a segmented pair: the dropdown plus the direction
-   toggle glued to its right edge. */
+   toggle glued to its right edge, together as wide as the file selector. */
 .controls .custom-select#sortSelectWrap {
-    width: auto;
+    width: 300px;
     display: inline-flex;
     align-items: center;
 }
 
-/* The dropdown keeps its 300px; the toggle is added next to it. */
+/* The dropdown takes whatever the square toggle leaves over. */
 #sortSelectWrap .custom-select-trigger {
     flex: 1 1 auto;
-    width: 300px;
+    width: auto;
     min-width: 0;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
