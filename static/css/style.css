@@ -450,8 +450,7 @@ header {
     height: var(--control-h);
     padding: 0;
     background-color: var(--control-bg);
-    /* Same ink as the dropdown's label next to it. */
-    color: var(--text);
+    color: var(--text-muted);
     border: 1px solid var(--border);
     /* No left border: the trigger's right edge is the divider. */
     border-left: none;

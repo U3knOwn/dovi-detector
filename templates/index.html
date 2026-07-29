@@ -81,13 +81,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                         </svg>
                     </button>
                 </div>
-                <div class="right-group">
-                    <div id="scanProgress" class="scan-progress" style="display: none;">
-                        <div class="scan-progress-bar-container">
-                            <div id="scanProgressBar" class="scan-progress-bar"></div>
-                        </div>
-                        <span id="scanProgressText" class="scan-progress-text">0%</span>
+                {# Direct child of the group, not wrapped in a .right-group: a
+                   wrapper would keep taking up a row gap while the bar is hidden. #}
+                <div id="scanProgress" class="scan-progress" style="display: none;">
+                    <div class="scan-progress-bar-container">
+                        <div id="scanProgressBar" class="scan-progress-bar"></div>
                     </div>
+                    <span id="scanProgressText" class="scan-progress-text">0%</span>
                 </div>
             </div>
         </div>
