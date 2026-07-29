@@ -43,6 +43,8 @@
   "empty_title": "Nenhuma média encontrada",
   "empty_description": "Coloque ficheiros de vídeo na pasta <code>media/</code> para que sejam analisados automaticamente.",
   "scan_complete": "Análise concluída! {count} novo(s) ficheiro(s) encontrado(s).",
+  "scan_cancelled": "Análise cancelada. {count} novo(s) ficheiro(s) encontrado(s).",
+  "scan_already_running": "Já está em curso uma análise.",
   "scan_progress": "A analisar {current}/{total}...",
   "no_new_files": "Nenhum ficheiro novo encontrado.",
   "scan_error": "Erro durante a análise",

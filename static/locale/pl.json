@@ -43,6 +43,8 @@
   "empty_title": "Nie znaleziono multimediów",
   "empty_description": "Umieść pliki wideo w folderze <code>media/</code>, aby były skanowane automatycznie.",
   "scan_complete": "Skanowanie zakończone! Znaleziono {count} nowy(ch) plik(ów).",
+  "scan_cancelled": "Skanowanie anulowane. Znaleziono {count} nowy(ch) plik(ów).",
+  "scan_already_running": "Skanowanie jest już w toku.",
   "scan_progress": "Skanowanie {current}/{total}...",
   "no_new_files": "Nie znaleziono nowych plików.",
   "scan_error": "Błąd podczas skanowania",

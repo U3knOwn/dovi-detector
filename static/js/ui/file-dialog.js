@@ -305,9 +305,20 @@ export function scanSelectedFiles() {
     requestScan(paths, currentLang)
         .then(data => {
             // Scan runs in the background - progress arrives via SSE.
-            if (!data.success) {
-                throw new Error(data.error || 'Unknown error');
+            if (data.success) return;
+
+            // A scan that was already running is not a failure: it keeps
+            // reporting its own progress, so the bar stays where it is and the
+            // user is only told why this request did not start another one.
+            if (data.code === 'scan_running') {
+                if (!message) return;
+                message.className = 'message info';
+                setMessageContent(message, 'info', t('scan_already_running'));
+                message.style.display = 'block';
+                return;
             }
+
+            throw new Error(data.error || 'Unknown error');
         })
         .catch(error => {
             if (scanProgress) scanProgress.style.display = 'none';

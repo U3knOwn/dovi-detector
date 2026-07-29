@@ -43,6 +43,8 @@
   "empty_title": "Nessun contenuto trovato",
   "empty_description": "Inserisci i file video nella cartella <code>media/</code> per farli scansionare automaticamente.",
   "scan_complete": "Scansione completata! Trovato/i {count} nuovo/i file.",
+  "scan_cancelled": "Scansione annullata. Trovato/i {count} nuovo/i file.",
+  "scan_already_running": "Una scansione è già in corso.",
   "scan_progress": "Scansione {current}/{total}...",
   "no_new_files": "Nessun nuovo file trovato.",
   "scan_error": "Errore durante la scansione",

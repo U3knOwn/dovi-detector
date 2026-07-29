@@ -43,6 +43,8 @@
   "empty_title": "未找到媒体",
   "empty_description": "将视频文件放入 <code>media/</code> 文件夹，即可自动扫描。",
   "scan_complete": "扫描完成！找到 {count} 个新文件。",
+  "scan_cancelled": "扫描已取消。找到 {count} 个新文件。",
+  "scan_already_running": "扫描已在进行中。",
   "scan_progress": "正在扫描 {current}/{total}...",
   "no_new_files": "未找到新文件。",
   "scan_error": "扫描时出错",

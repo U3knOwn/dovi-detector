@@ -8,7 +8,6 @@
 import { t } from './i18n.js';
 import { removeFileFromTable } from '../library/view.js';
 import { setMessageContent } from '../ui/message.js';
-import { fetchScanStatus } from './api.js';
 
 export function setupSSE() {
     if (typeof EventSource === 'undefined') {
@@ -31,13 +30,15 @@ export function setupSSE() {
         }
     });
 
-    // The SSE stream only carries events as they happen, so a page loaded
-    // while a scan is running would show no bar until the next file finishes.
-    // This asks the server for the current state and restores it right away.
-    (async function restoreScanProgress() {
+    // The stream's own events only carry what happens from now on, so a page
+    // loaded while a scan is running would show no bar until the next file
+    // finishes. The server therefore opens every connection with the state as it
+    // stands - which also covers a reconnect, and cannot lose the race an extra
+    // request for it would: the snapshot is part of the same stream.
+    eventSource.addEventListener('scan_state', function(e) {
         try {
-            const data = await fetchScanStatus();
-            if (!data || data.status !== 'scanning') return;
+            const data = JSON.parse(e.data);
+            if (data.status !== 'scanning') return;
 
             const scanProgress = document.getElementById('scanProgress');
             const scanProgressBar = document.getElementById('scanProgressBar');
@@ -51,9 +52,9 @@ export function setupSSE() {
             }
             scanProgress.style.display = 'inline-flex';
         } catch (error) {
-            console.error('Error restoring scan progress:', error);
+            console.error('Error parsing scan state event:', error);
         }
-    })();
+    });
 
     eventSource.addEventListener('scan_progress', function(e) {
         try {
@@ -69,11 +70,19 @@ export function setupSSE() {
                     scanProgressText.textContent = data.current + '/' + data.total + ' (' + data.percent + '%)';
                     scanProgress.style.display = 'inline-flex';
                 }
-            } else if (data.status === 'done') {
+            } else if (data.status === 'done' || data.status === 'cancelled') {
                 if (scanProgress) scanProgress.style.display = 'none';
                 if (message) {
+                    // A cancelled scan is reported like a finished one, only as
+                    // what it was: whatever it got through before it stopped is
+                    // in the library and the page is reloaded to show it.
+                    const cancelled = data.status === 'cancelled';
                     message.className = 'message';
-                    if (data.new_files > 0) {
+                    if (cancelled) {
+                        message.classList.add('info');
+                        setMessageContent(message, 'info', t('scan_cancelled', { count: data.new_files || 0 }));
+                        setTimeout(function() { location.reload(); }, 2000);
+                    } else if (data.new_files > 0) {
                         message.classList.add('success');
                         setMessageContent(message, 'success', t('scan_complete', { count: data.new_files }));
                         setTimeout(function() { location.reload(); }, 2000);
