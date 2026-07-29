@@ -13,6 +13,7 @@ Universal Video Scanner with Web Interface - Automatic detection of HDR formats 
 - **Manual Scan**: Fallback button for on-demand scanning
 - **IMDb Ratings**: Posters show the IMDb rating (via the OMDb API), with the TMDB rating as fallback, plus an IMDb Top 250 rank badge for listed films
 - **Sort by Rating Source**: Separate sort filters for IMDb, TMDb, Rotten Tomatoes and Metacritic
+- **Sort Direction**: A toggle next to the sort dropdown flips every sort mode between ascending and descending, remembered across restarts
 - **Title Details**: Genres next to the directors, and a plot folded to five lines that expands on demand
 
 ## Software on Docker Hub 🐳

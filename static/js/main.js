@@ -114,6 +114,7 @@ function applyTranslations() {
     
     // Refresh the sort dropdown so its option labels follow the active language.
     if (sortSelectInstance) sortSelectInstance.refresh();
+    updateSortDirToggle();
 
     updateLanguageButtons();
     updateThemeToggleLabel();
@@ -602,6 +603,14 @@ function initCustomSelects() {
         }
     });
 
+    const dirToggle = document.getElementById('sortDirToggle');
+    if (dirToggle) {
+        // No stopPropagation: the document handler may close any other open
+        // dropdown, the sort menu itself is left alone (the toggle sits
+        // inside its wrapper) so the direction can be flipped while browsing.
+        dirToggle.addEventListener('click', () => toggleSortDirection());
+    }
+
     languageInstance = buildCustomSelect({
         wrapId: 'languageWrap',
         triggerId: 'languageTrigger',
@@ -618,6 +627,79 @@ function initCustomSelects() {
 /* -------------------------------
    New Sorting Logic (client-side)
    ------------------------------- */
+
+/* Sort direction.
+ *
+ * Every comparator further down describes the *descending* order of its mode
+ * (best/highest/newest first), so ascending is simply the negated result -
+ * `sortSign` carries that flip and is refreshed by applySort().
+ *
+ * `sortDirection` stays null until the user picks a direction: with nothing
+ * stored, each mode falls back to the order that reads naturally for it
+ * (A-Z for filenames, highest first for ratings, sizes, bitrates, dates).
+ * Once picked, the choice is persisted and applies to every mode. */
+let sortDirection = null;
+let sortSign = 1;
+
+const NATURAL_ASC_MODES = new Set(['filename']);
+
+function getSortMode() {
+    if (sortSelectInstance) return sortSelectInstance.getValue();
+    return localStorage.getItem('dovi_sort_mode') || 'filename';
+}
+
+function getSortDirection(mode) {
+    if (sortDirection) return sortDirection;
+    return NATURAL_ASC_MODES.has(mode || getSortMode()) ? 'asc' : 'desc';
+}
+
+function initSortDirection() {
+    let saved = null;
+    try {
+        saved = localStorage.getItem('dovi_sort_dir');
+    } catch (e) { /* localStorage unavailable -> keep the per-mode default */ }
+    sortDirection = (saved === 'asc' || saved === 'desc') ? saved : null;
+}
+
+function toggleSortDirection() {
+    const mode = getSortMode();
+    sortDirection = getSortDirection(mode) === 'asc' ? 'desc' : 'asc';
+    try {
+        localStorage.setItem('dovi_sort_dir', sortDirection);
+    } catch (e) { /* localStorage unavailable -> direction just won't persist */ }
+    applySort(mode);
+}
+
+// Keep the toggle's arrow, label and accessible name in sync with the
+// direction the given mode is currently sorted in.
+function updateSortDirToggle(mode) {
+    const btn = document.getElementById('sortDirToggle');
+    if (!btn) return;
+    const asc = getSortDirection(mode) === 'asc';
+    const label = t(asc ? 'sort_direction_asc' : 'sort_direction_desc');
+
+    btn.classList.toggle('asc', asc);
+    btn.setAttribute('aria-pressed', asc ? 'true' : 'false');
+    btn.setAttribute('title', t('sort_direction_toggle'));
+    btn.setAttribute('aria-label', `${t('sort_direction_toggle')} - ${label}`);
+
+    const labelEl = document.getElementById('sortDirLabel');
+    if (labelEl) labelEl.textContent = label;
+}
+
+// Sort the table rows with a descending comparator, flipped when the active
+// direction is ascending, and write the result back into the DOM.
+function sortRows(compare) {
+    const table = document.getElementById('mediaTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => sortSign * compare(a, b));
+
+    // Rearrange order in DOM
+    rows.forEach(r => tbody.appendChild(r));
+}
 
 // Real-time search function
 function searchMedia() {
@@ -912,12 +994,7 @@ function getFilenameFromRow(row) {
 }
 
 function sortTableByProfile() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aFmt = a.getAttribute('data-hdr-format') || '';
         const aDet = a.getAttribute('data-hdr-detail') || '';
         const aEl  = a.getAttribute('data-el-type') || '';
@@ -938,18 +1015,10 @@ function sortTableByProfile() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    // Rearrange order in DOM
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByProfileAudio() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody. querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aFmt = a.getAttribute('data-hdr-format') || '';
         const aDet = a.getAttribute('data-hdr-detail') || '';
         const aEl  = a.getAttribute('data-el-type') || '';
@@ -980,17 +1049,10 @@ function sortTableByProfileAudio() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByProfileVideoBitrate() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aFmt = a. getAttribute('data-hdr-format') || '';
         const aDet = a. getAttribute('data-hdr-detail') || '';
         const aEl  = a. getAttribute('data-el-type') || '';
@@ -1015,17 +1077,10 @@ function sortTableByProfileVideoBitrate() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByProfileAudioBitrate() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aFmt = a.getAttribute('data-hdr-format') || '';
         const aDet = a.getAttribute('data-hdr-detail') || '';
         const aEl  = a.getAttribute('data-el-type') || '';
@@ -1050,25 +1105,18 @@ function sortTableByProfileAudioBitrate() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByFilename() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    // Descending means Z-A here, so the alphabetical comparison is inverted -
+    // sortRows() flips it back for the ascending (default) direction.
+    sortRows((a, b) => {
         const aName = getFilenameFromRow(a).toLowerCase();
         const bName = getFilenameFromRow(b).toLowerCase();
-        if (aName < bName) return -1;
-        if (aName > bName) return 1;
+        if (aName < bName) return 1;
+        if (aName > bName) return -1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function getAudioCodecFromRow(row) {
@@ -1135,12 +1183,7 @@ function getChannelCount(audioCodec) {
 }
 
 function sortTableByAudio() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aAudio = getAudioCodecFromRow(a);
         const bAudio = getAudioCodecFromRow(b);
         
@@ -1164,17 +1207,10 @@ function sortTableByAudio() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByCmVersion() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aCmv = a.getAttribute('data-dv-cm-version') || '';
         const bCmv = b.getAttribute('data-dv-cm-version') || '';
 
@@ -1210,8 +1246,6 @@ function sortTableByCmVersion() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 /**
@@ -1221,12 +1255,7 @@ function sortTableByCmVersion() {
  * source has no rating for count as 0 and therefore end up at the bottom.
  */
 function sortTableByRatingSource(attribute) {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         // Rating first, highest on top
         const aValue = parseFloat(a.getAttribute(attribute)) || 0;
         const bValue = parseFloat(b.getAttribute(attribute)) || 0;
@@ -1245,8 +1274,6 @@ function sortTableByRatingSource(attribute) {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByRating() {
@@ -1281,12 +1308,7 @@ function sortTableByAudioBitrate() {
 }
 
 function sortTableByAudioAudioBitrate() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         // Primary sorting by Audio Codec
         const aAudio = getAudioCodecFromRow(a);
         const bAudio = getAudioCodecFromRow(b);
@@ -1312,17 +1334,10 @@ function sortTableByAudioAudioBitrate() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByYear() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aYear = parseInt(a.getAttribute('data-year')) || 0;
         const bYear = parseInt(b.getAttribute('data-year')) || 0;
         
@@ -1336,17 +1351,10 @@ function sortTableByYear() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByDuration() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aDuration = parseFloat(a.getAttribute('data-duration')) || 0;
         const bDuration = parseFloat(b.getAttribute('data-duration')) || 0;
         
@@ -1360,17 +1368,10 @@ function sortTableByDuration() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByNumericAttribute(attribute) {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aValue = parseFloat(a.getAttribute(attribute)) || 0;
         const bValue = parseFloat(b.getAttribute(attribute)) || 0;
         
@@ -1384,18 +1385,11 @@ function sortTableByNumericAttribute(attribute) {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function sortTableByAdded() {
-    const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
     // Sort by file modification time (descending - newest first)
-    rows.sort((a, b) => {
+    sortRows((a, b) => {
         const aMtime = parseFloat(a.getAttribute('data-mtime') || 0);
         const bMtime = parseFloat(b.getAttribute('data-mtime') || 0);
         
@@ -1409,13 +1403,15 @@ function sortTableByAdded() {
         if (aName > bName) return 1;
         return 0;
     });
-
-    rows.forEach(r => tbody.appendChild(r));
 }
 
 function applySort(mode) {
     if (!mode) mode = localStorage.getItem('dovi_sort_mode') || 'filename';
     if (sortSelectInstance) sortSelectInstance.setValue(mode);
+
+    // Comparators are written descending, so ascending negates their result.
+    sortSign = getSortDirection(mode) === 'asc' ? -1 : 1;
+    updateSortDirToggle(mode);
 
     if (mode === 'profile') {
         sortTableByProfile();
@@ -1459,6 +1455,9 @@ function applySort(mode) {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme (labels are refreshed once translations are loaded)
     initTheme();
+
+    // Restore the saved sort direction before anything sorts or renders it
+    initSortDirection();
 
     // Initialize language first
     initLanguage().then(() => {

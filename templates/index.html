@@ -85,6 +85,12 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                             <span class="custom-select-current" id="sortSelectCurrent"></span>
                             <svg class="custom-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
+                        {# Second segment of the sort control: flips the active sort
+                           between ascending and descending. #}
+                        <button type="button" class="sort-dir-toggle" id="sortDirToggle" aria-pressed="false">
+                            <svg class="sort-dir-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                            <span class="sort-dir-label" id="sortDirLabel"></span>
+                        </button>
                         <ul class="custom-select-menu" id="sortSelectMenu" role="listbox" tabindex="-1"></ul>
                     </div>
                 </div>
