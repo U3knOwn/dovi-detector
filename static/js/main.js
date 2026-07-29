@@ -158,6 +158,11 @@ async function setLanguage(lang) {
         updateFileTriggerLabel();
         updateScanSelectedButton();
         if (isFileDialogOpen()) renderFileDialogList();
+
+        // Entries with unknown values carry a translated badge, which is also
+        // part of what the search matches against.
+        mediaItems.forEach(prepareMediaSearchText);
+        applyMediaFilter();
     }
 }
 
@@ -762,184 +767,555 @@ function updateSortDirToggle(mode) {
 }
 
 /* -------------------------------
-   Row metadata cache
+   Media library data
 
-   Sorting and searching need the same handful of values over and over: the
-   filename, the audio codec, a numeric data attribute, the row's searchable
-   text. Reading those back out of the DOM every time (querySelector plus
-   textContent, inside a comparator) means tens of thousands of DOM lookups for
-   a single sort of a large library. Nothing about a rendered row ever changes,
-   so each value is derived once and remembered per row.
+   The table is not rendered by the server: the entries arrive as JSON from
+   /api/library and only the rows currently in view are put into the DOM.
+   Server-rendering a 5000 entry library meant ~25 MB of markup and ~90.000 DOM
+   nodes, which cost seconds before the page was usable - something no amount
+   of compression fixes.
    ------------------------------- */
 
-const rowMetaCache = new WeakMap();
+// Every entry, in the current sort order.
+let mediaItems = [];
+// What the table actually shows: the entries the search leaves over. Without
+// an active search this is the same array as mediaItems.
+let mediaVisible = [];
+// The active search term, lower-cased.
+let mediaSearchTerm = '';
+// Set once the library response arrived, so the "nothing scanned yet" state is
+// not shown while the library is still on its way.
+let mediaLoaded = false;
 
-function rowMeta(row) {
-    let meta = rowMetaCache.get(row);
-    if (!meta) {
-        meta = { numbers: {} };
-        rowMetaCache.set(row, meta);
+function loadMediaLibrary() {
+    return fetch('/api/library')
+        .then(response => response.json())
+        .then(data => {
+            if (!data || !data.success) throw new Error('Library request failed');
+            mediaItems = (data.files || []).map(prepareMediaItem);
+            mediaLoaded = true;
+            // Sorting runs the filter and the render, so the table appears in
+            // the order the user last chose rather than in load order.
+            applySort();
+        })
+        .catch(error => {
+            console.error('Error loading library:', error);
+            mediaLoaded = true;
+            updateMediaChrome();
+        });
+}
+
+// Numeric field of an entry, 0 when absent - which is how every comparator
+// treats a missing value.
+function mediaNumber(value) {
+    const number = parseFloat(value);
+    return isFinite(number) ? number : 0;
+}
+
+/**
+ * Derive everything sorting, searching and rendering need from one entry.
+ *
+ * Done once per entry when the library loads, so a sort compares plain numbers
+ * and strings instead of re-deriving ranks for every single comparison.
+ */
+function prepareMediaItem(raw) {
+    const item = raw || {};
+
+    item.filename = item.filename || '';
+    item.path = item.path || '';
+    item.hdr_format = item.hdr_format || '';
+    item.hdr_detail = item.hdr_detail || '';
+    item.el_type = item.el_type || '';
+    item.resolution = item.resolution || '';
+    item.audio_codec = item.audio_codec || '';
+
+    // The IMDb rating is what is shown; entries without one (no OMDb key,
+    // unknown title) keep falling back to the TMDB rating.
+    item.rating = mediaNumber(item.imdb_rating) || mediaNumber(item.tmdb_rating);
+
+    item.sortFilename = item.filename.toLowerCase();
+    item.sortFileSize = mediaNumber(item.file_size);
+    item.sortVideoBitrate = mediaNumber(item.video_bitrate);
+    item.sortAudioBitrate = mediaNumber(item.audio_bitrate);
+    item.sortDuration = mediaNumber(item.duration);
+    item.sortMtime = mediaNumber(item.mtime);
+    item.sortYear = mediaNumber(item.tmdb_year);
+    item.sortTmdbRating = mediaNumber(item.tmdb_rating);
+    item.sortRtRating = mediaNumber(item.rt_rating);
+    item.sortMetacritic = mediaNumber(item.metacritic);
+    // Titles outside the chart sort behind every ranked one
+    item.sortTop250 = mediaNumber(item.imdb_top250) || Infinity;
+
+    item.profileRank = getProfileRank(item.hdr_format, item.hdr_detail, item.el_type);
+    item.statKey = getMediaStatKey(item);
+    item.audioRank = getAudioRank(item.audio_codec);
+    item.audioChannels = getChannelCount(item.audio_codec);
+    item.audioKey = item.audio_codec.toLowerCase();
+    item.cmRank = getCmVersionRank(item.dv_cm_version);
+    item.cmStructure = getCmStructureKey(item.dv_cm_version);
+
+    // Height of the rendered row, filled in once the row has been on screen
+    item.rowHeight = 0;
+
+    prepareMediaSearchText(item);
+    return item;
+}
+
+/**
+ * The text a search matches against: the same content the row shows - title or
+ * filename, HDR, resolution and audio.
+ *
+ * Rebuilt on a language switch, because the badges of an entry with unknown
+ * values carry the translated "unknown" label.
+ */
+function prepareMediaSearchText(item) {
+    item.searchText = [
+        mediaTitleText(item),
+        mediaHdrText(item),
+        item.resolution,
+        mediaAudioText(item)
+    ].join(' ').toLowerCase();
+}
+
+// What the card shows above the poster: the TMDB title with its year, or the
+// filename for entries that have no poster or were scanned without a TMDB key.
+function mediaTitleText(item) {
+    if (item.poster_url && item.tmdb_title) {
+        return item.tmdb_year
+            ? `${item.tmdb_title} (${item.tmdb_year})`
+            : item.tmdb_title;
     }
-    return meta;
+    return item.filename;
 }
 
-// The table's rows, kept as a plain array: every re-sort, search and stats
-// update would otherwise re-query the whole table. Rows are only ever removed
-// (deletion), never added, so the list is dropped from the array with them.
-let mediaRows = null;
+// Label of the HDR badge, including the enhancement layer where there is one.
+function mediaHdrText(item) {
+    const detail = (!item.hdr_detail || item.hdr_detail === 'Unknown')
+        ? t('unknown')
+        : item.hdr_detail;
+    return item.el_type ? `${detail} (${item.el_type})` : detail;
+}
 
-function getMediaRows() {
-    if (!mediaRows) {
-        const table = document.getElementById('mediaTable');
-        mediaRows = table ? Array.from(table.querySelectorAll('tbody tr')) : [];
+function mediaAudioText(item) {
+    return (!item.audio_codec || item.audio_codec === 'Unknown')
+        ? t('unknown')
+        : item.audio_codec;
+}
+
+// CSS modifier of the HDR badge, e.g. "HDR10+" -> "hdr-hdr10plus"
+function mediaHdrClass(item) {
+    return 'hdr-' + item.hdr_format.toLowerCase().replace(/ /g, '-').replace(/\+/g, 'plus');
+}
+
+// Known resolutions get their own badge colour, anything else is "unknown".
+const KNOWN_RESOLUTIONS = new Set([
+    '4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'
+]);
+
+function mediaResolutionClass(item) {
+    const resolution = item.resolution;
+    if (resolution.includes('x') && !KNOWN_RESOLUTIONS.has(resolution)) {
+        return 'resolution-unknown';
     }
-    return mediaRows;
+    return 'resolution-' + resolution.toLowerCase().replace(/ /g, '-');
 }
 
-function forgetMediaRow(row) {
-    if (mediaRows) mediaRows = mediaRows.filter(r => r !== row);
+// CSS modifier of the audio badge, picked from the codec string.
+function mediaAudioClass(item) {
+    const codec = item.audio_codec;
+    if (codec.includes('TrueHD') && codec.includes('Atmos')) return 'audio-truehd-atmos';
+    if (codec.includes('DTS:X') || codec.includes('DTS-X')) return 'audio-dtsx';
+    if (codec.includes('TrueHD')) return 'audio-truehd';
+    if (codec.includes('DTS-HD MA')) return 'audio-dts-hd-ma';
+    if (codec.includes('DTS-HD HRA')) return 'audio-dts-hd-hra';
+    if (codec.includes('Digital Plus') && codec.includes('Atmos')) return 'audio-ddplus-atmos';
+    if (codec.includes('Digital Plus')) return 'audio-ddplus';
+    if (codec.includes('Dolby Digital')) return 'audio-dolby-digital';
+    if (codec.includes('DTS')) return 'audio-dts';
+    if (codec.includes('AAC')) return 'audio-aac';
+    if (codec.includes('FLAC') || codec.includes('PCM')) return 'audio-lossless';
+    return 'audio-unknown';
 }
 
-// A numeric data attribute of a row, parsed once. Missing / unparsable is 0,
-// which is what every comparator treated it as anyway.
-function rowNumber(row, attribute) {
-    const numbers = rowMeta(row).numbers;
-    if (!(attribute in numbers)) {
-        numbers[attribute] = parseFloat(row.getAttribute(attribute)) || 0;
+/* -------------------------------
+   Row rendering
+   ------------------------------- */
+
+const RATING_STAR_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg>';
+
+const POSTER_PLACEHOLDER_SVG = '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h4"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 12h4"/><path d="M17 16.5h4"/></svg>';
+
+function makeElement(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined && text !== null) element.textContent = text;
+    return element;
+}
+
+// A table cell with the label the stacked mobile layout shows in front of it.
+function makeCell(labelKey, className) {
+    const cell = makeElement('td', className);
+    cell.setAttribute('data-label-i18n', labelKey);
+    cell.setAttribute('data-label', t(labelKey));
+    return cell;
+}
+
+function buildPosterCell(item) {
+    const cell = makeCell('table_header_poster');
+    cell.title = item.filename;
+
+    const card = makeElement('div', 'poster-container' + (item.poster_url ? '' : ' poster-fallback'));
+    card.appendChild(makeElement('span', 'poster-title', mediaTitleText(item)));
+
+    const wrapper = makeElement('div', 'poster-img-wrapper');
+    if (item.poster_url) {
+        const image = makeElement('img', 'poster-img');
+        image.src = item.poster_url;
+        image.alt = item.filename;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        wrapper.appendChild(image);
+
+        if (item.rating > 0) {
+            const badge = makeElement('div', 'rating-badge');
+            const logo = makeElement('span', 'rating-logo');
+            logo.innerHTML = RATING_STAR_SVG;
+            badge.appendChild(logo);
+            badge.appendChild(makeElement('span', 'rating-value', item.rating.toFixed(1)));
+            wrapper.appendChild(badge);
+        }
+
+        if (item.imdb_top250) {
+            const top250 = makeElement('div', 'top250-badge', `#${item.imdb_top250}`);
+            top250.title = `IMDb Top 250 - #${item.imdb_top250}`;
+            wrapper.appendChild(top250);
+        }
+    } else {
+        const placeholder = makeElement('div', 'poster-img poster-placeholder');
+        placeholder.setAttribute('aria-hidden', 'true');
+        placeholder.innerHTML = POSTER_PLACEHOLDER_SVG;
+        wrapper.appendChild(placeholder);
     }
-    return numbers[attribute];
+
+    card.appendChild(wrapper);
+    cell.appendChild(card);
+    return cell;
 }
 
-// Lower-cased filename, the tie-breaker of every comparator.
-function getFilenameKey(row) {
-    const meta = rowMeta(row);
-    if (meta.filenameKey === undefined) {
-        meta.filenameKey = getFilenameFromRow(row).toLowerCase();
+function buildHdrCell(item) {
+    const cell = makeCell('table_header_hdr');
+    const detail = (!item.hdr_detail || item.hdr_detail === 'Unknown')
+        ? t('unknown')
+        : item.hdr_detail;
+    const elType = item.el_type;
+
+    if (item.hdr_format === 'Dolby Vision' && elType) {
+        // Dolby Vision carries its layer type inside the badge, which is
+        // coloured by that layer (FEL / MEL)
+        cell.appendChild(makeElement(
+            'span',
+            `hdr-badge hdr-dolby-vision el-${elType.toLowerCase()}`,
+            `${detail} (${elType})`));
+        return cell;
     }
-    return meta.filenameKey;
+
+    cell.appendChild(makeElement('span', `hdr-badge ${mediaHdrClass(item)}`, detail));
+    if (elType) {
+        cell.appendChild(makeElement('span', `el-badge el-${elType.toLowerCase()}`, elType));
+    }
+    return cell;
 }
 
-// Shared last resort of the comparators: alphabetical by filename.
-function compareByFilename(a, b) {
-    const aName = getFilenameKey(a);
-    const bName = getFilenameKey(b);
-    if (aName < bName) return -1;
-    if (aName > bName) return 1;
-    return 0;
+function buildMediaRow(item) {
+    const row = makeElement('tr');
+    row.appendChild(buildPosterCell(item));
+    row.appendChild(buildHdrCell(item));
+
+    const audioCell = makeCell('table_header_audio', 'audio-codec');
+    audioCell.appendChild(makeElement('span', `audio-badge ${mediaAudioClass(item)}`, mediaAudioText(item)));
+    row.appendChild(audioCell);
+
+    const resolutionCell = makeCell('table_header_resolution');
+    resolutionCell.appendChild(makeElement(
+        'span', `resolution-badge ${mediaResolutionClass(item)}`, item.resolution));
+    row.appendChild(resolutionCell);
+
+    // The dialog reads the entry straight off the row it was opened from
+    row.mediaItem = item;
+    return row;
 }
 
-// Sort the table rows with a descending comparator, flipped when the active
-// direction is ascending, and write the result back into the DOM.
-function sortRows(compare) {
+/* -------------------------------
+   Windowed rendering
+
+   Only the rows around the viewport exist in the DOM; the space the others
+   would take is held by two spacer rows, so the scrollbar and every scroll
+   position still behave as if the whole table were there.
+   ------------------------------- */
+
+// Extra rows kept above and below the viewport, so scrolling does not chase
+// the renderer.
+const MEDIA_OVERSCAN = 5;
+
+// Up to this many entries the table is rendered completely. Leaving rows out
+// only pays off once there are a lot of them, and a fully rendered table can
+// still be searched with the browser's own find-in-page.
+const MEDIA_WINDOW_THRESHOLD = 120;
+
+// Vertical gap between two rows (the table's border-spacing), measured from
+// the real layout on the first render.
+let mediaRowGap = 12;
+// Height assumed for rows that have never been on screen. Replaced by a real
+// measurement as soon as one row has been rendered.
+const MEDIA_ROW_HEIGHT_GUESS = 280;
+let mediaRowHeightEstimate = MEDIA_ROW_HEIGHT_GUESS;
+let mediaRowHeightMeasured = false;
+let mediaWindowStart = 0;
+let mediaWindowEnd = 0;
+let mediaRenderScheduled = false;
+
+function mediaRowPitch(item) {
+    return (item.rowHeight || mediaRowHeightEstimate) + mediaRowGap;
+}
+
+// Distance from the top of the first row to the top of row `index`.
+function mediaOffsetOf(index) {
+    let offset = 0;
+    for (let i = 0; i < index; i++) offset += mediaRowPitch(mediaVisible[i]);
+    return offset;
+}
+
+function makeSpacerRow(className, height) {
+    const row = makeElement('tr', className);
+    const cell = makeElement('td');
+    cell.colSpan = 4;
+    row.appendChild(cell);
+    row.style.height = `${Math.max(0, height)}px`;
+    return row;
+}
+
+// The table body, or null when the page has no table (empty library).
+function getMediaBody() {
     const table = document.getElementById('mediaTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    const rows = getMediaRows();
+    return table ? table.querySelector('tbody') : null;
+}
+
+function scheduleMediaRender() {
+    if (mediaRenderScheduled) return;
+    mediaRenderScheduled = true;
+    requestAnimationFrame(() => {
+        mediaRenderScheduled = false;
+        renderMediaWindow();
+    });
+}
+
+/**
+ * Put the rows around the current scroll position into the table.
+ *
+ * `force` re-renders even when the window did not move - needed after the
+ * data, the sort order or the language changed.
+ */
+function renderMediaWindow(force) {
+    const table = document.getElementById('mediaTable');
+    const tbody = getMediaBody();
+    if (!table || !tbody || table.hidden) return;
+    // Hidden by the show/hide toggle: nothing to lay out until it is back
+    if (tbody.style.display === 'none') return;
+
+    const count = mediaVisible.length;
+    if (count === 0) {
+        tbody.replaceChildren();
+        mediaWindowStart = 0;
+        mediaWindowEnd = 0;
+        return;
+    }
+
+    let start = 0;
+    let end = count;
+
+    if (count > MEDIA_WINDOW_THRESHOLD) {
+        const rowsTop = tbody.getBoundingClientRect().top + window.scrollY;
+        const viewTop = window.scrollY - rowsTop;
+        const viewBottom = viewTop + (window.innerHeight || 800);
+
+        let offset = 0;
+        while (start < count) {
+            const pitch = mediaRowPitch(mediaVisible[start]);
+            if (offset + pitch > viewTop) break;
+            offset += pitch;
+            start++;
+        }
+        start = Math.max(0, Math.min(start, count - 1) - MEDIA_OVERSCAN);
+
+        end = start;
+        let bottom = mediaOffsetOf(start);
+        while (end < count && bottom < viewBottom) {
+            bottom += mediaRowPitch(mediaVisible[end]);
+            end++;
+        }
+        end = Math.min(count, end + MEDIA_OVERSCAN);
+    }
+
+    if (!force && start === mediaWindowStart && end === mediaWindowEnd) return;
+
+    const fragment = document.createDocumentFragment();
+    if (start > 0) {
+        fragment.appendChild(makeSpacerRow('media-spacer', mediaOffsetOf(start) - mediaRowGap));
+    }
+    for (let i = start; i < end; i++) {
+        fragment.appendChild(buildMediaRow(mediaVisible[i]));
+    }
+    if (end < count) {
+        const rest = mediaOffsetOf(count) - mediaOffsetOf(end);
+        fragment.appendChild(makeSpacerRow('media-spacer', rest - mediaRowGap));
+    }
+
+    tbody.replaceChildren(fragment);
+    mediaWindowStart = start;
+    mediaWindowEnd = end;
+
+    measureRenderedRows(tbody, start, end);
+}
+
+/**
+ * Remember how tall the rows that were just rendered really are.
+ *
+ * Row height is not uniform - a long filename wraps to a second or third line -
+ * so the spacers work with measured heights wherever a row has been seen, and
+ * with an estimate for the rest. The estimate itself comes from the first row
+ * ever measured.
+ */
+function measureRenderedRows(tbody, start, end) {
+    const rows = Array.from(tbody.children).filter(row => !row.classList.contains('media-spacer'));
     if (rows.length === 0) return;
 
-    rows.sort((a, b) => sortSign * compare(a, b));
+    // border-spacing shows up as the gap between two consecutive rows
+    if (rows.length > 1) {
+        const gap = Math.round(
+            rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().bottom);
+        if (gap >= 0 && gap < 100) mediaRowGap = gap;
+    }
 
-    // Moved through a fragment: appending the rows one by one to the live
-    // table means one DOM mutation per row, where this is a single one.
-    const fragment = document.createDocumentFragment();
-    rows.forEach(r => fragment.appendChild(r));
-    tbody.appendChild(fragment);
+    let bottomChanged = false;
+    rows.forEach((row, index) => {
+        const item = mediaVisible[start + index];
+        if (!item) return;
+        const height = Math.round(row.getBoundingClientRect().height);
+        if (height > 0 && height !== item.rowHeight) {
+            item.rowHeight = height;
+            bottomChanged = true;
+        }
+    });
+
+    if (!mediaRowHeightMeasured) {
+        const first = mediaVisible[start];
+        if (first && first.rowHeight) {
+            mediaRowHeightEstimate = first.rowHeight;
+            mediaRowHeightMeasured = true;
+        }
+    }
+
+    // Only the space below the window can have changed - the rows above were
+    // measured when they were on screen - so this never moves what the user is
+    // looking at, it just keeps the scrollbar honest.
+    if (bottomChanged && end < mediaVisible.length) {
+        const spacer = tbody.lastElementChild;
+        if (spacer && spacer.classList.contains('media-spacer')) {
+            const rest = mediaOffsetOf(mediaVisible.length) - mediaOffsetOf(end);
+            spacer.style.height = `${Math.max(0, rest - mediaRowGap)}px`;
+        }
+    }
 }
 
-// The text a row is matched against: its title/filename plus the HDR, audio
-// and resolution badges. Built once per row - a search over a large library
-// would otherwise walk four cells of every row on every keystroke.
-function getRowSearchText(row) {
-    const meta = rowMeta(row);
-    if (meta.searchText === undefined) {
-        const cells = row.children;
-        const posterCell = cells[0];
-        let text = '';
+// Row heights depend on the layout, which changes with the viewport width.
+function invalidateMediaRowHeights() {
+    mediaItems.forEach(item => { item.rowHeight = 0; });
+    mediaRowHeightEstimate = MEDIA_ROW_HEIGHT_GUESS;
+    mediaRowHeightMeasured = false;
+}
 
-        if (posterCell) {
-            const posterTitle = posterCell.querySelector('.poster-title');
-            if (posterTitle) {
-                text += posterTitle.textContent + ' ';
-            } else {
-                // Fallback to title attribute
-                const title = posterCell.getAttribute('title');
-                if (title) text += title + ' ';
-            }
+function setupMediaVirtualScroll() {
+    window.addEventListener('scroll', scheduleMediaRender, { passive: true });
+
+    let lastWidth = window.innerWidth;
+    window.addEventListener('resize', () => {
+        if (window.innerWidth !== lastWidth) {
+            lastWidth = window.innerWidth;
+            invalidateMediaRowHeights();
         }
+        renderMediaWindow(true);
+    });
+}
 
-        // HDR, resolution and audio badges
-        for (const index of [1, 3, 2]) {
-            if (cells[index]) text += cells[index].textContent + ' ';
-        }
+/* -------------------------------
+   Filtering, statistics and the rest of the table chrome
+   ------------------------------- */
 
-        meta.searchText = text.toLowerCase();
+// Recompute what is shown and put it on screen. Every change to the data, the
+// sort order or the search term ends here.
+function applyMediaFilter() {
+    mediaVisible = mediaSearchTerm
+        ? mediaItems.filter(item => item.searchText.includes(mediaSearchTerm))
+        : mediaItems;
+
+    updateMediaChrome();
+    renderMediaWindow(true);
+}
+
+// Table visibility, the empty states, the counter and the profile chips.
+function updateMediaChrome() {
+    const table = document.getElementById('mediaTable');
+    const emptyState = document.getElementById('emptyState');
+    const tbody = getMediaBody();
+    const thead = table ? table.querySelector('thead') : null;
+
+    const hasEntries = mediaItems.length > 0;
+    const hasVisible = mediaVisible.length > 0;
+
+    if (emptyState) emptyState.hidden = !mediaLoaded || hasEntries;
+    if (table) table.hidden = !hasEntries;
+    // A lone table header above a "nothing found" message reads as a bug -
+    // but never fight the show/hide toggle for it.
+    if (thead && tbody && tbody.style.display !== 'none') {
+        thead.style.display = hasVisible ? '' : 'none';
     }
-    return meta.searchText;
+
+    updateSearchNoResults(mediaSearchTerm !== '' && !hasVisible);
+    updateFileCount();
+    updateProfileStats();
+}
+
+// Show or hide the "no results" message below the table, creating it on first
+// use.
+function updateSearchNoResults(show) {
+    let message = document.getElementById('search-no-results');
+
+    if (!show) {
+        if (message) message.style.display = 'none';
+        return;
+    }
+
+    if (!message) {
+        const table = document.getElementById('mediaTable');
+        if (!table || !table.parentNode) return;
+        message = document.createElement('div');
+        message.id = 'search-no-results';
+        message.className = 'empty-state';
+        message.appendChild(makeElement('h2', null, t('search_no_results')));
+        table.parentNode.insertBefore(message, table.nextSibling);
+    } else {
+        const heading = message.querySelector('h2');
+        if (heading) heading.textContent = t('search_no_results');
+    }
+    message.style.display = 'block';
 }
 
 // Real-time search function
 function searchMedia() {
-    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
-
-    let visibleRowCount = 0;
-
-    getMediaRows().forEach(row => {
-        const isVisible = searchTerm === '' || getRowSearchText(row).includes(searchTerm);
-        const display = isVisible ? '' : 'none';
-
-        // Only written when it actually changes: assigning the same value to
-        // every row still invalidates layout for all of them.
-        if (row.style.display !== display) row.style.display = display;
-
-        if (isVisible) {
-            visibleRowCount++;
-        }
-    });
-
-    // Handle table header and no-results message visibility
-    const table = document.getElementById('mediaTable');
-    const thead = table ? table.querySelector('thead') : null;
-    
-    if (searchTerm && visibleRowCount === 0) {
-        // Hide table header when no results
-        if (thead) {
-            thead.style.display = 'none';
-        }
-        
-        // Show or create no-results message
-        let noResultsMsg = document.getElementById('search-no-results');
-        if (!noResultsMsg) {
-            noResultsMsg = document.createElement('div');
-            noResultsMsg.id = 'search-no-results';
-            noResultsMsg.className = 'empty-state';
-            
-            const heading = document.createElement('h2');
-            heading.textContent = t('search_no_results');
-            noResultsMsg.appendChild(heading);
-            
-            // Insert after the table
-            if (table && table.parentNode) {
-                table.parentNode.insertBefore(noResultsMsg, table.nextSibling);
-            }
-        }
-        noResultsMsg.style.display = 'block';
-    } else {
-        // Show table header when there are results or no search term
-        if (thead) {
-            thead.style.display = '';
-        }
-        
-        // Hide no-results message
-        const noResultsMsg = document.getElementById('search-no-results');
-        if (noResultsMsg) {
-            noResultsMsg.style.display = 'none';
-        }
-    }
-    
-    // Update clear button visibility
+    const input = document.getElementById('searchInput');
+    mediaSearchTerm = (input ? input.value : '').trim().toLowerCase();
+    applyMediaFilter();
     updateClearButton();
-    // Update profile stats based on visible rows
-    updateProfileStats();
 }
 
 // Run `fn` once the caller stops calling it for `wait` ms.
@@ -962,7 +1338,7 @@ const debouncedRenderFileDialogList = debounce(renderFileDialogList, 120);
 // Clear search function
 function clearSearch() {
     const searchInput = document.getElementById('searchInput');
-    searchInput.value = '';
+    if (searchInput) searchInput.value = '';
     searchMedia(); // Re-run search to show all rows
 }
 
@@ -970,83 +1346,77 @@ function clearSearch() {
 function updateClearButton() {
     const searchInput = document.getElementById('searchInput');
     const clearBtn = document.getElementById('clearSearch');
-    if (clearBtn) {
+    if (clearBtn && searchInput) {
         clearBtn.style.display = searchInput.value.length > 0 ? 'flex' : 'none';
     }
 }
 
-// Which stat chip a row is counted under. Derived from the row's HDR
-// attributes, which never change, so the classification is done once.
-function getRowStatKey(row) {
-    const meta = rowMeta(row);
-    if (meta.statKey !== undefined) return meta.statKey;
+function updateFileCount() {
+    const fileCountElement = document.getElementById('fileCount');
+    if (!fileCountElement) return;
 
-    const elType = (row.getAttribute('data-el-type') || '').toUpperCase();
-    const hdrFormat = (row.getAttribute('data-hdr-format') || '').toLowerCase();
-    const hdrDetail = (row.getAttribute('data-hdr-detail') || '').toLowerCase();
+    // Only the number changes; rewriting the element would mean re-translating
+    // it as well.
+    const label = fileCountElement.querySelector('[data-i18n="media_count"]');
+    const countNode = fileCountElement.firstChild;
+    if (label && countNode && countNode.nodeType === Node.TEXT_NODE) {
+        countNode.textContent = `${mediaVisible.length} `;
+        return;
+    }
 
-    let key = null;
+    fileCountElement.innerHTML = '';
+    fileCountElement.appendChild(document.createTextNode(`${mediaVisible.length} `));
+    const span = makeElement('span', null, t('media_count'));
+    span.setAttribute('data-i18n', 'media_count');
+    fileCountElement.appendChild(span);
+}
+
+// Which stat chip an entry is counted under.
+function getMediaStatKey(item) {
+    const elType = (item.el_type || '').toUpperCase();
+    const hdrFormat = (item.hdr_format || '').toLowerCase();
+    const hdrDetail = (item.hdr_detail || '').toLowerCase();
 
     // Check for FEL or MEL
-    if (elType === 'FEL') {
-        key = 'FEL';
-    } else if (elType === 'MEL') {
-        key = 'MEL';
-    }
+    if (elType === 'FEL') return 'FEL';
+    if (elType === 'MEL') return 'MEL';
     // Check for Profile 8
-    else if (
-        hdrDetail.includes('profile 8') ||
+    if (hdrDetail.includes('profile 8') ||
         hdrDetail.includes('profile8') ||
         hdrDetail.includes('p8') ||
         hdrFormat.includes('profile 8') ||
-        hdrFormat.includes('p8')
-    ) {
-        key = 'P8';
+        hdrFormat.includes('p8')) {
+        return 'P8';
     }
     // Check for Profile 5
-    else if (
-        hdrDetail.includes('profile 5') ||
+    if (hdrDetail.includes('profile 5') ||
         hdrDetail.includes('profile5') ||
-        hdrDetail.includes('p5')
-    ) {
-        key = 'P5';
+        hdrDetail.includes('p5')) {
+        return 'P5';
     }
-    // Check for HDR10+ (must check before HDR10 to avoid false matches)
-    else if (
-        hdrFormat.includes('hdr10+') ||
+    // Check for HDR10+ (must be checked before HDR10 to avoid false matches)
+    if (hdrFormat.includes('hdr10+') ||
         hdrDetail.includes('hdr10+') ||
         hdrFormat.includes('hdr10plus') ||
-        hdrDetail.includes('hdr10plus')
-    ) {
-        key = 'HDR10+';
+        hdrDetail.includes('hdr10plus')) {
+        return 'HDR10+';
     }
     // Check for SL-HDR1 / SL-HDR2 / SL-HDR3
-    else if (hdrFormat.includes('sl-hdr') || hdrDetail.includes('sl-hdr')) {
-        key = 'SL-HDR';
-    }
+    if (hdrFormat.includes('sl-hdr') || hdrDetail.includes('sl-hdr')) return 'SL-HDR';
     // Check for HDR Vivid
-    else if (hdrFormat.includes('vivid') || hdrDetail.includes('vivid')) {
-        key = 'HDR Vivid';
-    }
-    // Check for HDR10 (but not HDR10+, already handled above)
-    else if (
-        hdrFormat.includes('hdr10') ||
+    if (hdrFormat.includes('vivid') || hdrDetail.includes('vivid')) return 'HDR Vivid';
+    // Check for HDR10 (but not HDR10+, which is handled above)
+    if (hdrFormat.includes('hdr10') ||
         hdrDetail.includes('hdr10') ||
-        hdrFormat.includes('smpte2084')
-    ) {
-        key = 'HDR10';
+        hdrFormat.includes('smpte2084')) {
+        return 'HDR10';
     }
     // Check for HLG
-    else if (hdrFormat.includes('hlg') || hdrDetail.includes('hlg')) {
-        key = 'HLG';
-    }
+    if (hdrFormat.includes('hlg') || hdrDetail.includes('hlg')) return 'HLG';
     // Check for SDR
-    else if (hdrFormat.includes('sdr') || hdrDetail.includes('sdr')) {
-        key = 'SDR';
-    }
+    if (hdrFormat.includes('sdr') || hdrDetail.includes('sdr')) return 'SDR';
 
-    meta.statKey = key;
-    return key;
+    return null;
 }
 
 // Order the stat chips are shown in; only categories with at least one title
@@ -1061,17 +1431,25 @@ function updateProfileStats() {
     if (!profileStatsElement) return;
 
     const stats = new Map();
-
-    getMediaRows().forEach(row => {
-        if (row.style.display === 'none') return;
-        const key = getRowStatKey(row);
-        if (key) stats.set(key, (stats.get(key) || 0) + 1);
+    mediaVisible.forEach(item => {
+        if (item.statKey) stats.set(item.statKey, (stats.get(item.statKey) || 0) + 1);
     });
 
     profileStatsElement.innerHTML = STAT_CHIP_ORDER
         .filter(label => stats.get(label) > 0)
         .map(label => `<span class="stat-chip">${label} <strong>${stats.get(label)}</strong></span>`)
         .join('');
+}
+
+// Drop an entry from the table, e.g. after it was deleted or its file vanished.
+function removeFileFromTable(filePath) {
+    const remaining = mediaItems.filter(item => item.path !== filePath);
+    if (remaining.length === mediaItems.length) return false;
+
+    mediaItems = remaining;
+    applyMediaFilter();
+    console.log(`Removed deleted file from table: ${filePath}`);
+    return true;
 }
 
 function getProfileRank(hdrFormat, hdrDetail, elType) {
@@ -1134,136 +1512,6 @@ function getCmStructureKey(cmVersion) {
     return m ? m[1].trim() : '';
 }
 
-function getFilenameFromRow(row) {
-    const meta = rowMeta(row);
-    if (meta.filename !== undefined) return meta.filename;
-
-    // Try multiple places: title attribute, .poster-title, cell text
-    const td = row.children[0];
-    let name = '';
-    if (td) {
-        const title = td.getAttribute('title');
-        if (title) {
-            name = title.trim();
-        } else {
-            const posterTitle = td.querySelector('.poster-title');
-            name = (posterTitle ? posterTitle.textContent : td.textContent).trim();
-        }
-    }
-
-    meta.filename = name;
-    return name;
-}
-
-// Profile rank of a row, derived from its HDR attributes once.
-function getRowProfileRank(row) {
-    const meta = rowMeta(row);
-    if (meta.profileRank === undefined) {
-        meta.profileRank = getProfileRank(
-            row.getAttribute('data-hdr-format') || '',
-            row.getAttribute('data-hdr-detail') || '',
-            row.getAttribute('data-el-type') || '');
-    }
-    return meta.profileRank;
-}
-
-function sortTableByProfile() {
-    sortRows((a, b) => {
-        const aRank = getRowProfileRank(a);
-        const bRank = getRowProfileRank(b);
-
-        if (aRank !== bRank) return aRank - bRank;
-
-        // If same priority, sort secondarily by filename
-        return compareByFilename(a, b);
-    });
-}
-
-function sortTableByProfileAudio() {
-    sortRows((a, b) => {
-        const aRank = getRowProfileRank(a);
-        const bRank = getRowProfileRank(b);
-
-        if (aRank !== bRank) return aRank - bRank;
-
-        const aAudioRank = getRowAudioRank(a);
-        const bAudioRank = getRowAudioRank(b);
-
-        if (aAudioRank !== bAudioRank) return aAudioRank - bAudioRank;
-
-        const aChannels = getRowChannelCount(a);
-        const bChannels = getRowChannelCount(b);
-        if (aChannels !== bChannels) return bChannels - aChannels;
-
-        return compareByFilename(a, b);
-    });
-}
-
-function sortTableByProfileVideoBitrate() {
-    sortRows((a, b) => {
-        const aRank = getRowProfileRank(a);
-        const bRank = getRowProfileRank(b);
-
-        if (aRank !== bRank) return aRank - bRank;
-
-        const aVideoBitrate = rowNumber(a, 'data-video-bitrate');
-        const bVideoBitrate = rowNumber(b, 'data-video-bitrate');
-
-        if (bVideoBitrate !== aVideoBitrate) return bVideoBitrate - aVideoBitrate;
-
-        return compareByFilename(a, b);
-    });
-}
-
-function sortTableByProfileAudioBitrate() {
-    sortRows((a, b) => {
-        const aRank = getRowProfileRank(a);
-        const bRank = getRowProfileRank(b);
-
-        if (aRank !== bRank) return aRank - bRank;
-
-        const aAudioBitrate = rowNumber(a, 'data-audio-bitrate');
-        const bAudioBitrate = rowNumber(b, 'data-audio-bitrate');
-
-        if (bAudioBitrate !== aAudioBitrate) return bAudioBitrate - aAudioBitrate;
-
-        return compareByFilename(a, b);
-    });
-}
-
-function sortTableByFilename() {
-    // Descending means Z-A here, so the alphabetical comparison is inverted -
-    // sortRows() flips it back for the ascending (default) direction.
-    sortRows((a, b) => -compareByFilename(a, b));
-}
-
-function getAudioCodecFromRow(row) {
-    const meta = rowMeta(row);
-    if (meta.audioCodec === undefined) {
-        // Get audio codec from the audio cell
-        const audioCell = row.querySelector('td.audio-codec');
-        meta.audioCodec = audioCell ? audioCell.textContent.trim() : '';
-    }
-    return meta.audioCodec;
-}
-
-// Codec rank and channel count of a row's audio, derived once.
-function getRowAudioRank(row) {
-    const meta = rowMeta(row);
-    if (meta.audioRank === undefined) {
-        meta.audioRank = getAudioRank(getAudioCodecFromRow(row));
-    }
-    return meta.audioRank;
-}
-
-function getRowChannelCount(row) {
-    const meta = rowMeta(row);
-    if (meta.channels === undefined) {
-        meta.channels = getChannelCount(getAudioCodecFromRow(row));
-    }
-    return meta.channels;
-}
-
 function getAudioRank(audioCodec) {
     // Normalize audio codec string
     const audio = (audioCodec || '').toLowerCase();
@@ -1320,165 +1568,156 @@ function getChannelCount(audioCodec) {
     return 0;
 }
 
+/* -------------------------------
+   Sorting
+
+   Every comparator describes the descending order of its mode and works on the
+   keys prepareMediaItem() derived, so a sort is plain number and string
+   comparison over an array - the table is re-rendered once at the end.
+   ------------------------------- */
+
+// Shared last resort of the comparators: alphabetical by filename.
+function compareByFilename(a, b) {
+    if (a.sortFilename < b.sortFilename) return -1;
+    if (a.sortFilename > b.sortFilename) return 1;
+    return 0;
+}
+
+// Sort the entries with a descending comparator, flipped when the active
+// direction is ascending, and put the result on screen.
+function sortMedia(compare) {
+    mediaItems.sort((a, b) => sortSign * compare(a, b));
+    applyMediaFilter();
+}
+
+function sortTableByProfile() {
+    sortMedia((a, b) =>
+        (a.profileRank - b.profileRank) || compareByFilename(a, b));
+}
+
+function sortTableByProfileAudio() {
+    sortMedia((a, b) =>
+        (a.profileRank - b.profileRank) ||
+        (a.audioRank - b.audioRank) ||
+        (b.audioChannels - a.audioChannels) ||
+        compareByFilename(a, b));
+}
+
+function sortTableByProfileVideoBitrate() {
+    sortMedia((a, b) =>
+        (a.profileRank - b.profileRank) ||
+        (b.sortVideoBitrate - a.sortVideoBitrate) ||
+        compareByFilename(a, b));
+}
+
+function sortTableByProfileAudioBitrate() {
+    sortMedia((a, b) =>
+        (a.profileRank - b.profileRank) ||
+        (b.sortAudioBitrate - a.sortAudioBitrate) ||
+        compareByFilename(a, b));
+}
+
+function sortTableByFilename() {
+    // Descending means Z-A here; sortMedia() flips it back for the ascending
+    // (default) direction.
+    sortMedia((a, b) => -compareByFilename(a, b));
+}
+
 function sortTableByAudio() {
-    sortRows((a, b) => {
-        const aRank = getRowAudioRank(a);
-        const bRank = getRowAudioRank(b);
-
-        if (aRank !== bRank) return aRank - bRank;
-
-        const aChannels = getRowChannelCount(a);
-        const bChannels = getRowChannelCount(b);
-        if (aChannels !== bChannels) return bChannels - aChannels;
-
-        const aLower = getAudioCodecFromRow(a).toLowerCase();
-        const bLower = getAudioCodecFromRow(b).toLowerCase();
-        if (aLower < bLower) return -1;
-        if (aLower > bLower) return 1;
-
+    sortMedia((a, b) => {
+        const byCodec = (a.audioRank - b.audioRank) || (b.audioChannels - a.audioChannels);
+        if (byCodec) return byCodec;
+        if (a.audioKey < b.audioKey) return -1;
+        if (a.audioKey > b.audioKey) return 1;
         return compareByFilename(a, b);
     });
 }
 
-// CM version rank and DV structure of a row, derived once.
-function getRowCmKeys(row) {
-    const meta = rowMeta(row);
-    if (meta.cmKeys === undefined) {
-        const cmVersion = row.getAttribute('data-dv-cm-version') || '';
-        meta.cmKeys = {
-            rank: getCmVersionRank(cmVersion),
-            structure: getCmStructureKey(cmVersion)
-        };
-    }
-    return meta.cmKeys;
+function sortTableByAudioAudioBitrate() {
+    sortMedia((a, b) =>
+        (a.audioRank - b.audioRank) ||
+        (b.audioChannels - a.audioChannels) ||
+        (b.sortAudioBitrate - a.sortAudioBitrate) ||
+        compareByFilename(a, b));
 }
 
 function sortTableByCmVersion() {
-    sortRows((a, b) => {
-        const aCm = getRowCmKeys(a);
-        const bCm = getRowCmKeys(b);
-
-        if (aCm.rank !== bCm.rank) return aCm.rank - bCm.rank;
+    sortMedia((a, b) => {
+        if (a.cmRank !== b.cmRank) return a.cmRank - b.cmRank;
 
         // Within the same CM version, group by DV structure (ST-DL, DT-DL, ...)
-        if (aCm.structure !== bCm.structure) {
-            if (!aCm.structure) return 1;
-            if (!bCm.structure) return -1;
-            return aCm.structure < bCm.structure ? -1 : 1;
+        if (a.cmStructure !== b.cmStructure) {
+            if (!a.cmStructure) return 1;
+            if (!b.cmStructure) return -1;
+            return a.cmStructure < b.cmStructure ? -1 : 1;
         }
 
-        const aProfileRank = getRowProfileRank(a);
-        const bProfileRank = getRowProfileRank(b);
-
-        if (aProfileRank !== bProfileRank) return aProfileRank - bProfileRank;
-
-        return compareByFilename(a, b);
+        return (a.profileRank - b.profileRank) || compareByFilename(a, b);
     });
 }
 
 /**
  * Sort by one rating source, highest first.
  *
- * `attribute` is the data attribute holding that source's score; titles the
- * source has no rating for count as 0 and therefore end up at the bottom.
+ * Titles the source has no rating for count as 0 and therefore end up at the
+ * bottom. Ratings are coarse, so several films share the same score - the IMDb
+ * Top 250 rank breaks the tie, best rank first, chart entries ahead of
+ * everything unranked.
  */
-function sortTableByRatingSource(attribute) {
-    sortRows((a, b) => {
-        // Rating first, highest on top
-        const aValue = rowNumber(a, attribute);
-        const bValue = rowNumber(b, attribute);
-        if (bValue !== aValue) return bValue - aValue;
-
-        // Ratings are coarse, so several films share the same score - the IMDb
-        // Top 250 rank breaks the tie, best rank first, chart entries ahead of
-        // everything unranked.
-        const aRank = rowNumber(a, 'data-imdb-top250') || Infinity;
-        const bRank = rowNumber(b, 'data-imdb-top250') || Infinity;
-        if (aRank !== bRank) return aRank - bRank;
-
-        return compareByFilename(a, b);
-    });
+function sortTableByRatingSource(key) {
+    sortMedia((a, b) =>
+        (b[key] - a[key]) ||
+        (a.sortTop250 - b.sortTop250) ||
+        compareByFilename(a, b));
 }
 
 function sortTableByRating() {
-    // 'data-rating' is the IMDb rating, or the TMDb one for entries that have
-    // no IMDb counterpart - the same fallback the poster badge shows, so a
-    // library scanned without an OMDb key still sorts by something.
-    sortTableByRatingSource('data-rating');
+    // The IMDb rating, or the TMDb one for entries that have no IMDb
+    // counterpart - the same fallback the poster badge shows, so a library
+    // scanned without an OMDb key still sorts by something.
+    sortTableByRatingSource('rating');
 }
 
 function sortTableByTmdbRating() {
-    sortTableByRatingSource('data-tmdb-rating');
+    sortTableByRatingSource('sortTmdbRating');
 }
 
 function sortTableByRtRating() {
-    sortTableByRatingSource('data-rt-rating');
+    sortTableByRatingSource('sortRtRating');
 }
 
 function sortTableByMetacritic() {
-    sortTableByRatingSource('data-metacritic');
+    sortTableByRatingSource('sortMetacritic');
+}
+
+// Highest / largest / newest first, alphabetical within equal values.
+function sortTableByNumericKey(key) {
+    sortMedia((a, b) => (b[key] - a[key]) || compareByFilename(a, b));
 }
 
 function sortTableByFileSize() {
-    sortTableByNumericAttribute('data-file-size');
+    sortTableByNumericKey('sortFileSize');
 }
 
 function sortTableByVideoBitrate() {
-    sortTableByNumericAttribute('data-video-bitrate');
+    sortTableByNumericKey('sortVideoBitrate');
 }
 
 function sortTableByAudioBitrate() {
-    sortTableByNumericAttribute('data-audio-bitrate');
-}
-
-function sortTableByAudioAudioBitrate() {
-    sortRows((a, b) => {
-        // Primary sorting by Audio Codec
-        const aRank = getRowAudioRank(a);
-        const bRank = getRowAudioRank(b);
-
-        if (aRank !== bRank) return aRank - bRank;
-
-        const aChannels = getRowChannelCount(a);
-        const bChannels = getRowChannelCount(b);
-        if (aChannels !== bChannels) return bChannels - aChannels;
-
-        // Secondary sorting by Audio Bitrate (descending, highest first)
-        const aAudioBitrate = rowNumber(a, 'data-audio-bitrate');
-        const bAudioBitrate = rowNumber(b, 'data-audio-bitrate');
-        if (bAudioBitrate !== aAudioBitrate) return bAudioBitrate - aAudioBitrate;
-
-        // Tertiary sorting by Filename (alphabetical)
-        return compareByFilename(a, b);
-    });
+    sortTableByNumericKey('sortAudioBitrate');
 }
 
 function sortTableByYear() {
-    // Newest first, then alphabetically within the same year
-    sortTableByNumericAttribute('data-year');
+    sortTableByNumericKey('sortYear');
 }
 
 function sortTableByDuration() {
-    // Longest first, then alphabetically within the same duration
-    sortTableByNumericAttribute('data-duration');
-}
-
-function sortTableByNumericAttribute(attribute) {
-    sortRows((a, b) => {
-        const aValue = rowNumber(a, attribute);
-        const bValue = rowNumber(b, attribute);
-
-        // Sort descending (highest/largest first)
-        if (bValue !== aValue) return bValue - aValue;
-
-        // If same value, sort secondarily by filename
-        return compareByFilename(a, b);
-    });
+    sortTableByNumericKey('sortDuration');
 }
 
 function sortTableByAdded() {
-    // Sort by file modification time (descending - newest first)
-    sortTableByNumericAttribute('data-mtime');
+    // Sort by file modification time (newest first)
+    sortTableByNumericKey('sortMtime');
 }
 
 // Sort mode -> the function that applies it. Filename is the fallback for an
@@ -1530,12 +1769,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load file list for scan dropdown
         loadFileList();
 
-        // Apply initial sorting
-        applySort();
+        // Only the rows in view are rendered, so the table has to follow the
+        // scroll position and react to a viewport change.
+        setupMediaVirtualScroll();
+        setupMediaTableInteraction();
 
-        // Update profile statistics on initial load
-        updateProfileStats();
-        
+        // Fetch the library and render it in the stored sort order
+        loadMediaLibrary();
+
         // Update clear button state on initial load
         updateClearButton();
 
@@ -1637,6 +1878,10 @@ function applyCollapseState(btn, expanded) {
         hideSvg.style.display = expanded ? 'none' : 'flex';
         showSvg.style.display = expanded ? 'flex' : 'none';
     }
+
+    // Nothing is rendered while the table is hidden, so a table brought back
+    // has to be filled for the position it is now scrolled to.
+    if (expanded) renderMediaWindow(true);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1938,49 +2183,6 @@ function setupSSE() {
     };
 }
 
-// Drop a row from the table and from the cached row list. Returns true when a
-// row was actually removed.
-function removeTableRow(row) {
-    if (!row) return false;
-    row.remove();
-    forgetMediaRow(row);
-    updateFileCount();
-    updateProfileStats();
-    return true;
-}
-
-function removeFileFromTable(filePath) {
-    // The full path identifies the entry uniquely - matching on the filename
-    // would hit the wrong row when the same name exists in two directories.
-    const card = document.querySelector(
-        `.poster-container[data-path="${CSS.escape(filePath)}"]`);
-    if (card && removeTableRow(card.closest('tr'))) {
-        console.log(`Removed deleted file from table: ${filePath}`);
-    }
-}
-
-function updateFileCount() {
-    const fileCountElement = document.getElementById('fileCount');
-    if (!fileCountElement) return;
-
-    const count = getMediaRows().filter(row => row.style.display !== 'none').length;
-
-    // Only the number changes; rewriting the element would mean re-translating
-    // it (and, before, re-running the translation pass over the whole page).
-    const label = fileCountElement.querySelector('[data-i18n="media_count"]');
-    const countNode = fileCountElement.firstChild;
-    if (label && countNode && countNode.nodeType === Node.TEXT_NODE) {
-        countNode.textContent = `${count} `;
-    } else {
-        fileCountElement.innerHTML = '';
-        fileCountElement.appendChild(document.createTextNode(`${count} `));
-        const span = document.createElement('span');
-        span.setAttribute('data-i18n', 'media_count');
-        span.textContent = t('media_count');
-        fileCountElement.appendChild(span);
-    }
-}
-
 /* -------------------------------
    Media Details Dialog Functions
    ------------------------------- */
@@ -2081,7 +2283,8 @@ function updateHdrMetadataRows(hdrFormat, hdrMetadata) {
 /**
  * Fill the row of external ratings under the cover. Each entry is hidden when
  * that source has no rating for the title; the whole row disappears when none
- * of them do. `ratings` holds the raw attribute values.
+ * of them do. `ratings` holds the entry's raw scores, null where a source has
+ * none.
  */
 function updateDialogRatings(ratings) {
     const container = document.getElementById('dialogRatings');
@@ -2103,7 +2306,7 @@ function updateDialogRatings(ratings) {
         if (!item || !value) return;
 
         const parsed = parseFloat(raw);
-        if (raw !== '' && raw !== 'None' && !isNaN(parsed) && (allowZero ? parsed >= 0 : parsed > 0)) {
+        if (!isNaN(parsed) && (allowZero ? parsed >= 0 : parsed > 0)) {
             value.textContent = format(parsed);
             item.style.display = 'flex';
             shown++;
@@ -2177,7 +2380,45 @@ function toggleDialogPlot() {
     }
 }
 
-function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, rating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata, imdbId, imdbTop250, ratings, genres) {
+/**
+ * Open the details dialog for one library entry.
+ *
+ * The entry is the record /api/library delivered, so the dialog reads the
+ * values straight from it instead of from data attributes on the row.
+ */
+function showMediaDialog(item) {
+    if (!item) return;
+
+    // Entries scanned without a TMDB key have no title or year at all, so the
+    // filename stands in - as it does on the card itself.
+    const hasPoster = !!item.poster_url;
+    const title = hasPoster ? (item.tmdb_title || item.filename) : item.filename;
+    const year = hasPoster ? (item.tmdb_year || '') : '';
+    const filename = item.filename || '';
+    const filePath = item.path || '';
+    const posterUrl = item.poster_url || '';
+    const duration = item.duration;
+    const videoBitrate = item.video_bitrate;
+    const audioBitrate = item.audio_bitrate;
+    const fileSize = item.file_size;
+    const tmdbId = item.tmdb_id;
+    const imdbId = item.imdb_id;
+    const rating = item.rating;
+    const imdbTop250 = item.imdb_top250;
+    const plot = item.tmdb_plot || '';
+    const directors = (item.tmdb_directors || []).join(', ');
+    const genres = (item.tmdb_genres || []).join(', ');
+    const cast = (item.tmdb_cast || []).join(', ');
+    const dvCmVersion = item.dv_cm_version || '';
+    const hdrFormat = item.hdr_format || '';
+    const hdrMetadata = item.hdr_metadata || {};
+    const ratings = {
+        imdb: item.imdb_rating,
+        tmdb: item.tmdb_rating,
+        rt: item.rt_rating,
+        metacritic: item.metacritic
+    };
+
     const overlay = document.getElementById('mediaDialogOverlay');
     const dialogTitle = document.getElementById('dialogTitle');
     const dialogDuration = document.getElementById('dialogDuration');
@@ -2210,11 +2451,9 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     // Store current file path for delete
     currentDialogFilePath = filePath || '';
     
-    // Set title with year if available. Entries scanned without a TMDB key
-    // have no title or year at all, so the filename stands in - and a stored
-    // null must never surface as the literal "None".
-    const safeTitle = (title && title !== 'None') ? title : (filename || '');
-    const safeYear = (year && year !== 'None') ? year : '';
+    // Set title with year if available
+    const safeTitle = title || filename;
+    const safeYear = year || '';
     if (safeYear !== '') {
         dialogTitle.textContent = `${safeTitle} (${safeYear})`;
     } else {
@@ -2222,7 +2461,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
     
     // Set poster image if available
-    if (posterUrl && posterUrl !== '' && posterUrl !== 'None') {
+    if (posterUrl) {
         dialogPosterImg.src = posterUrl;
         dialogPoster.style.display = 'block';
         
@@ -2243,8 +2482,8 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     
     // Set rating badge if available - IMDb when known, otherwise TMDb
     if (dialogRatingBadge && dialogRatingValue) {
-        if (rating && rating !== '' && rating !== 'None' && parseFloat(rating) > 0) {
-            dialogRatingValue.textContent = parseFloat(rating).toFixed(1);
+        if (rating > 0) {
+            dialogRatingValue.textContent = rating.toFixed(1);
             dialogRatingBadge.style.display = 'flex';
         } else {
             dialogRatingBadge.style.display = 'none';
@@ -2269,7 +2508,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     // Set plot if available, otherwise show fallback text. It starts folded to
     // five lines - whether the expand button is needed is decided once the
     // dialog is on screen and the text has a measurable height.
-    if (plot && plot !== '' && plot !== 'None') {
+    if (plot) {
         dialogPlotText.textContent = plot;
         dialogPlot.style.display = 'flex';
         resetDialogPlotClamp();
@@ -2287,7 +2526,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
 
     // Set genres if available
     if (dialogGenres && dialogGenresText) {
-        if (genres && genres !== '' && genres !== 'None') {
+        if (genres) {
             dialogGenresText.textContent = genres;
             dialogGenres.style.display = 'flex';
         } else {
@@ -2305,9 +2544,9 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     
     // Set duration
     dialogDuration.textContent = formatDuration(duration);
-    
+
     // Set file size
-    if (fileSize !== null && fileSize !== undefined && fileSize >= 0) {
+    if (fileSize >= 0) {
         dialogFileSize.textContent = formatFileSize(fileSize);
     } else {
         dialogFileSize.textContent = t('unknown');
@@ -2357,7 +2596,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
 
     // IMDb link - only for entries that resolved to an IMDb ID
     if (dialogImdbLink) {
-        if (imdbId && imdbId !== 'None' && /^tt\d+$/.test(imdbId)) {
+        if (imdbId && /^tt\d+$/.test(imdbId)) {
             dialogImdbLink.href = `https://www.imdb.com/title/${imdbId}/`;
             dialogImdbLink.style.display = 'inline-flex';
         } else {
@@ -2365,7 +2604,7 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
         }
     }
 
-    if (tmdbId && tmdbId !== 'None') {
+    if (tmdbId) {
         // TMDb link - direct to movie page
         dialogTmdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}`;
         dialogTmdbLink.style.display = 'inline-flex';
@@ -2412,54 +2651,16 @@ function showMediaDialog(title, year, duration, videoBitrate, audioBitrate, file
     }
 }
 
-function showMediaDialogFromData(element) {
-    // Technical values live on the row (the sorting reads them there), the
-    // title/artwork data on the card - so the markup carries each of them
-    // once. The card is still checked first, so a customised template that
-    // keeps its own copy keeps working.
-    const row = element.closest('tr');
-    const attr = name => {
-        const own = element.getAttribute(name);
-        if (own !== null && own !== '') return own;
-        return (row && row.getAttribute(name)) || '';
-    };
-
-    const title = element.getAttribute('data-title') || '';
-    const year = element.getAttribute('data-year') || '';
-    const duration = parseFloat(attr('data-duration')) || null;
-    const videoBitrate = parseInt(attr('data-video-bitrate')) || null;
-    const audioBitrate = parseInt(attr('data-audio-bitrate')) || null;
-    const fileSize = parseInt(attr('data-file-size')) || null;
-    const posterUrl = element.getAttribute('data-poster-url') || '';
-    const tmdbId = element.getAttribute('data-tmdb-id') || '';
-    const imdbId = element.getAttribute('data-imdb-id') || '';
-    const rating = element.getAttribute('data-rating') || '';
-    const imdbTop250 = attr('data-imdb-top250');
-    const ratings = {
-        imdb: element.getAttribute('data-imdb-rating') || '',
-        tmdb: element.getAttribute('data-tmdb-rating') || '',
-        rt: element.getAttribute('data-rt-rating') || '',
-        metacritic: element.getAttribute('data-metacritic') || ''
-    };
-    const plot = element.getAttribute('data-plot') || '';
-    const directors = element.getAttribute('data-directors') || '';
-    const genres = element.getAttribute('data-genres') || '';
-    const cast = element.getAttribute('data-cast') || '';
-    const filename = element.getAttribute('data-filename') || '';
-    const dvCmVersion = attr('data-dv-cm-version');
-    const filePath = element.getAttribute('data-path') || '';
-    const hdrFormat = attr('data-hdr-format');
-
-    // Entries scanned before the HDR metadata was collected carry no payload;
-    // the dialog then falls back to zeroed values
-    let hdrMetadata = {};
-    try {
-        hdrMetadata = JSON.parse(element.getAttribute('data-hdr-metadata') || '{}') || {};
-    } catch (e) {
-        hdrMetadata = {};
-    }
-
-    showMediaDialog(title, year, duration, videoBitrate, audioBitrate, fileSize, posterUrl, tmdbId, plot, directors, cast, rating, filename, dvCmVersion, filePath, hdrFormat, hdrMetadata, imdbId, imdbTop250, ratings, genres);
+// Opening an entry is handled on the table body, so the thousands of rows a
+// library can have never each carry their own listener - and rows that scroll
+// in and out of the DOM need no wiring at all.
+function setupMediaTableInteraction() {
+    const tbody = getMediaBody();
+    if (!tbody) return;
+    tbody.addEventListener('click', event => {
+        const row = event.target.closest('tr');
+        if (row && row.mediaItem) showMediaDialog(row.mediaItem);
+    });
 }
 
 async function rescanCurrentEntry() {

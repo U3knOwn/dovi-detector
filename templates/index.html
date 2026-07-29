@@ -129,8 +129,11 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
 
         <div id="message" class="message"></div>
 
-        {% if files %}
-        <table id="mediaTable" class="collapsible-table">
+        {# The table is filled from /api/library and only the rows in view are
+           put into the DOM - see renderMediaWindow() in main.js. Rendering
+           every entry here meant megabytes of markup and tens of thousands of
+           DOM nodes for a large library. #}
+        <table id="mediaTable" class="collapsible-table" hidden>
             <thead>
                 <tr>
                     <th data-i18n="table_header_poster"></th>
@@ -139,167 +142,12 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     <th data-i18n="table_header_resolution"></th>
                 </tr>
             </thead>
-            <tbody id="collapsed_button">
-                {% for file in files %}
-                {# The IMDb rating is what is shown; entries without one (no OMDb key,
-                   unknown title) keep falling back to the TMDB rating. #}
-                {% set rating = file.imdb_rating or file.tmdb_rating %}
-                {# We add data attributes so JS can handle sorting #}
-                <tr data-hdr-format="{{ file.hdr_format }}"
-                    data-hdr-detail="{{ file.hdr_detail }}"
-                    data-el-type="{{ file.el_type or '' }}"
-                    data-rating="{{ rating or '0' }}"
-                    {# Per-source scores so the sort dropdown can order by IMDb,
-                       TMDb, Rotten Tomatoes or Metacritic individually. #}
-                    data-tmdb-rating="{{ file.tmdb_rating or '0' }}"
-                    data-rt-rating="{{ file.rt_rating or '0' }}"
-                    data-metacritic="{{ file.metacritic or '0' }}"
-                    data-imdb-top250="{{ file.imdb_top250|default('', true) }}"
-                    data-file-size="{{ file.file_size|default('0') }}"
-                    data-video-bitrate="{{ file.video_bitrate|default('0') }}"
-                    data-audio-bitrate="{{ file.audio_bitrate|default('0') }}"
-                    data-year="{{ file.tmdb_year|default('', true) }}"
-                    data-duration="{{ file.duration|default('') }}"
-                    data-mtime="{{ file.mtime|default('0') }}"
-                    data-dv-cm-version="{{ file.dv_cm_version|default('') }}">
-                    <td data-label-i18n="table_header_poster" data-label="Poster / Dateiname" title="{{ file.filename }}">
-                        {# One card for both cases: with a poster it carries the TMDB
-                           title and year, without one the filename stands in. Values
-                           the row above already carries (duration, bitrates, size,
-                           rank, HDR format) are not repeated here - the dialog reads
-                           them from the row. #}
-                        <div class="poster-container{% if not file.poster_url %} poster-fallback{% endif %}"
-                             data-title="{% if file.poster_url %}{{ file.tmdb_title|default(file.filename, true) }}{% else %}{{ file.filename }}{% endif %}"
-                             data-year="{% if file.poster_url %}{{ file.tmdb_year|default('', true) }}{% endif %}"
-                             data-poster-url="{{ file.poster_url|default('') }}"
-                             data-tmdb-id="{{ file.tmdb_id|default('') }}"
-                             data-imdb-id="{{ file.imdb_id|default('', true) }}"
-                             data-rating="{{ rating|default('', true) }}"
-                             data-imdb-rating="{{ file.imdb_rating|default('', true) }}"
-                             data-tmdb-rating="{{ file.tmdb_rating|default('', true) }}"
-                             data-rt-rating="{{ file.rt_rating|default('', true) }}"
-                             data-metacritic="{{ file.metacritic|default('', true) }}"
-                             data-plot="{{ file.tmdb_plot|default('') }}"
-                             data-directors="{{ file.tmdb_directors|default([])|join(', ') }}"
-                             data-genres="{{ file.tmdb_genres|default([])|join(', ') }}"
-                             data-cast="{{ file.tmdb_cast|default([])|join(', ') }}"
-                             data-filename="{{ file.filename }}"
-                             data-hdr-metadata='{{ file.hdr_metadata|default({})|tojson }}'
-                             data-path="{{ file.path }}"
-                             onclick="showMediaDialogFromData(this)">
-                            {# Entries scanned without a TMDB key have no title - the
-                               filename stands in, as it does on the poster-less card. #}
-                            <span class="poster-title">{% if file.poster_url and file.tmdb_title %}{{ file.tmdb_title }}{% if file.tmdb_year %} ({{ file.tmdb_year }}){% endif %}{% else %}{{ file.filename }}{% endif %}</span>
-                            <div class="poster-img-wrapper">
-                                {% if file.poster_url %}
-                                <img src="{{ file.poster_url }}" alt="{{ file.filename }}" class="poster-img" loading="lazy" decoding="async">
-                                {% if rating %}
-                                <div class="rating-badge">
-                                    <span class="rating-logo"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg></span>
-                                    <span class="rating-value">{{ "%.1f"|format(rating) }}</span>
-                                </div>
-                                {% endif %}
-                                {% if file.imdb_top250 %}
-                                <div class="top250-badge" title="IMDb Top 250 - #{{ file.imdb_top250 }}">#{{ file.imdb_top250 }}</div>
-                                {% endif %}
-                                {% else %}
-                                <div class="poster-img poster-placeholder" aria-hidden="true">
-                                    <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect width="18" height="18" x="3" y="3" rx="2"/>
-                                        <path d="M7 3v18"/>
-                                        <path d="M3 7.5h4"/>
-                                        <path d="M3 12h4"/>
-                                        <path d="M3 16.5h4"/>
-                                        <path d="M17 3v18"/>
-                                        <path d="M17 7.5h4"/>
-                                        <path d="M17 12h4"/>
-                                        <path d="M17 16.5h4"/>
-                                    </svg>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </td>
-
-                    <td data-label-i18n="table_header_hdr">
-                        {% if file.hdr_format == 'Dolby Vision' and file.el_type %}
-                        <span class="hdr-badge hdr-dolby-vision el-{{ file.el_type.lower() }}">
-                            {% if not file.hdr_detail or file.hdr_detail == 'Unknown' %}
-                                <span data-i18n="unknown"></span>{% if file.el_type %} ({{ file.el_type }}){% endif %}
-                            {% else %}
-                                {{ file.hdr_detail }}{% if file.el_type %} ({{ file.el_type }}){% endif %}
-                            {% endif %}
-                        </span>
-                        {% else %}
-                        <span class="hdr-badge hdr-{{ file.hdr_format.lower().replace(' ', '-').replace('+', 'plus') }}">
-                            {% if not file.hdr_detail or file.hdr_detail == 'Unknown' %}
-                                <span data-i18n="unknown"></span>
-                            {% else %}
-                                {{ file.hdr_detail }}
-                            {% endif %}
-                        </span>
-                        {% if file.el_type %}
-                        <span class="el-badge el-{{ file.el_type.lower() }}">
-                            {{ file.el_type }}
-                        </span>
-                        {% endif %}
-                        {% endif %}
-                    </td>
-
-                    <td class="audio-codec" data-label-i18n="table_header_audio">
-                        {% set audio_class = 'unknown' %}
-                        {% if 'TrueHD' in file.audio_codec and 'Atmos' in file.audio_codec %}
-                            {% set audio_class = 'truehd-atmos' %}
-                        {% elif 'DTS:X' in file.audio_codec or 'DTS-X' in file.audio_codec %}
-                            {% set audio_class = 'dtsx' %}
-                        {% elif 'TrueHD' in file.audio_codec %}
-                            {% set audio_class = 'truehd' %}
-                        {% elif 'DTS-HD MA' in file.audio_codec %}
-                            {% set audio_class = 'dts-hd-ma' %}
-                        {% elif 'DTS-HD HRA' in file.audio_codec %}
-                            {% set audio_class = 'dts-hd-hra' %}
-                        {% elif 'Digital Plus' in file.audio_codec and 'Atmos' in file.audio_codec %}
-                            {% set audio_class = 'ddplus-atmos' %}
-                        {% elif 'Digital Plus' in file.audio_codec %}
-                            {% set audio_class = 'ddplus' %}
-                        {% elif 'Dolby Digital' in file.audio_codec %}
-                            {% set audio_class = 'dolby-digital' %}
-                        {% elif 'DTS' in file.audio_codec %}
-                            {% set audio_class = 'dts' %}
-                        {% elif 'AAC' in file.audio_codec %}
-                            {% set audio_class = 'aac' %}
-                        {% elif 'FLAC' in file.audio_codec or 'PCM' in file.audio_codec %}
-                            {% set audio_class = 'lossless' %}
-                        {% endif %}
-                        <span class="audio-badge audio-{{ audio_class }}">
-                            {% if not file.audio_codec or file.audio_codec == 'Unknown' %}
-                                <span data-i18n="unknown"></span>
-                            {% else %}
-                                {{ file.audio_codec }}
-                            {% endif %}
-                        </span>
-                    </td>
-
-                    <td data-label-i18n="table_header_resolution">
-                        {% if 'x' in file.resolution and file.resolution not in ['4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'] %}
-                            {% set resolution_class = 'unknown' %}
-                        {% else %}
-                            {% set resolution_class = file.resolution.lower().replace(' ', '-') %}
-                        {% endif %}
-                        <span class="resolution-badge resolution-{{ resolution_class }}">
-                            {{ file.resolution }}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
+            <tbody id="collapsed_button"></tbody>
         </table>
-        {% else %}
-        <div class="empty-state">
+        <div class="empty-state" id="emptyState" hidden>
             <h2 data-i18n="empty_title"></h2>
             <p data-i18n-html="empty_description"></p>
         </div>
-        {% endif %}
 
         <div class="controls statsbar">
             <div class="stats">

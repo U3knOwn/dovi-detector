@@ -879,6 +879,32 @@ tbody tr:hover td {
     display: none;
 }
 
+/* Only the rows in view are rendered; these two rows hold the space of all the
+   others, so the scrollbar and every scroll position stay true to the full
+   list. They must not look like a row - in either layout, since the stacked
+   mobile view draws each row as a card. Their outer spacing is deliberately
+   left alone: it is part of the height they stand in for. */
+.media-spacer,
+.media-spacer:hover {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+}
+
+.media-spacer td,
+.media-spacer:hover td {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+.media-spacer td:before {
+    content: none;
+}
+
 .table-container {
     position: relative;
 }

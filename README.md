@@ -153,6 +153,15 @@ DoVi-Detector/
 3. **MediaInfo** extracts resolution, duration, audio codec, and bitrate information
 4. **Results** are saved to JSON database
 
+### Web Interface Rendering
+
+The library page ships as a small shell and fetches the scanned entries from
+`/api/library` as JSON. Sorting, searching and the statistics run on that data
+in the browser, and only the rows currently in view are put into the DOM (from
+120 entries upwards) - so a library of several thousand titles loads in a
+fraction of a second instead of shipping megabytes of markup. Text responses
+are gzip-compressed.
+
 ### Static Files and Templates
 
 The application intelligently manages static files and templates with version tracking:
