@@ -1,0 +1,305 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* Everything that changes on narrower screens. */
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+/* Compact table for narrow desktop widths / phones in landscape:
+   without this the badge min-widths force the table wider than
+   the container and rows overflow horizontally. */
+@media screen and (max-width: 1150px) and (min-width: 916px) {
+    .poster-img {
+        width: 220px;
+    }
+
+    .poster-title {
+        max-width: 220px;
+    }
+
+    .hdr-badge,
+    .el-badge,
+    .resolution-badge,
+    .audio-badge {
+        width: 180px;
+        padding: 7px 8px;
+        font-size: 0.76rem;
+        letter-spacing: 0;
+    }
+
+    tbody tr td {
+        padding: 16px 10px;
+    }
+
+    thead th {
+        padding: 10px 10px 2px;
+    }
+}
+
+@media screen and (max-width: 915px) {
+    /* The three links keep their single row on a phone by sharing the width
+       instead of each demanding its desktop minimum */
+    .dialog-link {
+        flex: 1 1 0;
+        min-width: 0;
+        gap: 6px;
+        padding: 0 10px;
+        font-size: 0.82rem;
+    }
+
+    body {
+        padding: 10px;
+    }
+
+    header {
+        top: 8px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+    }
+
+    .header-logo {
+        width: 36px;
+        height: 36px;
+    }
+
+    .title-text {
+        font-size: 1.1rem;
+    }
+
+    .logo-container {
+        gap: 10px;
+    }
+
+    .controls {
+        width: 100%;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .top-group,
+    .bottom-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .left-group,
+    .right-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .left-group > *,
+    .right-group > * {
+        width: 100%;
+    }
+
+    .controls .file-select-trigger,
+    .controls .custom-select#sortSelectWrap,
+    .scan-progress {
+        width: 100%;
+    }
+
+    #searchInput,
+    .search-container {
+        width: 100%;
+    }
+
+    /* ---------- Table becomes cards ---------- */
+
+    table {
+        border-spacing: 0 12px;
+    }
+
+    table thead,
+    thead,
+    table thead tr,
+    table thead th {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    tbody {
+        display: block;
+    }
+
+    tr {
+        display: block;
+        margin-bottom: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 16px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    tbody tr td,
+    tbody tr td:first-child,
+    tbody tr td:last-child {
+        display: block;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        text-align: left;
+        padding: 8px 0;
+        position: relative;
+        word-break: break-word;
+        overflow-wrap: break-word;
+    }
+
+    tbody tr:hover td {
+        background: transparent;
+    }
+
+    td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-right: 10px;
+        font-weight: 600;
+        color: var(--text-faint);
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+    }
+
+    td[data-label-i18n="table_header_hdr"]:before,
+    td[data-label-i18n="table_header_resolution"]:before,
+    td[data-label-i18n="table_header_audio"]:before {
+        display: none;
+    }
+
+    /* Poster and badges share the same centered column width so they
+       stay exactly as wide as each other without ballooning on wider
+       portrait screens (tablets, large phones). */
+    td[data-label-i18n="table_header_hdr"],
+    td[data-label-i18n="table_header_resolution"],
+    td[data-label-i18n="table_header_audio"] {
+        text-align: center;
+        padding-left: 0;
+        width: 100%;
+        max-width: 560px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-sizing: border-box;
+    }
+
+    td:first-child {
+        padding-top: 0;
+        padding-left: 0;
+        text-align: center;
+    }
+
+    td:first-child:before {
+        display: none;
+    }
+
+    td:last-child {
+        padding-bottom: 4px;
+    }
+
+    .poster-container {
+        width: 100%;
+        max-width: 560px;
+        margin-left: auto;
+        margin-right: auto;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .poster-img-wrapper {
+        width: 100%;
+        display: block;
+    }
+
+    .poster-img {
+        width: 100%;
+    }
+
+    .poster-title {
+        max-width: 100%;
+        font-size: 1.05rem;
+    }
+
+    .hdr-badge,
+    .el-badge,
+    .resolution-badge,
+    .audio-badge {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        margin: 3px 0;
+        box-sizing: border-box;
+        white-space: normal;
+    }
+
+    /* ---------- Stats / footer ---------- */
+
+    .controls.statsbar {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .stats {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .language-switcher {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .language-switcher .custom-select {
+        width: auto;
+    }
+
+    /* ---------- Dialog ---------- */
+
+    .media-dialog {
+        padding: 22px 18px;
+        max-width: 95%;
+    }
+
+    .file-dialog {
+        padding: 22px 16px 16px;
+        max-width: 95%;
+        max-height: 85vh;
+    }
+
+    .dialog-title {
+        font-size: 1.15rem;
+        margin-bottom: 18px;
+    }
+
+    .dialog-info {
+        gap: 16px;
+    }
+
+    .empty-state {
+        margin-bottom: 20px;
+        padding: 40px 18px;
+    }
+
+    .empty-state h2 {
+        font-size: 1.1rem;
+    }
+
+    .site-footer {
+        flex-direction: column;
+        gap: 12px;
+        padding: 20px 14px 6px;
+        margin-top: auto;
+        text-align: center;
+    }
+}

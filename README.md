@@ -133,13 +133,40 @@ The dashboard displays the following information:
 ### Architecture
 
 ```
-DoVi-Detector/
-├── app.py              # Flask application with scanner logic
+universal-video-scanner/
+├── app.py              # Entry point: builds the app and starts everything
+├── config.py           # Configuration read from the environment
+├── core/               # Events, scan state, scanner wiring, background tasks
+│   ├── compression.py  # Gzip for text responses
+│   ├── events.py       # Server-Sent Events fan-out
+│   ├── scan_state.py   # Progress of the running scan
+│   ├── scanner.py      # The scanner and its dependencies wired together
+│   └── tasks.py        # Backfills, metadata retry, initial scan
+├── routes/             # HTTP endpoints, grouped by topic
+│   ├── library.py      # / and /api/library
+│   ├── scanning.py     # /scan, /scan_file(s), /get_files, /scan_status
+│   ├── entries.py      # /delete_entry, /rescan_entry, /clear_database
+│   ├── posters.py      # /poster/<file>
+│   └── events.py       # /events
+├── services/           # Scanning, online lookups, database
+├── utils/              # File, media and translation helpers
+├── watchers/           # File system watcher
+├── static/
+│   ├── css/            # One stylesheet per part of the interface
+│   ├── js/             # ES modules
+│   │   ├── main.js     # Entry point
+│   │   ├── core/       # Translations, theme, server calls, live updates
+│   │   ├── helpers/    # Formatting, ranking, small DOM helpers
+│   │   ├── library/    # The entries, their sorting and the table
+│   │   └── ui/         # Dialogs, dropdowns, buttons, layout
+│   ├── fonts/          # Bundled fonts
+│   └── locale/         # Translations
+├── templates/          # HTML templates
 ├── Dockerfile          # Container definition
 ├── docker-compose.yml  # Deployment configuration
 ├── requirements.txt    # Python dependencies
-├── media/             # Media directory (volume)
-└── data/              # Database directory (volume)
+├── media/              # Media directory (volume)
+└── data/               # Database directory (volume)
     ├── scanned_files.json  # Video scan results
     ├── posters/           # Cached poster images
     ├── static/            # Static files (CSS, JS, fonts, locales)
@@ -188,14 +215,17 @@ The application intelligently manages static files and templates with version tr
 
 **Example customizations:**
 ```bash
-# Edit CSS styles
-nano ./data/static/css/style.css
+# Edit CSS styles (one file per part of the interface)
+nano ./data/static/css/table.css
 
 # Modify translations
 nano ./data/static/locale/en.json
 
 # Customize HTML template
 nano ./data/templates/index.html
+
+# Change the behaviour of a part of the interface
+nano ./data/static/js/library/sorting.js
 
 # Restart container to apply changes (customizations preserved)
 docker-compose restart

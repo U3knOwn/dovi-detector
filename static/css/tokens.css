@@ -1,0 +1,81 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* Colours, spacing, radii and shadows - the values every other file uses. */
+
+/* ============================================================
+   Design Tokens
+   ============================================================ */
+
+:root {
+    --bg: #0a0c12;
+    --surface: #12151d;
+    --surface-2: #171b26;
+    --surface-3: #1d2230;
+    --control-bg: #0d1017;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text: #e8ecf4;
+    --text-muted: #98a2b8;
+    --text-faint: #626c80;
+    --accent: #6366f1;
+    --accent-2: #8b5cf6;
+    --accent-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --title-grad: linear-gradient(135deg, #818cf8 0%, #a78bfa 45%, #f472b6 100%);
+    --ring: rgba(99, 102, 241, 0.4);
+    --success: #34d399;
+    --info: #7dd3fc;
+    --danger: #f87171;
+    --radius-lg: 18px;
+    --radius: 12px;
+    --radius-sm: 9px;
+    --radius-pill: 999px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.5);
+    --glow: 0 0 0 1px rgba(99, 102, 241, 0.4), 0 8px 24px rgba(99, 102, 241, 0.25);
+    --header-bg: rgba(15, 18, 26, 0.78);
+    --overlay-bg: rgba(5, 7, 11, 0.72);
+    --scroll-toggle-bg: rgba(23, 27, 38, 0.85);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+    --progress-track: rgba(255, 255, 255, 0.08);
+    --accent-soft: #a5b4fc;
+    --bg-glow-1: rgba(99, 102, 241, 0.13);
+    --bg-glow-2: rgba(236, 72, 153, 0.08);
+    --font: 'Inter', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --control-h: 42px;
+}
+
+:root[data-theme="light"] {
+    --bg: #eef1f7;
+    --surface: #ffffff;
+    --surface-2: #f4f6fb;
+    --surface-3: #e9edf5;
+    --control-bg: #ffffff;
+    --border: rgba(20, 28, 46, 0.1);
+    --border-strong: rgba(20, 28, 46, 0.18);
+    --text: #1c2333;
+    --text-muted: #55617a;
+    --text-faint: #8791a5;
+    --title-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
+    --ring: rgba(99, 102, 241, 0.45);
+    --success: #059669;
+    --info: #0284c7;
+    --danger: #dc2626;
+    --shadow-sm: 0 1px 2px rgba(20, 28, 46, 0.06);
+    --shadow-md: 0 8px 24px rgba(20, 28, 46, 0.1);
+    --shadow-lg: 0 24px 64px rgba(20, 28, 46, 0.18);
+    --glow: 0 0 0 1px rgba(99, 102, 241, 0.35), 0 8px 24px rgba(99, 102, 241, 0.18);
+    --header-bg: rgba(255, 255, 255, 0.82);
+    --overlay-bg: rgba(23, 30, 46, 0.4);
+    --scroll-toggle-bg: rgba(255, 255, 255, 0.88);
+    --scrollbar-thumb: rgba(20, 28, 46, 0.18);
+    --scrollbar-thumb-hover: rgba(20, 28, 46, 0.32);
+    --progress-track: rgba(20, 28, 46, 0.1);
+    --accent-soft: #4f46e5;
+    --bg-glow-1: rgba(99, 102, 241, 0.09);
+    --bg-glow-2: rgba(236, 72, 153, 0.06);
+}

@@ -1,0 +1,99 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* The scroll button and the footer. */
+
+/* ============================================================
+   Scroll Toggle Button
+   ============================================================ */
+
+.scroll-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--scroll-toggle-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--text);
+    display: grid;
+    place-items: center;
+    font-size: 1.1rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-strong);
+    cursor: pointer;
+    z-index: 9999;
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.3s cubic-bezier(0.2, 0.9, 0.2, 1), border-color 0.15s ease;
+    will-change: transform, opacity;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.scroll-toggle .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scroll-toggle .icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+.scroll-toggle:hover {
+    border-color: rgba(99, 102, 241, 0.6);
+    color: var(--accent-soft);
+}
+
+.scroll-toggle:active {
+    transform: scale(0.86);
+}
+
+.scroll-toggle.hidden {
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+}
+/* ============================================================
+   Footer
+   ============================================================ */
+
+.site-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24px;
+    padding: 26px 20px 6px;
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    font-size: 0.84rem;
+}
+
+.site-footer .footer-button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-faint);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.site-footer .footer-button:hover {
+    color: var(--text);
+}
+
+.site-footer .footer-button svg {
+    flex-shrink: 0;
+}
+
+#clearDbButton:hover {
+    color: var(--danger);
+}

@@ -22,7 +22,16 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
     </script>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/inter.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {# The stylesheet is split by what it styles; the order below is the
+       cascade, so a later file may override an earlier one. #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/table.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dialogs.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chrome.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-light.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
     <div class="container">
@@ -383,6 +392,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
     </button>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {# main.js pulls in the modules below static/js/ (core, helpers, library, ui) #}
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
