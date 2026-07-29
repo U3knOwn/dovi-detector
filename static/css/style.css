@@ -445,18 +445,16 @@ header {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    width: var(--control-h);
     height: var(--control-h);
-    padding: 0 12px;
+    padding: 0;
     background-color: var(--control-bg);
     color: var(--text-muted);
     border: 1px solid var(--border);
     /* No left border: the trigger's right edge is the divider. */
     border-left: none;
     border-radius: 0 var(--radius) var(--radius) 0;
-    font-size: 0.82rem;
-    font-weight: 600;
-    white-space: nowrap;
     cursor: pointer;
     transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
@@ -621,6 +619,9 @@ header {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    /* Icon-only, so it is square instead of the shared 0 14px padding. */
+    width: var(--control-h);
+    padding: 0;
     color: var(--text-muted);
     user-select: none;
     line-height: 1;
@@ -2392,6 +2393,12 @@ tbody tr:hover td {
     .left-group > *,
     .right-group > * {
         width: 100%;
+    }
+
+    /* Icon-only, so it stays square instead of stretching across the row. */
+    .right-group > .collapse-btn {
+        width: var(--control-h);
+        align-self: flex-end;
     }
 
     .controls .file-select-trigger,

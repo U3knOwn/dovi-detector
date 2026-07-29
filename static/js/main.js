@@ -106,6 +106,12 @@ function applyTranslations() {
         if (translations[key]) el.setAttribute('data-label', translations[key]);
     });
     
+    // Tooltips (icon-only controls carry their label there)
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (translations[key]) el.setAttribute('title', translations[key]);
+    });
+
     // Aria labels
     document.querySelectorAll('[data-aria-label-i18n]').forEach(el => {
         const key = el.getAttribute('data-aria-label-i18n');
@@ -670,21 +676,19 @@ function toggleSortDirection() {
     applySort(mode);
 }
 
-// Keep the toggle's arrow, label and accessible name in sync with the
-// direction the given mode is currently sorted in.
+// Keep the toggle's arrow and its label in sync with the direction the given
+// mode is currently sorted in. The button is icon-only, so the direction is
+// spelled out in the tooltip and the accessible name.
 function updateSortDirToggle(mode) {
     const btn = document.getElementById('sortDirToggle');
     if (!btn) return;
     const asc = getSortDirection(mode) === 'asc';
-    const label = t(asc ? 'sort_direction_asc' : 'sort_direction_desc');
+    const label = `${t('sort_direction_toggle')} - ${t(asc ? 'sort_direction_asc' : 'sort_direction_desc')}`;
 
     btn.classList.toggle('asc', asc);
     btn.setAttribute('aria-pressed', asc ? 'true' : 'false');
-    btn.setAttribute('title', t('sort_direction_toggle'));
-    btn.setAttribute('aria-label', `${t('sort_direction_toggle')} - ${label}`);
-
-    const labelEl = document.getElementById('sortDirLabel');
-    if (labelEl) labelEl.textContent = label;
+    btn.setAttribute('title', label);
+    btn.setAttribute('aria-label', label);
 }
 
 // Sort the table rows with a descending comparator, flipped when the active
