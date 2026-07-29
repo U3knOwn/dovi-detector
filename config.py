@@ -64,6 +64,24 @@ LANGUAGE_CODE_MAP = {
     'uk': ['ukr', 'uk', 'ukrainian'],
 }
 
+# --- Public API (/api/v1) ---------------------------------------------------
+# Token every request to /api/v1 has to carry. Without one the versioned API
+# stays switched off (it answers 503) - an API that lets a caller wipe the
+# database must not be open to whoever reaches the port.
+API_TOKEN = os.environ.get('API_TOKEN', '').strip()
+
+
+def _env_list(name):
+    """Read a comma-separated environment variable into a list of values."""
+    raw = os.environ.get(name, '')
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
+# Origins a browser may call /api/v1 from. Empty means no CORS headers at all,
+# so only same-origin requests work; '*' allows every origin. Server-side
+# callers (curl, scripts, dashboards) are not affected by this either way.
+API_CORS_ORIGINS = _env_list('API_CORS_ORIGINS')
+
 # Static files configuration
 # Use bundled static files from /app directory instead of downloading from GitHub
 TEMPLATES_DIR = '/app/templates'

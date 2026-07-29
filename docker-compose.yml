@@ -18,3 +18,5 @@ services:
       - IMAGE_SOURCE=${IMAGE_SOURCE:-tmdb}  # Image source: 'tmdb' (default) or 'fanart'
       - CONTENT_LANGUAGE=${CONTENT_LANGUAGE:-en}  # Preferred content language: ISO 639-1 code (default: en)
       - SCAN_WORKERS=${SCAN_WORKERS:-1}  # Files probed in parallel during a bulk scan. 1 = sequential (safest for a single HDD). Try 2-4 for a NAS / SSD to scan faster
+      - API_TOKEN=${API_TOKEN:-}  # Token for the /api/v1 API (openssl rand -hex 32). Empty = API disabled
+      - API_CORS_ORIGINS=${API_CORS_ORIGINS:-}  # Origins a browser app may call /api/v1 from, comma-separated or '*'. Empty = same-origin only

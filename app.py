@@ -83,6 +83,12 @@ def _report_configuration():
     """Print what the scanner will and will not be able to do with these keys."""
     print(f"Content language: {config.CONTENT_LANGUAGE.upper()}")
 
+    if config.API_TOKEN:
+        origins = ', '.join(config.API_CORS_ORIGINS) if config.API_CORS_ORIGINS else 'same-origin only'
+        print(f"✓ API enabled at /api/v1 (token required, CORS: {origins})")
+    else:
+        print("API disabled (set API_TOKEN to enable /api/v1)")
+
     if not config.REQUESTS_AVAILABLE:
         return
 

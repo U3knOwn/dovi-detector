@@ -3,9 +3,9 @@
 """
 HTTP endpoints, grouped by what they are about.
 """
-from routes import entries, events, library, posters, scanning
+from routes import api_v1, entries, events, library, posters, scanning
 
-BLUEPRINTS = (library.bp, scanning.bp, posters.bp, events.bp, entries.bp)
+BLUEPRINTS = (library.bp, scanning.bp, posters.bp, events.bp, entries.bp, api_v1.bp)
 
 
 def register_routes(app):
