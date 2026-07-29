@@ -67,13 +67,8 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     </button>
                 </div>
                 <div class="right-group">
-                    <div id="scanProgress" class="scan-progress" style="display: none;">
-                        <div class="scan-progress-bar-container">
-                            <div id="scanProgressBar" class="scan-progress-bar"></div>
-                        </div>
-                        <span id="scanProgressText" class="scan-progress-text">0%</span>
-                    </div>
-                    {# Show/hide the media table, right-aligned next to the scan progress. #}
+                    {# Show/hide the media table, right-aligned; the scan progress
+                       takes the outermost spot once a scan is running. #}
                     <div class="collapse-btn" aria-expanded="true" aria-controls="collapsed_button">
                         <span class="toggle hide">
                             <svg height="18" width="18" viewBox="0 -960 960 960" fill="currentColor">
@@ -87,6 +82,12 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                             </svg>
                             <span data-i18n="hide"></span>
                         </span>
+                    </div>
+                    <div id="scanProgress" class="scan-progress" style="display: none;">
+                        <div class="scan-progress-bar-container">
+                            <div id="scanProgressBar" class="scan-progress-bar"></div>
+                        </div>
+                        <span id="scanProgressText" class="scan-progress-text">0%</span>
                     </div>
                 </div>
             </div>
