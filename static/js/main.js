@@ -1615,27 +1615,115 @@ function applyHeaderActionsCollapsed(collapsed) {
     if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
 }
 
+// Apply the state, remember it, and restart the idle countdown below.
+function setHeaderActionsCollapsed(collapsed) {
+    applyHeaderActionsCollapsed(collapsed);
+
+    try {
+        localStorage.setItem('dovi_header_actions_collapsed', String(collapsed));
+    } catch (e) { /* localStorage unavailable -> choice won't persist */ }
+
+    scheduleHeaderActionsAutoCollapse();
+}
+
+// Left alone, the opened group folds itself back up, so a header tapped by
+// accident does not stay open.
+const HEADER_ACTIONS_IDLE_MS = 5000;
+let headerActionsIdleTimer = null;
+
+// Whether the group still counts as being used, and should be left open for
+// another round rather than folding away under the user.
+function isHeaderActionsInUse(actions) {
+    // Touch browsers can leave :hover stuck on whatever was tapped last, which
+    // would keep the group open forever - so the pointer only counts on devices
+    // that really hover.
+    const canHover = window.matchMedia('(hover: hover)').matches;
+    if (canHover && actions.matches(':hover')) return true;
+
+    // A mouse click leaves focus sitting on the button it hit, so only keyboard
+    // focus (:focus-visible) means someone is still working in there.
+    return !!actions.querySelector(':focus-visible');
+}
+
+// Restart the countdown from zero; a no-op while the group is collapsed.
+function scheduleHeaderActionsAutoCollapse() {
+    if (headerActionsIdleTimer !== null) {
+        clearTimeout(headerActionsIdleTimer);
+        headerActionsIdleTimer = null;
+    }
+
+    const actions = document.querySelector('.header-actions');
+    if (!actions || actions.classList.contains('collapsed')) return;
+
+    headerActionsIdleTimer = setTimeout(() => {
+        headerActionsIdleTimer = null;
+
+        if (isHeaderActionsInUse(actions)) {
+            scheduleHeaderActionsAutoCollapse();
+            return;
+        }
+
+        setHeaderActionsCollapsed(true);
+    }, HEADER_ACTIONS_IDLE_MS);
+}
+
+// How wide the group is when open, handed to CSS as --header-actions-width.
+// Measured rather than hard-coded so the fold stays even, and stays correct, if
+// a button is ever added to the group.
+function measureHeaderActionsWidth(actions) {
+    const group = document.getElementById('headerActionsGroup');
+    if (!group) return;
+
+    const wasCollapsed = actions.classList.contains('collapsed');
+
+    actions.classList.add('no-transition');
+    actions.classList.remove('collapsed');
+    group.style.maxWidth = 'none';
+
+    const width = Math.ceil(group.getBoundingClientRect().width);
+
+    group.style.maxWidth = '';
+    actions.classList.toggle('collapsed', wasCollapsed);
+    void actions.offsetWidth;
+    actions.classList.remove('no-transition');
+
+    if (width > 0) {
+        actions.style.setProperty('--header-actions-width', `${width}px`);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    const actions = document.querySelector('.header-actions');
+    if (!actions) return;
+
+    measureHeaderActionsWidth(actions);
+
     let saved = null;
     try {
         saved = localStorage.getItem('dovi_header_actions_collapsed');
     } catch (e) { /* localStorage unavailable -> start collapsed */ }
 
+    // The markup starts collapsed, so restoring an opened group would otherwise
+    // animate open on every load.
+    actions.classList.add('no-transition');
     applyHeaderActionsCollapsed(saved === null ? true : saved === 'true');
+    void actions.offsetWidth;
+    actions.classList.remove('no-transition');
 
     const btn = document.getElementById('headerActionsToggle');
     if (btn) {
         btn.addEventListener('click', () => {
-            const actions = document.querySelector('.header-actions');
-            if (!actions) return;
-
-            const next = !actions.classList.contains('collapsed');
-            applyHeaderActionsCollapsed(next);
-            try {
-                localStorage.setItem('dovi_header_actions_collapsed', String(next));
-            } catch (e) { /* localStorage unavailable -> choice won't persist */ }
+            setHeaderActionsCollapsed(!actions.classList.contains('collapsed'));
         });
     }
+
+    // Anything done inside the header actions - pressing one of the buttons,
+    // tabbing in, moving the pointer across them - buys another five seconds.
+    ['pointerdown', 'pointermove', 'click', 'keydown', 'focusin'].forEach(type => {
+        actions.addEventListener(type, scheduleHeaderActionsAutoCollapse);
+    });
+
+    scheduleHeaderActionsAutoCollapse();
 });
 
 function applyControlsCollapsed(collapsed) {

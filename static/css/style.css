@@ -282,7 +282,6 @@ header {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
     flex-shrink: 0;
 }
 
@@ -290,11 +289,43 @@ header {
     display: flex;
     align-items: center;
     gap: 8px;
+    /* Padding, pulled straight back out by the margins, keeps focus outlines
+       clear of the overflow clip below. The right margin is what separates the
+       group from the chevron, so it can fold away with the group itself. */
+    padding: 6px;
+    margin: -6px 2px -6px -6px;
+    /* max-width is what animates the fold, so it needs a number; JS measures the
+       group and sets the property, the literal is only the fallback. */
+    max-width: var(--header-actions-width, 320px);
+    opacity: 1;
+    visibility: visible;
+    overflow: hidden;
+    transition: max-width 0.28s ease, padding 0.28s ease, margin 0.28s ease,
+                opacity 0.2s ease, transform 0.28s ease;
 }
 
-/* Collapsed, the chevron is the only button left in the header. */
+/* Collapsed, the chevron is the only button left in the header. The group
+   folds to zero width rather than display:none so the change can animate;
+   visibility flips only once it is out of sight, which also takes the buttons
+   back out of the tab order. */
 .header-actions.collapsed .header-actions-group {
-    display: none;
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: 0;
+    margin-right: 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(10px);
+    transition: max-width 0.28s ease, padding 0.28s ease, margin 0.28s ease,
+                opacity 0.2s ease, transform 0.28s ease,
+                visibility 0s linear 0.28s;
+}
+
+/* Restoring the stored state on load must not look like the group is opening
+   by itself. */
+.header-actions.no-transition .header-actions-group {
+    transition: none;
 }
 
 .header-actions-caret {
