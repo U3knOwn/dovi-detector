@@ -155,17 +155,15 @@
 }
 
 /* What in the dialog takes the same accent: its title, its field labels, the
-   filename, the button that unfolds the plot and the one that closes it. The
-   close button only until it is pointed at - the dark theme turns it red there,
-   which says what the button does and is worth more than the colour.
+   button that unfolds the plot and the one that closes it.
 
    All of them are the panel's own furniture rather than the entry's own words -
-   the slogan, the plot and the field values stay the plain text colour - so
-   the colour lands on what is there to be scanned past, not on what is being
-   read. Without a cover they fall back to the slate above, which for the
-   labels is a shade off the --text-faint they would otherwise have had. */
+   the slogan, the plot, the filename and the field values stay the plain text
+   colour - so the colour lands on what is there to be scanned past, not on what
+   is being read. Without a cover they fall back to the slate above, which for
+   the labels is a shade off the --text-faint they would otherwise have had. */
 :root[data-theme="dark-adaptive"] :is(.dialog-title, .dialog-label,
-        .dialog-filename-item .dialog-value, .dialog-plot-toggle, .dialog-close) {
+        .dialog-plot-toggle, .dialog-close) {
     color: rgb(var(--cover-accent-rgb));
 }
 
@@ -193,12 +191,6 @@
    them together. */
 :root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating) {
     background: transparent;
-}
-
-:root[data-theme="dark-adaptive"] :is(.dialog-link, .dialog-rescan-btn,
-        .dialog-delete-btn) {
-    backdrop-filter: blur(8px) saturate(1.4);
-    -webkit-backdrop-filter: blur(8px) saturate(1.4);
 }
 
 /* The quietest text in the two tinted areas, a step further from the surface

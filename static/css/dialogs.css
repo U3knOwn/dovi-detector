@@ -509,7 +509,7 @@
     padding: 8px 4px;
     border-radius: var(--radius);
     background: var(--surface-2);
-    border: 1px solid var(--border-strong);
+    border: 2px solid var(--border);
     min-width: 0;
 }
 
@@ -680,7 +680,7 @@
     overflow-wrap: break-word;
     max-width: 100%;
     font-size: 0.82rem;
-    color: var(--text-muted);
+    color: var(--text);
     font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 }
 
@@ -706,12 +706,13 @@
     min-width: 124px;
     height: 40px;
     border-radius: var(--radius-pill);
-    border: 1px solid transparent;
+    background: transparent;
+    border: 2px solid transparent;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.88rem;
     letter-spacing: 0.01em;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
 .dialog-link svg {
@@ -719,36 +720,30 @@
 }
 
 .dialog-link.imdb {
-    background: rgba(245, 197, 24, 0.12);
     border-color: rgba(245, 197, 24, 0.4);
     color: #f5c518;
 }
 
 .dialog-link.imdb:hover {
-    background: rgba(245, 197, 24, 0.22);
-    border-color: rgba(245, 197, 24, 0.6);
+    border-color: rgba(245, 197, 24, 0.75);
 }
 
 .dialog-link.tmdb {
-    background: rgba(1, 180, 228, 0.12);
     border-color: rgba(1, 180, 228, 0.4);
     color: #67d3f5;
 }
 
 .dialog-link.tmdb:hover {
-    background: rgba(1, 180, 228, 0.22);
-    border-color: rgba(1, 180, 228, 0.6);
+    border-color: rgba(1, 180, 228, 0.75);
 }
 
 .dialog-link.youtube {
-    background: rgba(255, 64, 64, 0.12);
     border-color: rgba(255, 64, 64, 0.4);
     color: #ff7b7b;
 }
 
 .dialog-link.youtube:hover {
-    background: rgba(255, 64, 64, 0.22);
-    border-color: rgba(255, 64, 64, 0.6);
+    border-color: rgba(255, 64, 64, 0.75);
 }
 
 .dialog-link:hover {
@@ -776,8 +771,9 @@
     font-weight: 600;
     font-size: 0.92rem;
     cursor: pointer;
-    border: 1px solid transparent;
-    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    background: transparent;
+    border: 2px solid transparent;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .dialog-action-btn svg {
@@ -792,25 +788,23 @@
 }
 
 .dialog-rescan-btn {
-    background: rgba(99, 102, 241, 0.12);
     color: var(--accent-soft);
     border-color: rgba(99, 102, 241, 0.4);
 }
 
 .dialog-rescan-btn:hover:not(:disabled) {
-    background: rgba(99, 102, 241, 0.22);
+    border-color: rgba(99, 102, 241, 0.75);
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(99, 102, 241, 0.15);
 }
 
 .dialog-delete-btn {
-    background: rgba(248, 113, 113, 0.12);
     color: var(--danger);
     border-color: rgba(248, 113, 113, 0.4);
 }
 
 .dialog-delete-btn:hover:not(:disabled) {
-    background: rgba(248, 113, 113, 0.22);
+    border-color: rgba(248, 113, 113, 0.75);
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(248, 113, 113, 0.15);
 }
