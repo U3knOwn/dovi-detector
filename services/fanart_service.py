@@ -35,6 +35,28 @@ def is_valid_fanart_url(url):
         return False
 
 
+def _thumb_likes(thumb):
+    """A thumb's like count, 0 when it carries none or an unparsable one."""
+    try:
+        return int(thumb.get('likes', 0))
+    except (ValueError, TypeError):
+        return 0
+
+
+def _most_liked_url(thumbs, language=None):
+    """
+    The URL of the most-liked thumb, restricted to one ``language`` when given.
+
+    Returns None when no thumb matches, and also when the winner carries no URL
+    at all - either way the caller moves on to its next choice.
+    """
+    if language is not None:
+        thumbs = [t for t in thumbs if (t.get('lang') or '').lower() == language]
+    if not thumbs:
+        return None
+    return max(thumbs, key=_thumb_likes).get('url')
+
+
 def get_fanart_poster_by_id(tmdb_id, media_type, fanart_api_key, content_language):
     """Fetch thumb poster URL from Fanart.tv API by TMDB ID"""
     if not fanart_api_key or not REQUESTS_AVAILABLE:
@@ -58,44 +80,22 @@ def get_fanart_poster_by_id(tmdb_id, media_type, fanart_api_key, content_languag
         response = requests.get(url, params=params, timeout=10)
 
         if response.status_code == 200:
-            data = response.json()
+            thumbs = response.json().get('moviethumb', [])
 
-            # Get moviethumb for movies
-            if media_type == 'movie':
-                thumbs = data.get('moviethumb', [])
-                if thumbs:
-                    # Helper function to safely get likes
-                    def get_likes(thumb):
-                        try:
-                            return int(thumb.get('likes', 0))
-                        except (ValueError, TypeError):
-                            return 0
+            # The configured language first, then English, then whatever has
+            # the most likes regardless of language.
+            languages = ('en',) if content_language == 'en' else (content_language, 'en')
+            for index, language in enumerate(languages):
+                thumb_url = _most_liked_url(thumbs, language)
+                if thumb_url:
+                    note = ' (fallback)' if index else ''
+                    print(f"  [FANART] Thumb poster found in {language}{note}: {thumb_url}")
+                    return thumb_url
 
-                    # Filter by preferred language first
-                    preferred_thumbs = [t for t in thumbs if t.get('lang', '').lower() == content_language]
-                    if preferred_thumbs:
-                        preferred_thumbs_sorted = sorted(preferred_thumbs, key=get_likes, reverse=True)
-                        thumb_url = preferred_thumbs_sorted[0].get('url')
-                        if thumb_url:
-                            print(f"  [FANART] Thumb poster found in {content_language}: {thumb_url}")
-                            return thumb_url
-
-                    # Fallback to English if no images in preferred language
-                    if content_language != 'en':
-                        en_thumbs = [t for t in thumbs if t.get('lang', '').lower() == 'en']
-                        if en_thumbs:
-                            en_thumbs_sorted = sorted(en_thumbs, key=get_likes, reverse=True)
-                            thumb_url = en_thumbs_sorted[0].get('url')
-                            if thumb_url:
-                                print(f"  [FANART] Thumb poster found in en (fallback): {thumb_url}")
-                                return thumb_url
-
-                    # Final fallback: all images sorted by likes
-                    thumbs_sorted = sorted(thumbs, key=get_likes, reverse=True)
-                    thumb_url = thumbs_sorted[0].get('url')
-                    if thumb_url:
-                        print(f"  [FANART] Thumb poster found (any language): {thumb_url}")
-                        return thumb_url
+            thumb_url = _most_liked_url(thumbs)
+            if thumb_url:
+                print(f"  [FANART] Thumb poster found (any language): {thumb_url}")
+                return thumb_url
 
         if response.status_code not in [200, 404]:
             print(

@@ -55,7 +55,7 @@ export function toggleSortDirection() {
 // Keep the toggle's arrow and its label in sync with the direction the given
 // mode is currently sorted in. The button is icon-only, so the direction is
 // spelled out in the tooltip and the accessible name.
-export function updateSortDirToggle(mode) {
+function updateSortDirToggle(mode) {
     const btn = document.getElementById('sortDirToggle');
     if (!btn) return;
     const asc = getSortDirection(mode) === 'asc';
@@ -67,15 +67,9 @@ export function updateSortDirToggle(mode) {
     btn.setAttribute('aria-label', label);
 }
 
-/* -------------------------------
-   Media library data
-
-   The table is not rendered by the server: the entries arrive as JSON from
-   /api/library and only the rows currently in view are put into the DOM.
-   Server-rendering a 5000 entry library meant ~25 MB of markup and ~90.000 DOM
-   nodes, which cost seconds before the page was usable - something no amount
-   of compression fixes.
-   ------------------------------- */
+/* Every comparator below describes the descending order of its mode and works
+   on the keys prepareMediaItem() derived, so a sort is plain number and string
+   comparison over an array - the table is re-rendered once at the end. */
 
 // Shared last resort of the comparators: alphabetical by filename.
 function compareByFilename(a, b) {

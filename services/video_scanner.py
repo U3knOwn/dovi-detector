@@ -4,13 +4,14 @@
 Video Scanner Service Module
 Handles video file analysis, HDR detection, and metadata extraction
 """
-import os
-import json
-import shutil
-import tempfile
-import itertools
-import subprocess
 import concurrent.futures
+import itertools
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+
 from services.ratings_service import (
     RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings, empty_ratings
 )
@@ -566,32 +567,27 @@ def get_audio_tracks(tracks):
     return [t for t in tracks if t.get('@type') == 'Audio']
 
 
+# The exact frame sizes that have a name of their own. Anything else is
+# reported as its plain dimensions.
+RESOLUTION_NAMES = {
+    (7680, 4320): "8K (UHD)",
+    (4096, 2160): "4K DCI",
+    (3840, 2160): "4K (UHD)",
+    (2560, 1440): "1440p",
+    (1920, 1080): "1080p (Full HD)",
+    (1366, 768): "768p",
+    (1280, 720): "720p (HD)",
+    (854, 480): "480p (SD)",
+    (640, 480): "480p (SD)",
+}
+
+
 def resolution_name(width, height):
     """Map pixel width/height to a friendly resolution name"""
     if not width or not height:
         return "Unknown"
 
-    # Map resolution to friendly names
-    if width == 3840 and height == 2160:
-        return "4K (UHD)"
-    elif width == 1920 and height == 1080:
-        return "1080p (Full HD)"
-    elif width == 1280 and height == 720:
-        return "720p (HD)"
-    elif width == 7680 and height == 4320:
-        return "8K (UHD)"
-    elif width == 2560 and height == 1440:
-        return "1440p"
-    elif width == 4096 and height == 2160:
-        return "4K DCI"
-    elif width == 1366 and height == 768:
-        return "768p"
-    elif width == 854 and height == 480:
-        return "480p (SD)"
-    elif width == 640 and height == 480:
-        return "480p (SD)"
-    else:
-        return f"{width}x{height}"
+    return RESOLUTION_NAMES.get((width, height), f"{width}x{height}")
 
 
 def get_video_resolution(tracks):
@@ -796,6 +792,37 @@ def get_channel_count(track):
     return parse_mediainfo_int(track.get('Channels')) or 0
 
 
+def _upper_field(track, field):
+    """One MediaInfo field of a track, upper-cased so a match ignores case."""
+    return (track.get(field) or '').upper()
+
+
+def is_dtsx_track(track):
+    """
+    Whether an audio track carries DTS:X.
+
+    MediaInfo spells it differently depending on where it read it from, so
+    every field it can appear in is checked. Shared by the quality ranking and
+    the codec label, which would otherwise disagree about the same track.
+    """
+    commercial = _upper_field(track, 'Format_Commercial_IfAny')
+    name = _upper_field(track, 'Format')
+    title = _upper_field(track, 'Title')
+    return ('DTS:X' in commercial or 'DTS-X' in commercial or
+            'DTS XLL X' in name or 'XLL X' in name or
+            'DTS:X' in _upper_field(track, 'Format_AdditionalFeatures') or
+            'DTS:X' in title or 'DTS-X' in title)
+
+
+def is_atmos_track(track):
+    """
+    Whether an audio track carries Dolby Atmos.
+
+    'Dolby Atmos' contains 'Atmos', so the one check covers both spellings.
+    """
+    return 'ATMOS' in _upper_field(track, 'Format_Commercial_IfAny')
+
+
 def get_codec_quality_score(track):
     """
     Get a quality score for an audio codec. Higher score = better quality.
@@ -806,18 +833,12 @@ def get_codec_quality_score(track):
     Returns:
         int: Quality score (higher is better)
     """
-    format_commercial = track.get('Format_Commercial_IfAny', '').upper()
-    format_name = track.get('Format', '').upper()
-    format_additional = track.get('Format_AdditionalFeatures', '').upper()
-    title = track.get('Title', '').upper()
+    format_commercial = _upper_field(track, 'Format_Commercial_IfAny')
+    format_name = _upper_field(track, 'Format')
 
-    # Check for DTS:X variants (check before other DTS formats)
-    is_dtsx = ('DTS:X' in format_commercial or 'DTS-X' in format_commercial or
-               'DTS XLL X' in format_name or 'XLL X' in format_name or
-               'DTS:X' in format_additional or 'DTS:X' in title or 'DTS-X' in title)
-
-    # Check for Dolby Atmos variants (check before other Dolby formats)
-    is_atmos = 'DOLBY ATMOS' in format_commercial or 'ATMOS' in format_commercial
+    # Both are checked before the plain DTS / Dolby formats below
+    is_dtsx = is_dtsx_track(track)
+    is_atmos = is_atmos_track(track)
 
     # Object-based audio with lossless base codec (highest quality)
     if is_atmos and ('TRUEHD' in format_name or 'TRUEHD' in format_commercial or 'MLP FBA' in format_name):
@@ -952,87 +973,73 @@ def get_audio_bitrate(tracks):
 
 def get_audio_codec(tracks):
     """Get audio codec with detailed profile info, preferring configured language tracks"""
-    audio_tracks = get_audio_tracks(tracks)
-    if audio_tracks:
-        # Select best track from preferred language, then English, then all
-        selected_track = select_preferred_audio_track(audio_tracks)
+    # Best track from the preferred language, then English, then all of them.
+    # Returns None for a file without any audio track at all.
+    selected_track = select_preferred_audio_track(get_audio_tracks(tracks))
+    if not selected_track:
+        return "Unknown"
 
-        if selected_track:
-            # Extract format information from MediaInfo
-            format_commercial = selected_track.get(
-                'Format_Commercial_IfAny', '')
-            format_name = selected_track.get('Format', '')
-            format_profile = selected_track.get('Format_Profile', '')
-            format_additional = selected_track.get(
-                'Format_AdditionalFeatures', '')
-            title = selected_track.get('Title', '')
+    # Extract format information from MediaInfo
+    format_commercial = selected_track.get('Format_Commercial_IfAny', '')
+    format_name = selected_track.get('Format', '')
+    format_profile = selected_track.get('Format_Profile', '')
+    title = selected_track.get('Title', '')
 
-            # Get channel format string
-            channel_str = get_channel_format(get_channel_count(selected_track))
-            channel_suffix = f" {channel_str}" if channel_str else ""
+    # Get channel format string
+    channel_str = get_channel_format(get_channel_count(selected_track))
+    channel_suffix = f" {channel_str}" if channel_str else ""
 
-            # Check for IMAX in title
-            is_imax = 'imax' in title.lower()
+    # Detect formats using MediaInfo's commercial names and format details.
+    # Atmos and DTS:X both have to be settled before the plain Dolby / DTS
+    # formats below, and use the same checks the quality ranking does.
+    if is_atmos_track(selected_track):
+        if 'TrueHD' in format_name or 'TrueHD' in format_commercial:
+            return f'Dolby TrueHD{channel_suffix} (Atmos)'
+        elif 'E-AC-3' in format_name or 'E-AC-3' in format_commercial:
+            return f'Dolby Digital Plus{channel_suffix} (Atmos)'
+        elif 'AC-3' in format_name:
+            return f'Dolby Digital{channel_suffix} (Atmos)'
+        else:
+            return f'Dolby Atmos{channel_suffix}'
 
-            # Detect formats using MediaInfo's commercial names and format details
-            # Dolby Atmos detection
-            if 'Dolby Atmos' in format_commercial or 'Atmos' in format_commercial:
-                if 'TrueHD' in format_name or 'TrueHD' in format_commercial:
-                    return f'Dolby TrueHD{channel_suffix} (Atmos)'
-                elif 'E-AC-3' in format_name or 'E-AC-3' in format_commercial:
-                    return f'Dolby Digital Plus{channel_suffix} (Atmos)'
-                elif 'AC-3' in format_name:
-                    return f'Dolby Digital{channel_suffix} (Atmos)'
-                else:
-                    return f'Dolby Atmos{channel_suffix}'
+    if is_dtsx_track(selected_track):
+        # An IMAX mix is called out, as it is a different master of the track
+        if 'imax' in title.lower():
+            return f'DTS:X (IMAX){channel_suffix}'
+        return f'DTS:X{channel_suffix}'
 
-            # DTS:X detection - check multiple fields before DTS-HD MA
-            # Check format_commercial, format_name, format_additional, and
-            # title
-            if ('DTS:X' in format_commercial or 'DTS-X' in format_commercial or
-                'DTS XLL X' in format_name or 'XLL X' in format_name or
-                'DTS:X' in format_additional or
-                    'DTS:X' in title or 'DTS-X' in title):
-                if is_imax:
-                    return f'DTS:X (IMAX){channel_suffix}'
-                return f'DTS:X{channel_suffix}'
+    # Standard format detection based on Format field
+    if format_name == 'MLP FBA' or 'TrueHD' in format_name:
+        return f'Dolby TrueHD{channel_suffix}'
+    elif format_name == 'E-AC-3' or 'E-AC-3' in format_commercial:
+        return f'Dolby Digital Plus{channel_suffix}'
+    elif format_name == 'AC-3':
+        return f'Dolby Digital{channel_suffix}'
+    elif 'DTS XLL' in format_name or 'DTS-HD Master Audio' in format_commercial:
+        return f'DTS-HD MA{channel_suffix}'
+    elif 'DTS XBR' in format_name or 'DTS-HD High Resolution' in format_commercial:
+        return f'DTS-HD HRA{channel_suffix}'
+    elif format_name == 'DTS':
+        if 'DTS-HD' in format_commercial:
+            return f'DTS-HD{channel_suffix}'
+        return f'DTS{channel_suffix}'
+    elif format_name == 'AAC':
+        return f'AAC{channel_suffix}'
+    elif format_name == 'FLAC':
+        return f'FLAC{channel_suffix}'
+    elif format_name == 'MPEG Audio':
+        if 'Layer 3' in format_profile:
+            return f'MP3{channel_suffix}'
+        return f'MPEG Audio{channel_suffix}'
+    elif format_name == 'Opus':
+        return f'Opus{channel_suffix}'
+    elif format_name == 'Vorbis':
+        return f'Vorbis{channel_suffix}'
+    elif format_name == 'PCM':
+        return f'PCM{channel_suffix}'
 
-            # Standard format detection based on Format field
-            if format_name == 'MLP FBA' or 'TrueHD' in format_name:
-                return f'Dolby TrueHD{channel_suffix}'
-            elif format_name == 'E-AC-3' or 'E-AC-3' in format_commercial:
-                return f'Dolby Digital Plus{channel_suffix}'
-            elif format_name == 'AC-3':
-                return f'Dolby Digital{channel_suffix}'
-            elif 'DTS XLL' in format_name or 'DTS-HD Master Audio' in format_commercial:
-                return f'DTS-HD MA{channel_suffix}'
-            elif 'DTS XBR' in format_name or 'DTS-HD High Resolution' in format_commercial:
-                return f'DTS-HD HRA{channel_suffix}'
-            elif format_name == 'DTS':
-                if 'DTS-HD' in format_commercial:
-                    return f'DTS-HD{channel_suffix}'
-                return f'DTS{channel_suffix}'
-            elif format_name == 'AAC':
-                return f'AAC{channel_suffix}'
-            elif format_name == 'FLAC':
-                return f'FLAC{channel_suffix}'
-            elif format_name == 'MPEG Audio':
-                if 'Layer 3' in format_profile:
-                    return f'MP3{channel_suffix}'
-                return f'MPEG Audio{channel_suffix}'
-            elif format_name == 'Opus':
-                return f'Opus{channel_suffix}'
-            elif format_name == 'Vorbis':
-                return f'Vorbis{channel_suffix}'
-            elif format_name == 'PCM':
-                return f'PCM{channel_suffix}'
-            else:
-                # Return the format name if we didn't match any specific
-                # pattern
-                codec_name = format_name if format_name else 'Unknown'
-                return f'{codec_name}{channel_suffix}'
-
-    return "Unknown"
+    # Return the format name if we didn't match any specific pattern
+    return f'{format_name or "Unknown"}{channel_suffix}'
 
 
 def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_database_func,
@@ -1432,7 +1439,7 @@ def scan_directory(directory, scanned_paths):
         return []
 
     new_files = []
-    for root, dirs, files in os.walk(directory):
+    for root, _dirs, files in os.walk(directory):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in config.SUPPORTED_FORMATS:
@@ -1481,7 +1488,7 @@ def bulk_scan_files(file_paths, scan_video_file_func, save_database_func=None,
     """
     total = len(file_paths)
     max_workers = max(1, max_workers)
-    save_batch = max(1, getattr(config, 'SCAN_SAVE_BATCH', 25))
+    save_batch = max(1, config.SCAN_SAVE_BATCH)
 
     scanned_new = 0
     since_save = 0

@@ -226,7 +226,7 @@ def list_media_files():
     missing, then by name (A-Z, case-insensitive) within each group.
     """
     all_files = []
-    for root, dirs, files in os.walk(config.MEDIA_PATH):
+    for root, _dirs, files in os.walk(config.MEDIA_PATH):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in config.SUPPORTED_FORMATS:

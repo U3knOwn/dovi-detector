@@ -246,7 +246,7 @@ export function showMediaDialog(item) {
 
     // Store current file path for delete
     currentDialogFilePath = filePath || '';
-    
+
     // Set title with year if available
     const safeTitle = title || filename;
     const safeYear = year || '';
@@ -255,7 +255,7 @@ export function showMediaDialog(item) {
     } else {
         dialogTitle.textContent = safeTitle;
     }
-    
+
     // Set poster image if available
     if (posterUrl) {
         dialogPosterImg.src = posterUrl;
@@ -280,7 +280,7 @@ export function showMediaDialog(item) {
         // keep showing the previously opened entry's filename.
         if (dialogFilenameItem) dialogFilenameItem.style.display = 'none';
     }
-    
+
     // Set rating badge if available - IMDb when known, otherwise TMDb
     if (dialogRatingBadge && dialogRatingValue) {
         if (rating > 0) {
@@ -305,7 +305,7 @@ export function showMediaDialog(item) {
             dialogTop250Badge.style.display = 'none';
         }
     }
-    
+
     // Set the tagline - the title's slogan, shown above the plot it introduces
     if (dialogTagline && dialogTaglineText) {
         if (tagline) {
@@ -352,7 +352,7 @@ export function showMediaDialog(item) {
     } else {
         dialogCast.style.display = 'none';
     }
-    
+
     // Set duration
     dialogDuration.textContent = formatDuration(duration);
 
@@ -362,7 +362,7 @@ export function showMediaDialog(item) {
     } else {
         dialogFileSize.textContent = t('unknown');
     }
-    
+
     // Set video bitrate
     if (videoBitrate && videoBitrate > 0) {
         dialogVideoBitrate.textContent = `${formatMbps(videoBitrate)} ${t('unit_Mb')}`;
@@ -394,7 +394,7 @@ export function showMediaDialog(item) {
     if (dialogDeleteContainer) {
         dialogDeleteContainer.style.display = currentDialogFilePath !== '' ? 'flex' : 'none';
     }
-    
+
     // Set up links
     if (dialogImdbLink) {
         dialogImdbLink.classList.remove(...dialogImdbLink.classList);
@@ -419,7 +419,7 @@ export function showMediaDialog(item) {
         // TMDb link - direct to movie page
         dialogTmdbLink.href = `https://www.themoviedb.org/movie/${tmdbId}`;
         dialogTmdbLink.style.display = 'inline-flex';
-        
+
         // Set up YouTube trailer link
         if (safeTitle !== '') {
             const searchQuery = safeYear !== '' ?
@@ -431,7 +431,7 @@ export function showMediaDialog(item) {
         } else {
             dialogTrailerLink.style.display = 'none';
         }
-        
+
         // Show links container
         if (dialogLinksContainer) dialogLinksContainer.style.display = '';
     } else {
@@ -443,7 +443,7 @@ export function showMediaDialog(item) {
         const hasImdbLink = dialogImdbLink && dialogImdbLink.style.display !== 'none';
         if (dialogLinksContainer) dialogLinksContainer.style.display = hasImdbLink ? '' : 'none';
     }
-    
+
     collapseEmptyInfoRows();
 
     // Show dialog
@@ -538,7 +538,7 @@ export function closeMediaDialog(event) {
     if (event) {
         event.stopPropagation();
     }
-    
+
     const overlay = document.getElementById('mediaDialogOverlay');
     overlay.classList.remove('active');
     document.body.style.overflow = '';
@@ -553,20 +553,20 @@ let swipeListenersAttached = false;
 
 function setupSwipeToClose() {
     const dialog = document.querySelector('.media-dialog');
-    
+
     if (!dialog || swipeListenersAttached) return;
-    
+
     dialog.addEventListener('touchstart', function(e) {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
-    
+
     dialog.addEventListener('touchend', function(e) {
         touchEndX = e.changedTouches[0].screenX;
         touchEndY = e.changedTouches[0].screenY;
         handleSwipe();
     }, { passive: true });
-    
+
     swipeListenersAttached = true;
 }
 
@@ -574,7 +574,7 @@ function handleSwipe() {
     const swipeThreshold = 100;
     const horizontalSwipe = Math.abs(touchEndX - touchStartX);
     const verticalSwipe = Math.abs(touchEndY - touchStartY);
-    
+
     // Only consider horizontal swipes (left or right)
     if (horizontalSwipe > swipeThreshold && horizontalSwipe > verticalSwipe) {
         closeMediaDialog();

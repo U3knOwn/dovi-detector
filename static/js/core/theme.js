@@ -92,7 +92,7 @@ function applyTheme(theme) {
     updateThemeMenuSelection();
 }
 
-export function setTheme(theme) {
+function setTheme(theme) {
     persistTheme(theme);
     applyTheme(theme);
 }
@@ -102,7 +102,7 @@ export function toggleTheme() {
     setTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]);
 }
 
-export function updateThemeToggleLabel() {
+function updateThemeToggleLabel() {
     const btn = document.getElementById('themeToggle');
     if (!btn) return;
     const idx = THEME_ORDER.indexOf(getCurrentTheme());

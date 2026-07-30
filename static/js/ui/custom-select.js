@@ -181,11 +181,7 @@ export function initCustomSelects() {
     });
 }
 
-/* -------------------------------
-   New Sorting Logic (client-side)
-   ------------------------------- */
-
-export function updateLanguageButtons() {
+function updateLanguageButtons() {
     // Keep the language dropdown in sync with the active language,
     // otherwise it falls back to the hardcoded default after a reload.
     if (languageInstance) languageInstance.setValue(currentLang);

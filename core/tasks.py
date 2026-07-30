@@ -15,8 +15,8 @@ from services import database
 from services.imdb_service import backfill_imdb_data, load_top250
 from services.ratings_service import (RATINGS_QUERIED_KEY, get_ratings,
                                       verify_ratings_key)
-from services.tmdb_service import backfill_tmdb_details, get_imdb_id
-from services.tmdb_service import get_tmdb_details
+from services.tmdb_service import (backfill_tmdb_details, get_imdb_id,
+                                   get_tmdb_details)
 from services.video_scanner import background_scan_new_files, refresh_incomplete_entries
 
 

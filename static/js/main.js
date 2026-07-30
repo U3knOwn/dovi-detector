@@ -101,13 +101,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        
+
         // Set up Server-Sent Events for real-time deletion updates
         setupSSE();
-		
+
         // Setup scroll up/down toggle button
         setupScrollButton();
-		
+
         // Setup clear db button
         setupClearButton();
     });

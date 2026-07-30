@@ -7,7 +7,10 @@
 
 import { t } from '../core/i18n.js';
 import { makeElement } from '../helpers/dom.js';
-import { mediaAudioClass, mediaAudioText, mediaHdrClass, mediaResolutionClass, mediaTitleText } from './model.js';
+import {
+    mediaAudioClass, mediaAudioText, mediaHdrClass, mediaHdrDetailText,
+    mediaResolutionClass, mediaTitleText
+} from './model.js';
 import { POSTER_PLACEHOLDER_SVG, RATING_STAR_SVG } from '../ui/icons.js';
 import { applyCoverGradient } from '../ui/cover-gradient.js';
 
@@ -63,9 +66,7 @@ function buildPosterCell(item) {
 
 function buildHdrCell(item) {
     const cell = makeCell('table_header_hdr');
-    const detail = (!item.hdr_detail || item.hdr_detail === 'Unknown')
-        ? t('unknown')
-        : item.hdr_detail;
+    const detail = mediaHdrDetailText(item);
     const elType = item.el_type;
 
     if (item.hdr_format === 'Dolby Vision' && elType) {
@@ -106,11 +107,3 @@ export function buildMediaRow(item) {
     row.mediaItem = item;
     return row;
 }
-
-/* -------------------------------
-   Windowed rendering
-
-   Only the rows around the viewport exist in the DOM; the space the others
-   would take is held by two spacer rows, so the scrollbar and every scroll
-   position still behave as if the whole table were there.
-   ------------------------------- */

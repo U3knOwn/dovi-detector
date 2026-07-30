@@ -75,7 +75,7 @@ export function applyTranslations(root) {
             }
         }
     });
-    
+
     // HTML content
     scope.querySelectorAll('[data-i18n-html]').forEach(el => {
         const key = el.getAttribute('data-i18n-html');

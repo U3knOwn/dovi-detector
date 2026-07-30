@@ -24,11 +24,8 @@
     display: none !important;
 }
 
+/* Every theme is a dark one, so this covers all of them. */
 html {
-    color-scheme: dark;
-}
-
-html[data-theme="dark-adaptive"] {
     color-scheme: dark;
 }
 

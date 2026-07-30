@@ -14,12 +14,18 @@ export function getProfileRank(hdrFormat, hdrDetail, elType) {
     const d = (hdrDetail || '').toLowerCase();
     const e = (elType || '').toLowerCase();
 
+    // A title with an enhancement layer: either the detail names Profile 7 or
+    // the format says Dolby Vision at all. Ranked by the layer's own type.
+    const hasEnhancementLayer =
+        d.includes('profile 7') || d.includes('prof 7') || d.includes('p7') ||
+        d.includes('profile7') || f.includes('dolby vision') || f.includes('dolby');
+
     // 0: Profile 7 FEL
-    if ((d.includes('profile 7') || d.includes('prof 7') || d.includes('p7') || d.includes('profile7') || f.includes('dolby vision') || f.includes('dolby')) && e.includes('fel')) {
+    if (hasEnhancementLayer && e.includes('fel')) {
         return 0;
     }
     // 1: Profile 7 MEL
-    if ((d.includes('profile 7') || d.includes('prof 7') || d.includes('p7') || d.includes('profile7') || f.includes('dolby vision') || f.includes('dolby')) && e.includes('mel')) {
+    if (hasEnhancementLayer && e.includes('mel')) {
         return 1;
     }
     // 2: Profile 8
@@ -71,7 +77,7 @@ export function getCmStructureKey(cmVersion) {
 export function getAudioRank(audioCodec) {
     // Normalize audio codec string
     const audio = (audioCodec || '').toLowerCase();
-    
+
     // Priority ranking based on audio quality/format
     // 0: Dolby TrueHD (Atmos)
     if (audio.includes('truehd') && audio.includes('atmos')) {
@@ -123,11 +129,3 @@ export function getChannelCount(audioCodec) {
 
     return 0;
 }
-
-/* -------------------------------
-   Sorting
-
-   Every comparator describes the descending order of its mode and works on the
-   keys prepareMediaItem() derived, so a sort is plain number and string
-   comparison over an array - the table is re-rendered once at the end.
-   ------------------------------- */

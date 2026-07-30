@@ -3,6 +3,10 @@
 
 /**
  * Rendering only the rows that are in view.
+ *
+ * Only the rows around the viewport exist in the DOM; the space the others
+ * would take is held by two spacer rows, so the scrollbar and every scroll
+ * position still behave as if the whole table were there.
  */
 
 import { makeElement } from '../helpers/dom.js';
@@ -202,10 +206,6 @@ export function setupMediaVirtualScroll() {
         renderMediaWindow(true);
     });
 }
-
-/* -------------------------------
-   Filtering, statistics and the rest of the table chrome
-   ------------------------------- */
 
 // Where the rendered window currently sits - read by the console helper in
 // main.js and handy when tuning the overscan.

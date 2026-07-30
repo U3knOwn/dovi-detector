@@ -6,7 +6,6 @@
  * the control bar.
  */
 
-import { t } from '../core/i18n.js';
 import { renderMediaWindow } from '../library/virtual-table.js';
 
 // Elements a show/hide toggle controls: the ids listed in aria-controls, plus -
@@ -20,9 +19,9 @@ function getCollapseTargets(btn) {
     const isMobile = window.matchMedia('(max-width: 900px)').matches;
     const extraTargets = [];
     if (!isMobile) {
-        targets.forEach(t => {
-            if (t.tagName && t.tagName.toLowerCase() === 'tbody') {
-                const table = t.closest('table');
+        targets.forEach(target => {
+            if (target.tagName && target.tagName.toLowerCase() === 'tbody') {
+                const table = target.closest('table');
                 if (table) {
                     const thead = table.querySelector('thead');
                     if (thead) extraTargets.push(thead);

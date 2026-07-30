@@ -94,11 +94,17 @@ export function mediaTitleText(item) {
     return item.filename;
 }
 
-// Label of the HDR badge, including the enhancement layer where there is one.
-function mediaHdrText(item) {
-    const detail = (!item.hdr_detail || item.hdr_detail === 'Unknown')
+// The HDR detail an entry shows, with the translated placeholder for one that
+// carries none. The badge in the table renders the same text.
+export function mediaHdrDetailText(item) {
+    return (!item.hdr_detail || item.hdr_detail === 'Unknown')
         ? t('unknown')
         : item.hdr_detail;
+}
+
+// Label of the HDR badge, including the enhancement layer where there is one.
+function mediaHdrText(item) {
+    const detail = mediaHdrDetailText(item);
     return item.el_type ? `${detail} (${item.el_type})` : detail;
 }
 
@@ -142,10 +148,6 @@ export function mediaAudioClass(item) {
     if (codec.includes('FLAC') || codec.includes('PCM')) return 'audio-lossless';
     return 'audio-unknown';
 }
-
-/* -------------------------------
-   Row rendering
-   ------------------------------- */
 
 // Which stat chip an entry is counted under.
 function getMediaStatKey(item) {

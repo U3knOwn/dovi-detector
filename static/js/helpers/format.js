@@ -9,10 +9,10 @@ import { currentLang, t } from '../core/i18n.js';
 
 export function formatDuration(seconds) {
     if (!seconds || seconds <= 0) return t('unknown');
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
         return `${hours}h ${minutes}m`;
     } else {
@@ -23,13 +23,13 @@ export function formatDuration(seconds) {
 
 export function formatFileSize(bytes) {
     if (bytes === null || bytes === undefined || bytes < 0) return t('unknown');
-    
+
     // Always convert to GB
     const GB_IN_BYTES = 1024 * 1024 * 1024;
     const sizeInGB = bytes / GB_IN_BYTES;
-    
+
     // Format with 1 decimal place and use appropriate decimal separator based on locale
-    const formattedSize = currentLang === 'de' 
+    const formattedSize = currentLang === 'de'
         ? sizeInGB.toFixed(1).replace('.', ',')  // German: comma
         : sizeInGB.toFixed(1);                    // English: period
     return `${formattedSize} GB`;

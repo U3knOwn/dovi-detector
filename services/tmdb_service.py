@@ -68,6 +68,38 @@ def extract_title_and_year_from_tmdb(data, media_type):
     return title, year
 
 
+def _languages(content_language):
+    """
+    The languages to ask TMDB for, in order.
+
+    English is asked second because a title often only carries its backdrop,
+    plot or tagline there - a lookup in the configured language alone would
+    report those as missing.
+    """
+    if content_language == 'en':
+        return ('en',)
+    return (content_language, 'en')
+
+
+def _poster_details(record, media_type):
+    """
+    The five values one TMDB record yields, or None when it has no backdrop.
+
+    None is what makes the caller try the next language: a record without a
+    backdrop is of no use here, whatever else it carries.
+    """
+    backdrop_path = record.get('backdrop_path')
+    if not backdrop_path:
+        return None
+
+    title, year = extract_title_and_year_from_tmdb(record, media_type)
+    return (f'https://image.tmdb.org/t/p/original{backdrop_path}',
+            title,
+            year,
+            record.get('vote_average'),  # TMDB rating (0-10 scale)
+            record.get('overview', ''))
+
+
 def get_tmdb_poster_by_id(tmdb_id, media_type, tmdb_api_key, content_language):
     """Fetch poster URL, title, year, rating, and plot from TMDB API by ID"""
     if not tmdb_api_key or not REQUESTS_AVAILABLE:
@@ -81,40 +113,18 @@ def get_tmdb_poster_by_id(tmdb_id, media_type, tmdb_api_key, content_language):
 
     try:
         url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}'
-        data = {}
+        response = None
 
-        # Try configured language first
-        params = {'api_key': tmdb_api_key, 'language': content_language}
-        response = requests.get(url, params=params, timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-            backdrop_path = data.get('backdrop_path')
-            rating = data.get('vote_average')  # TMDB rating (0-10 scale)
-            plot = data.get('overview', '')
-
-            if backdrop_path:
-                title, year = extract_title_and_year_from_tmdb(data, media_type)
-                poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                return poster_url, title, year, rating, plot
-
-        # If configured language request failed or didn't have poster, try English fallback
-        if content_language != 'en' and (response.status_code != 200 or not data.get('backdrop_path')):
-            params = {'api_key': tmdb_api_key, 'language': 'en'}
+        for language in _languages(content_language):
+            params = {'api_key': tmdb_api_key, 'language': language}
             response = requests.get(url, params=params, timeout=10)
 
             if response.status_code == 200:
-                data = response.json()
-                backdrop_path = data.get('backdrop_path')
-                rating = data.get('vote_average')
-                plot = data.get('overview', '')
+                details = _poster_details(response.json(), media_type)
+                if details:
+                    return details
 
-                if backdrop_path:
-                    title, year = extract_title_and_year_from_tmdb(data, media_type)
-                    poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                    return poster_url, title, year, rating, plot
-
-        if response.status_code not in [200, 404]:
+        if response is not None and response.status_code not in [200, 404]:
             print(
                 f"TMDB API error for ID {tmdb_id}: HTTP "
                 f"{response.status_code}")
@@ -145,55 +155,25 @@ def search_tmdb_poster(movie_name, media_type, tmdb_api_key, content_language):
 
     try:
         url = f'https://api.themoviedb.org/3/search/{media_type}'
-        results = []
+        response = None
 
-        # Try configured language first
-        params = {
-            'api_key': tmdb_api_key,
-            'query': movie_name,
-            'language': content_language
-        }
-
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            results = data.get('results', [])
-            if results:
-                # Get first result
-                first_result = results[0]
-                backdrop_path = first_result.get('backdrop_path')
-                rating = first_result.get('vote_average')
-                plot = first_result.get('overview', '')
-
-                if backdrop_path:
-                    title, year = extract_title_and_year_from_tmdb(first_result, media_type)
-                    poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                    return poster_url, title, year, rating, plot
-
-        # If configured language search failed or returned no results with posters, try English fallback
-        if content_language != 'en' and (response.status_code != 200 or not results or not results[0].get('backdrop_path')):
+        for language in _languages(content_language):
             params = {
                 'api_key': tmdb_api_key,
                 'query': movie_name,
-                'language': 'en'
+                'language': language
             }
 
             response = requests.get(url, params=params, timeout=10)
             if response.status_code == 200:
-                data = response.json()
-                results = data.get('results', [])
+                # Only the first hit is considered - TMDB ranks by relevance
+                results = response.json().get('results', [])
                 if results:
-                    first_result = results[0]
-                    backdrop_path = first_result.get('backdrop_path')
-                    rating = first_result.get('vote_average')
-                    plot = first_result.get('overview', '')
+                    details = _poster_details(results[0], media_type)
+                    if details:
+                        return details
 
-                    if backdrop_path:
-                        title, year = extract_title_and_year_from_tmdb(first_result, media_type)
-                        poster_url = f'https://image.tmdb.org/t/p/original{backdrop_path}'
-                        return poster_url, title, year, rating, plot
-
-        if response.status_code not in [200, 404]:
+        if response is not None and response.status_code not in [200, 404]:
             print(
                 f"TMDB API search error for '{movie_name}': HTTP "
                 f"{response.status_code}")

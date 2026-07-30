@@ -42,7 +42,7 @@ export function loadFileList() {
 
 // Refresh the trigger button: show how many files are selected, or the
 // placeholder when nothing is chosen yet.
-export function updateFileTriggerLabel() {
+function updateFileTriggerLabel() {
     const label = document.getElementById('fileSelectLabel');
     const trigger = document.getElementById('fileSelectTrigger');
     if (!label || !trigger) return;
@@ -57,7 +57,7 @@ export function updateFileTriggerLabel() {
     }
 }
 
-export function isFileDialogOpen() {
+function isFileDialogOpen() {
     const overlay = document.getElementById('fileDialogOverlay');
     return overlay && overlay.classList.contains('active');
 }
@@ -270,7 +270,7 @@ export function deselectAllFiles() {
 }
 
 // Keep the primary "scan selected" button label and enabled state in sync.
-export function updateScanSelectedButton() {
+function updateScanSelectedButton() {
     const btn = document.getElementById('fileScanSelected');
     if (!btn) return;
     const count = selectedPaths.size;
@@ -329,10 +329,6 @@ export function scanSelectedFiles() {
             message.style.display = 'block';
         });
 }
-
-/* -------------------------------
-   Custom Dropdowns (sort + language)
-   ------------------------------- */
 
 export const debouncedRenderFileDialogList = debounce(renderFileDialogList, 120);
 
