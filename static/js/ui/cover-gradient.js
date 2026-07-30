@@ -11,12 +11,12 @@
 
 // The cover is only read for its colours, so it is sampled small - a few
 // thousand pixels are plenty to find what a poster is mostly made of, and the
-// whole pass then costs nothing worth measuring.
-const SAMPLE_WIDTH = 40;
-const SAMPLE_HEIGHT = 60;
+// whole pass then costs nothing worth measuring. The longer side is capped at
+// SAMPLE_MAX; width and height then follow the cover's own aspect ratio.
+const SAMPLE_MAX = 48;
 
-// How many colours the gradient is built from.
-const GRADIENT_COLORS = 4;
+// How many colours the gradient is built from (corners + centre).
+const GRADIENT_COLORS = 5;
 
 // Colours are counted in buckets this many bits per channel wide, so shades of
 // the same thing land together instead of each counting for itself.
@@ -238,54 +238,77 @@ function hslToRgb(hue, saturation, lightness) {
 /**
  * Those colours as the gradient a panel paints.
  *
- * Four layered stops that read as soft atmospheric pools rather than hard
- * colour blocks:
- *   1–2  large radial glows at opposite corners (primary + secondary)
- *   3    a smaller mid-tone bloom for depth
- *   4    a vertical wash that anchors the whole surface
+ * Five soft radial pools, one at each corner (10 px inset from the edge) and
+ * one in the centre. The layout mirrors a 16:9 frame so the glow feels tied
+ * to the poster rather than floating arbitrarily:
+ *
+ *   TL ····· TR
+ *      · C ·
+ *   BL ····· BR
  *
  * Every radial fades to its own colour at zero alpha (never to transparent
- * black) so the edges stay clean. The vertical wash is deliberately darker
- * at the bottom so rows keep readable contrast under the scrim.
+ * black) so the edges stay clean. A light vertical wash underneath anchors
+ * the surface and keeps contrast under the scrim.
  */
 function buildGradient(palette) {
     const limit = tintLimit();
     const colors = palette.map(c => limitLuminance(c, limit));
 
-    // Ensure we always have four stops even if extraction returned fewer.
-    while (colors.length < 4) {
+    // Ensure we always have five stops even if extraction returned fewer.
+    while (colors.length < 5) {
         colors.push(colors[colors.length - 1] || [30, 32, 40]);
     }
 
-    const [c0, c1, c2, c3] = colors;
-    const d0 = deepen(c0, 0.42);
-    const d1 = deepen(c1, 0.48);
-    const d2 = deepen(c2, 0.55);
+    const [tl, tr, bl, br, mid] = colors;
+    const dTl = deepen(tl, 0.40);
+    const dTr = deepen(tr, 0.42);
+    const dBl = deepen(bl, 0.45);
+    const dBr = deepen(br, 0.48);
+    const dMid = deepen(mid, 0.50);
 
     const rgb = c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
     const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
+    // 10 px inset from every edge; centre sits at 50 % / 50 %.
     return [
-        // Primary glow – top-left, large and soft
-        `radial-gradient(140% 110% at 8% -5%, ${rgb(c0)} 0%, ${rgba(c0, 0.55)} 28%, ${rgba(d0, 0)} 68%)`,
-        // Secondary glow – top-right
-        `radial-gradient(120% 95% at 92% 2%, ${rgb(c1)} 0%, ${rgba(c1, 0.45)} 32%, ${rgba(d1, 0)} 65%)`,
-        // Mid bloom – lower centre, gives the surface body
-        `radial-gradient(90% 70% at 50% 85%, ${rgba(c2, 0.5)} 0%, ${rgba(d2, 0)} 70%)`,
-        // Vertical anchor – darker toward the bottom for contrast under the scrim
-        `linear-gradient(180deg, ${rgba(c1, 0.35)} 0%, ${rgba(c3, 0.55)} 55%, ${rgb(deepen(c3, 0.65))} 100%)`
+        // Top-left
+        `radial-gradient(ellipse 55% 70% at 10px 10px, ${rgb(tl)} 0%, ${rgba(tl, 0.5)} 30%, ${rgba(dTl, 0)} 72%)`,
+        // Top-right
+        `radial-gradient(ellipse 55% 70% at calc(100% - 10px) 10px, ${rgb(tr)} 0%, ${rgba(tr, 0.48)} 30%, ${rgba(dTr, 0)} 72%)`,
+        // Bottom-left
+        `radial-gradient(ellipse 55% 70% at 10px calc(100% - 10px), ${rgb(bl)} 0%, ${rgba(bl, 0.45)} 30%, ${rgba(dBl, 0)} 72%)`,
+        // Bottom-right
+        `radial-gradient(ellipse 55% 70% at calc(100% - 10px) calc(100% - 10px), ${rgb(br)} 0%, ${rgba(br, 0.45)} 30%, ${rgba(dBr, 0)} 72%)`,
+        // Centre
+        `radial-gradient(ellipse 50% 55% at 50% 50%, ${rgba(mid, 0.55)} 0%, ${rgba(mid, 0.3)} 35%, ${rgba(dMid, 0)} 70%)`,
+        // Soft vertical anchor so the surface never goes fully flat
+        `linear-gradient(180deg, ${rgba(tl, 0.18)} 0%, ${rgba(mid, 0.22)} 45%, ${rgba(br, 0.28)} 100%)`
     ].join(', ');
+}
+
+function sampleSize(img) {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+    if (!srcW || !srcH) return { width: SAMPLE_MAX, height: Math.round(SAMPLE_MAX * 9 / 16) };
+
+    const longer = Math.max(srcW, srcH);
+    const scale = Math.min(1, SAMPLE_MAX / longer);
+    return {
+        width: Math.max(1, Math.round(srcW * scale)),
+        height: Math.max(1, Math.round(srcH * scale))
+    };
 }
 
 function paletteFromImage(img) {
     try {
+        const { width, height } = sampleSize(img);
         const canvas = document.createElement('canvas');
-        canvas.width = SAMPLE_WIDTH;
-        canvas.height = SAMPLE_HEIGHT;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-        const { data } = ctx.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
+        ctx.drawImage(img, 0, 0, width, height);
+        const { data } = ctx.getImageData(0, 0, width, height);
 
         const colors = coverColors(data, GRADIENT_COLORS);
         return colors.length < 2 ? null : colors;
