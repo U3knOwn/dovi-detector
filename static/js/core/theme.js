@@ -43,6 +43,10 @@ const LONG_PRESS_MS = 500;
 // full width of the menu off it.
 const MENU_VIEWPORT_MARGIN = 8;
 
+// The menu closes itself after sitting idle this long, so it never lingers
+// open once whoever opened it has walked away.
+const MENU_AUTO_CLOSE_MS = 5000;
+
 /**
  * A stored theme under the name it goes by now.
  *
@@ -143,12 +147,30 @@ function onDocumentClick(e) {
     // Clicks on the button itself are the press that opened the menu (or the
     // click following long-press release); clicks inside the menu are handled
     // by each option's own listener. Only an actual outside click closes it.
-    if ((btn && btn.contains(e.target)) || (menu && menu.contains(e.target))) return;
+    if ((btn && btn.contains(e.target)) || (menu && menu.contains(e.target))) {
+        resetAutoCloseTimer();
+        return;
+    }
     closeThemeMenu();
 }
 
 function onDocumentKeydown(e) {
     if (e.key === 'Escape') closeThemeMenu();
+    else resetAutoCloseTimer();
+}
+
+let autoCloseTimer = null;
+
+function resetAutoCloseTimer() {
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = setTimeout(closeThemeMenu, MENU_AUTO_CLOSE_MS);
+}
+
+// Anything that shows someone is still there restarts the countdown - a click
+// or keydown that doesn't close the menu (an option pick re-fires it anyway),
+// or the pointer simply moving over the page.
+function onMenuActivity() {
+    resetAutoCloseTimer();
 }
 
 // The menu lives in <body> (see setupThemeToggle), so it is positioned
@@ -192,6 +214,9 @@ function openThemeMenu() {
     btn.setAttribute('aria-expanded', 'true');
     document.addEventListener('click', onDocumentClick);
     document.addEventListener('keydown', onDocumentKeydown);
+    document.addEventListener('pointermove', onMenuActivity);
+    document.addEventListener('wheel', onMenuActivity);
+    resetAutoCloseTimer();
 }
 
 function closeThemeMenu() {
@@ -202,6 +227,10 @@ function closeThemeMenu() {
     btn.setAttribute('aria-expanded', 'false');
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('keydown', onDocumentKeydown);
+    document.removeEventListener('pointermove', onMenuActivity);
+    document.removeEventListener('wheel', onMenuActivity);
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = null;
 }
 
 function clearPressTimer() {
