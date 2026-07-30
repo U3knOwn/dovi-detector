@@ -49,16 +49,30 @@
    So it goes on a layer of its own, hung off the first cell and stretched
    across the row. The row is the containing block, so `inset: 0` is the row's
    box whatever the columns do, and the layer rounds itself in every browser.
-   It sits behind the content rather than over it: the cells are transparent and
-   the page's background belongs to the canvas, so there is nothing between the
-   two for it to disappear into. */
+   It sits behind the content rather than over it, which means everything
+   between it and the page has to be out of the way: the cells give up their
+   background below, and the row gives up its own here. The stacked phone
+   layout is where that matters - there responsive.css draws the row as a card
+   with an opaque surface, and the card sat on top of the cover and hid it. The
+   page's own background belongs to the canvas, so there is nothing further down
+   for the layer to disappear into. */
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) {
     position: relative;
+    background-color: transparent;
     --cover-wash: rgba(255, 255, 255, 0.055);
 }
 
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover {
     --cover-wash: rgba(255, 255, 255, 0.095);
+}
+
+/* The cell the layer hangs off must not be positioned itself, or it becomes the
+   containing block and the layer collapses onto the one column. It is static
+   anyway in the table layout; this is for the stacked phone one, where
+   responsive.css positions every cell so it can place its label in front of it.
+   The first cell is the one cell there that has no label. */
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child {
+    position: static;
 }
 
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::after {
@@ -68,7 +82,10 @@
     z-index: -1;
     border-radius: var(--radius-lg);
     /* Painted top-down: the wash that lifts the row off the page, the scrim
-       over the cover's colours. */
+       over the cover's colours, those over the surface the row would have had
+       anyway - which is all that is left of it for an entry scanned without a
+       TMDB key, since there is no cover to paint. */
+    background-color: var(--surface);
     background-image:
         linear-gradient(var(--cover-wash), var(--cover-wash)),
         linear-gradient(var(--cover-scrim), var(--cover-scrim)),
