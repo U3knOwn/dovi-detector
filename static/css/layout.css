@@ -155,26 +155,30 @@ header {
 }
 
 /* The button always shows the icon of the theme a normal press switches to
-   next, matching THEME_ORDER in theme.js (dark -> light -> midnight ->
-   adaptive -> dark). */
+   next, matching THEME_ORDER in theme.js: light -> light-adaptive -> dark ->
+   dark-adaptive -> midnight -> light. */
 .theme-toggle svg {
     display: none;
 }
 
-:root:not([data-theme]) .theme-toggle .icon-light,
-:root[data-theme="dark"] .theme-toggle .icon-light {
+:root[data-theme="light"] .theme-toggle .icon-light-adaptive {
     display: block;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-midnight {
+:root[data-theme="light-adaptive"] .theme-toggle .icon-dark {
     display: block;
 }
 
-:root[data-theme="midnight"] .theme-toggle .icon-adaptive {
+:root:not([data-theme]) .theme-toggle .icon-dark-adaptive,
+:root[data-theme="dark"] .theme-toggle .icon-dark-adaptive {
     display: block;
 }
 
-:root[data-theme="adaptive"] .theme-toggle .icon-dark {
+:root[data-theme="dark-adaptive"] .theme-toggle .icon-midnight {
+    display: block;
+}
+
+:root[data-theme="midnight"] .theme-toggle .icon-light {
     display: block;
 }
 
@@ -187,7 +191,9 @@ header {
     position: fixed;
     width: max-content;
     min-width: 160px;
-    left: auto;
+    /* theme.js sets top and left against the toggle; right has to go, or the
+       inherited one would stretch the menu across to it. */
+    right: auto;
     /* Over the sticky header it drops out of, which would otherwise paint
        across its top edge - the menu sits in <body>, so the header's own
        z-index would win. Still under the dialog overlays at 1000. */

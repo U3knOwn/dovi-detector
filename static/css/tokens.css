@@ -115,11 +115,12 @@
     --bg-glow-2: rgba(99, 102, 241, 0.1);
 }
 
-/* Translucent surfaces for a glass look (paired with the backdrop-filter
-   blur rules in theme-adaptive.css). Follows the OS light/dark preference
-   instead of a fixed choice, hence "adaptive". Dark is the fallback for
-   browsers without prefers-color-scheme support. */
-:root[data-theme="adaptive"] {
+/* Translucent surfaces for a glass look, paired with the backdrop-filter
+   blur rules in theme-adaptive.css. Comes in a light and a dark variant,
+   picked outright rather than taken from the OS - the suffix selector is
+   what lets both share everything below, with light-adaptive overriding
+   only what it has to further down. */
+:root[data-theme$="adaptive"] {
     --bg: #0b0d14;
     /* Plain light and dark washes rather than a colour of their own: every
        surface here sits on something - the page's glow, or the cover gradient
@@ -161,36 +162,35 @@
     --cover-scrim: rgba(11, 13, 20, 0.74);
 }
 
-@media (prefers-color-scheme: light) {
-    :root[data-theme="adaptive"] {
-        --bg: #eef1f7;
-        --surface: rgba(255, 255, 255, 0.55);
-        --surface-2: rgba(255, 255, 255, 0.6);
-        --surface-3: rgba(255, 255, 255, 0.68);
-        --control-bg: rgba(255, 255, 255, 0.6);
-        --border: rgba(20, 28, 46, 0.12);
-        --border-strong: rgba(20, 28, 46, 0.2);
-        --text: #1c2333;
-        --text-muted: #55617a;
-        --text-faint: #8791a5;
-        --title-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
-        --ring: rgba(99, 102, 241, 0.4);
-        --success: #059669;
-        --info: #0284c7;
-        --danger: #dc2626;
-        --shadow-sm: 0 1px 2px rgba(20, 28, 46, 0.06);
-        --shadow-md: 0 8px 24px rgba(20, 28, 46, 0.12);
-        --shadow-lg: 0 24px 64px rgba(20, 28, 46, 0.2);
-        --glow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 8px 24px rgba(99, 102, 241, 0.15);
-        --header-bg: rgba(255, 255, 255, 0.55);
-        --overlay-bg: rgba(23, 30, 46, 0.35);
-        --scroll-toggle-bg: rgba(255, 255, 255, 0.65);
-        --scrollbar-thumb: rgba(20, 28, 46, 0.16);
-        --scrollbar-thumb-hover: rgba(20, 28, 46, 0.28);
-        --progress-track: rgba(20, 28, 46, 0.1);
-        --accent-soft: #4f46e5;
-        --bg-glow-1: rgba(99, 102, 241, 0.08);
-        --bg-glow-2: rgba(236, 72, 153, 0.05);
-        --cover-scrim: rgba(238, 241, 247, 0.8);
-    }
+/* Same glass, lit the other way round. */
+:root[data-theme="light-adaptive"] {
+    --bg: #eef1f7;
+    --surface: rgba(255, 255, 255, 0.55);
+    --surface-2: rgba(255, 255, 255, 0.6);
+    --surface-3: rgba(255, 255, 255, 0.68);
+    --control-bg: rgba(255, 255, 255, 0.6);
+    --border: rgba(20, 28, 46, 0.12);
+    --border-strong: rgba(20, 28, 46, 0.2);
+    --text: #1c2333;
+    --text-muted: #55617a;
+    --text-faint: #8791a5;
+    --title-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
+    --ring: rgba(99, 102, 241, 0.4);
+    --success: #059669;
+    --info: #0284c7;
+    --danger: #dc2626;
+    --shadow-sm: 0 1px 2px rgba(20, 28, 46, 0.06);
+    --shadow-md: 0 8px 24px rgba(20, 28, 46, 0.12);
+    --shadow-lg: 0 24px 64px rgba(20, 28, 46, 0.2);
+    --glow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 8px 24px rgba(99, 102, 241, 0.15);
+    --header-bg: rgba(255, 255, 255, 0.55);
+    --overlay-bg: rgba(23, 30, 46, 0.35);
+    --scroll-toggle-bg: rgba(255, 255, 255, 0.65);
+    --scrollbar-thumb: rgba(20, 28, 46, 0.16);
+    --scrollbar-thumb-hover: rgba(20, 28, 46, 0.28);
+    --progress-track: rgba(20, 28, 46, 0.1);
+    --accent-soft: #4f46e5;
+    --bg-glow-1: rgba(99, 102, 241, 0.08);
+    --bg-glow-2: rgba(236, 72, 153, 0.05);
+    --cover-scrim: rgba(238, 241, 247, 0.8);
 }

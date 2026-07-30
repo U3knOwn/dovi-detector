@@ -11,12 +11,21 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
     <title>Universal Video Scanner</title>
     <script>
         // Apply the saved theme before the stylesheet renders to avoid a flash
-        // of the wrong theme. Dark is the default.
+        // of the wrong theme. Dark is the default. Kept in step with
+        // THEME_ORDER and migrateTheme in static/js/core/theme.js, which runs
+        // far too late to prevent that flash.
         (function () {
-            var themes = ['dark', 'light', 'midnight', 'adaptive'];
+            var themes = ['light', 'light-adaptive', 'dark', 'dark-adaptive', 'midnight'];
             var theme = 'dark';
             try {
                 var saved = localStorage.getItem('dovi_theme');
+                if (saved === 'adaptive') {
+                    // The one adaptive theme that read the OS preference has
+                    // become two that are picked outright.
+                    saved = window.matchMedia &&
+                        window.matchMedia('(prefers-color-scheme: light)').matches
+                        ? 'light-adaptive' : 'dark-adaptive';
+                }
                 if (themes.indexOf(saved) !== -1) theme = saved;
             } catch (e) { /* localStorage unavailable -> keep dark */ }
             document.documentElement.setAttribute('data-theme', theme);
@@ -47,7 +56,8 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                stored preference - that way the group never flashes open. #}
             <div class="header-actions collapsed">
                 <div class="header-actions-group" id="headerActionsGroup">
-                    {# Normal press cycles dark -> light -> midnight -> adaptive.
+                    {# Normal press walks THEME_ORDER in static/js/core/theme.js:
+                       light -> light adaptive -> dark -> dark adaptive -> midnight.
                        A long press (or right-click) opens themeMenu to pick one directly. #}
                     <div class="theme-select" id="themeSelectWrap">
                         <button id="themeToggle" class="controls-toggle theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
@@ -63,10 +73,16 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                                 <path d="M19 3v4"/>
                                 <path d="M21 5h-4"/>
                             </svg>
-                            <svg class="icon-adaptive" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="m12 3-9 4.5 9 4.5 9-4.5Z"/>
-                                <path d="m3 12 9 4.5 9-4.5"/>
-                                <path d="m3 16.5 9 4.5 9-4.5"/>
+                            {# The adaptive pair: the plain sun and moon above, framed in
+                               the rounded panel the glass themes are made of. #}
+                            <svg class="icon-light-adaptive" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="18" height="18" rx="5"/>
+                                <circle cx="12" cy="12" r="2.8"/>
+                                <path d="M12 6.4v1.1M12 16.5v1.1M6.4 12h1.1M16.5 12h1.1"/>
+                            </svg>
+                            <svg class="icon-dark-adaptive" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="18" height="18" rx="5"/>
+                                <path d="M16 13.2A4.4 4.4 0 0 1 10.8 8a4.4 4.4 0 1 0 5.2 5.2z"/>
                             </svg>
                             <span class="visually-hidden" id="themeToggleLabel"></span>
                         </button>

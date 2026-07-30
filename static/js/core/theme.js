@@ -12,24 +12,49 @@
 import { onLanguageChange, t } from './i18n.js';
 import { THEME_ICONS } from '../ui/icons.js';
 
-const THEME_ORDER = ['dark', 'light', 'midnight', 'adaptive'];
+// Also the order the menu lists them in, so a press walks the menu top to
+// bottom - the light pair, then the dark pair, then midnight.
+const THEME_ORDER = ['light', 'light-adaptive', 'dark', 'dark-adaptive', 'midnight'];
 
 const THEME_META_COLORS = {
-    dark: '#0a0c12',
     light: '#eef1f7',
-    midnight: '#04060c',
-    adaptive: '#0b0d14'
+    'light-adaptive': '#eef1f7',
+    dark: '#0a0c12',
+    'dark-adaptive': '#0b0d14',
+    midnight: '#04060c'
 };
 
 const THEME_NAME_KEYS = {
-    dark: 'theme_name_dark',
     light: 'theme_name_light',
-    midnight: 'theme_name_midnight',
-    adaptive: 'theme_name_adaptive'
+    'light-adaptive': 'theme_name_light_adaptive',
+    dark: 'theme_name_dark',
+    'dark-adaptive': 'theme_name_dark_adaptive',
+    midnight: 'theme_name_midnight'
 };
 
 // Holding the button down this long opens the menu instead of cycling.
 const LONG_PRESS_MS = 500;
+
+// How far the menu may sit from the viewport edge once it has been pushed back
+// in, on a narrow screen where the toggle is too close to the right to hang the
+// full width of the menu off it.
+const MENU_VIEWPORT_MARGIN = 8;
+
+/**
+ * A stored theme under the name it goes by now.
+ *
+ * "adaptive" used to be one theme that read the OS preference; it is now two
+ * that are picked outright. Anyone still on it keeps the one they were
+ * actually looking at rather than being dropped back to the default.
+ */
+function migrateTheme(saved) {
+    if (saved !== 'adaptive') return saved;
+    const prefersLight = window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: light)').matches;
+    const migrated = prefersLight ? 'light-adaptive' : 'dark-adaptive';
+    persistTheme(migrated);
+    return migrated;
+}
 
 let pressTimer = null;
 let longPressFired = false;
@@ -137,9 +162,17 @@ function positionThemeMenu() {
     const below = header
         ? Math.max(rect.bottom, header.getBoundingClientRect().bottom)
         : rect.bottom;
-
     menu.style.top = `${below + 6}px`;
-    menu.style.right = `${window.innerWidth - rect.right}px`;
+
+    // Hung from the toggle's left edge, opening rightwards. The toggle sits
+    // near the right of the header though, so on a narrow screen that runs the
+    // menu off the side - hence the pull back to the last position that still
+    // fits, and never past the left edge either.
+    menu.style.right = 'auto';
+    menu.style.left = '0px';
+    const width = menu.getBoundingClientRect().width;
+    const rightmost = window.innerWidth - width - MENU_VIEWPORT_MARGIN;
+    menu.style.left = `${Math.max(MENU_VIEWPORT_MARGIN, Math.min(rect.left, rightmost))}px`;
 }
 
 function openThemeMenu() {
@@ -147,8 +180,11 @@ function openThemeMenu() {
     const menu = document.getElementById('themeMenu');
     if (!btn || !menu) return;
     updateThemeMenuSelection();
-    positionThemeMenu();
+    // Shown before it is placed: positionThemeMenu measures the menu to keep it
+    // on screen, and a display:none menu measures zero wide. Both happen before
+    // the frame is painted, so it never appears at the wrong spot.
     menu.classList.add('open');
+    positionThemeMenu();
     btn.setAttribute('aria-expanded', 'true');
     document.addEventListener('click', onDocumentClick);
     document.addEventListener('keydown', onDocumentKeydown);
@@ -219,6 +255,7 @@ export function initTheme() {
     try {
         saved = localStorage.getItem('dovi_theme');
     } catch (e) { /* localStorage unavailable -> keep default */ }
+    saved = migrateTheme(saved);
     applyTheme(THEME_ORDER.includes(saved) ? saved : 'dark');
     setupThemeToggle();
 }
