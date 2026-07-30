@@ -505,9 +505,9 @@ tbody tr:hover td {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.35);
-    color: var(--accent-soft);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text);
     padding: 6px 14px;
     border-radius: var(--radius-pill);
     font-size: 0.85rem;
