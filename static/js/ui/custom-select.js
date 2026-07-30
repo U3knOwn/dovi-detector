@@ -23,6 +23,8 @@ const SORT_OPTIONS = [
     { value: 'rating',               i18n: 'sort_by_rating',               icon: 'imdb' },
     { value: 'rating_tmdb',          i18n: 'sort_by_rating_tmdb',          icon: 'tmdb' },
     { value: 'rating_rt',            i18n: 'sort_by_rating_rt',            icon: 'rt' },
+    { value: 'rating_rt_audience',   i18n: 'sort_by_rating_rt_audience',   icon: 'rt_audience' },
+    { value: 'rating_trakt',         i18n: 'sort_by_rating_trakt',         icon: 'trakt' },
     { value: 'rating_metacritic',    i18n: 'sort_by_rating_metacritic',    icon: 'metacritic' },
     { value: 'year',                 i18n: 'sort_by_year',                 icon: 'calendar' },
     { value: 'duration',             i18n: 'sort_by_duration',             icon: 'clock' },

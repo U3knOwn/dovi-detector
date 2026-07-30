@@ -13,9 +13,9 @@ from core.scan_state import (begin_scan, cancel_requested, end_scan,
 from core.scanner import fetch_online_metadata_with_deps, scan_video_file_with_deps
 from services import database
 from services.imdb_service import backfill_imdb_data, load_top250
-from services.tmdb_service import backfill_tmdb_genres, get_imdb_id
-from services.imdb_service import get_omdb_ratings
-from services.tmdb_service import get_tmdb_genres
+from services.ratings_service import RATINGS_QUERIED_KEY, get_ratings
+from services.tmdb_service import backfill_tmdb_details, get_imdb_id
+from services.tmdb_service import get_tmdb_details
 from services.video_scanner import background_scan_new_files, refresh_incomplete_entries
 
 
@@ -47,8 +47,10 @@ def refresh_imdb_data():
     Load the IMDb Top 250 chart and backfill IMDb data into the database.
 
     Runs on a background thread at startup: entries scanned before the IMDb
-    integration existed get their IMDb id and rating, and every entry's Top 250
-    rank is refreshed against the current chart.
+    integration existed get their IMDb id and ratings, entries that predate the
+    Rotten Tomatoes audience score and the Trakt rating are looked up once more
+    for those, and every entry's Top 250 rank is refreshed against the current
+    chart.
     """
     top250_map = load_top250(config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL)
     backfill_imdb_data(
@@ -56,24 +58,26 @@ def refresh_imdb_data():
         database.scan_lock,
         lambda: database.save_database(config.DB_FILE),
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
-        lambda imdb_id: get_omdb_ratings(imdb_id, config.OMDB_API_KEY),
-        top250_map
+        lambda imdb_id: get_ratings(imdb_id, config.MDBLIST_API_KEY),
+        top250_map,
+        RATINGS_QUERIED_KEY
     )
 
 
-def refresh_tmdb_genres():
+def refresh_tmdb_details():
     """
-    Backfill the genre list into entries scanned before genres were collected.
+    Backfill the genres and the tagline into entries scanned before they were
+    collected.
 
     Runs on a background thread at startup for the same reason as the IMDb
-    backfill: an existing library should show the new field without every file
+    backfill: an existing library should show the new fields without every file
     having to be rescanned by hand.
     """
-    backfill_tmdb_genres(
+    backfill_tmdb_details(
         database.scanned_files,
         database.scan_lock,
         lambda: database.save_database(config.DB_FILE),
-        lambda tmdb_id, media_type: get_tmdb_genres(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE)
+        lambda tmdb_id, media_type: get_tmdb_details(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE)
     )
 
 
@@ -132,9 +136,10 @@ def start_background_tasks():
         # both in the background, as they only touch the network.
         threading.Thread(target=refresh_imdb_data, daemon=True).start()
 
-        # Same idea for the genres, which older entries do not carry yet
+        # Same idea for the genres and the tagline, which older entries do not
+        # carry yet
         if config.TMDB_API_KEY:
-            threading.Thread(target=refresh_tmdb_genres, daemon=True).start()
+            threading.Thread(target=refresh_tmdb_details, daemon=True).start()
 
     # Retry entries whose metadata lookups failed, so they heal themselves
     # once the API is reachable again

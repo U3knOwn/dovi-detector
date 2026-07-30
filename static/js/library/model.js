@@ -46,6 +46,8 @@ export function prepareMediaItem(raw) {
     item.sortYear = mediaNumber(item.tmdb_year);
     item.sortTmdbRating = mediaNumber(item.tmdb_rating);
     item.sortRtRating = mediaNumber(item.rt_rating);
+    item.sortRtAudience = mediaNumber(item.rt_audience);
+    item.sortTraktRating = mediaNumber(item.trakt_rating);
     item.sortMetacritic = mediaNumber(item.metacritic);
     // Titles outside the chart sort behind every ranked one
     item.sortTop250 = mediaNumber(item.imdb_top250) || Infinity;

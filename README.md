@@ -43,9 +43,9 @@ port `2367`.
 | **Full HDR metadata** | Mastering display luminance, MaxCLL/MaxFALL, RPU L5/L6, CM version |
 | **Blu-ray disc images** | `.iso` support - the main feature is found and analyzed in place |
 | **Web interface** | Dark-theme dashboard on port `2367`, virtualized for large libraries |
-| **Posters & ratings** | TMDB or Fanart.tv artwork, IMDb rating (via OMDb) with TMDB fallback and an IMDb Top 250 badge |
-| **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes and Metacritic, with a persistent direction toggle |
-| **Title details** | Genres beside the directors, plot folded to five lines and expandable |
+| **Posters & ratings** | TMDB or Fanart.tv artwork, all ratings from MDBList - IMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic - with TMDB fallback and an IMDb Top 250 badge |
+| **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
+| **Title details** | Tagline above the plot, genres beside the directors, plot folded to five lines and expandable |
 | **API** | Token-protected `/api/v1` - read the library filtered/sorted/paged, drive scans, follow progress live |
 | **Docker-based** | One `docker-compose up -d` away |
 
@@ -150,7 +150,7 @@ Everything is configured through environment variables in `docker-compose.yml`
 |----------|---------|-------------|
 | `TMDB_API_KEY` | *(empty)* | [TMDB](https://www.themoviedb.org/settings/api) key for posters and movie details (optional) |
 | `FANART_API_KEY` | *(empty)* | [Fanart.tv](https://fanart.tv/get-an-api-key/) key for thumb posters (optional) |
-| `OMDB_API_KEY` | *(empty)* | [OMDb](https://www.omdbapi.com/apikey.aspx) key for IMDb ratings (optional - without it the TMDB rating is shown) |
+| `MDBLIST_API_KEY` | *(empty)* | [MDBList](https://mdblist.com/preferences/) key for every rating - IMDb, Rotten Tomatoes Tomatometer and Audience, Trakt and Metacritic (optional - without it the TMDB rating is shown) |
 | `IMAGE_SOURCE` | `tmdb` | Image source: `tmdb` or `fanart` |
 | `CONTENT_LANGUAGE` | `en` | Preferred content language (ISO 639-1) for TMDB/Fanart.tv content and audio track selection |
 | `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
@@ -199,7 +199,7 @@ configured language, then English (`eng`), then the first available track.
 All three services are optional - without any key the app works normally and
 shows filenames instead of posters.
 
-### TMDB (posters, titles, plot, cast)
+### TMDB (posters, titles, plot, tagline, cast)
 
 1. Get a free API key from [TMDB](https://www.themoviedb.org/settings/api)
 2. Add it to `docker-compose.yml` or `.env`:
@@ -235,16 +235,24 @@ Notes:
 - There is no fallback between sources - only the selected one is used
 - Both keys may be configured, but only `IMAGE_SOURCE` decides which is used
 
-### OMDb (IMDb ratings)
+### MDBList (all ratings)
 
-An [OMDb](https://www.omdbapi.com/apikey.aspx) key makes the posters show the
-IMDb rating and the IMDb Top 250 rank badge, plus the Rotten Tomatoes and
-Metacritic scores. Without it, the TMDB rating is shown instead.
+An [MDBList](https://mdblist.com/preferences/) key makes the posters show the
+IMDb rating and the IMDb Top 250 rank badge, and fills the rating row in the
+details dialog with the IMDb, Rotten Tomatoes **Tomatometer** and **Audience**,
+Trakt and Metacritic scores. Without it, the TMDB rating is shown instead.
 
 ```yaml
 environment:
-  - OMDB_API_KEY=your_api_key_here
+  - MDBLIST_API_KEY=your_api_key_here
 ```
+
+One request per title returns every rating at once, so a title costs a single
+call out of the free tier's 1000 per day. The same sources are also what the
+sort dropdown offers, so the library can be ordered by any one of them.
+
+The IMDb Top 250 badge does not need a key at all: the chart is read from IMDb
+itself once a day and cached, so the rank is shown even without MDBList.
 
 ---
 
@@ -350,8 +358,9 @@ An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
 `hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
 `video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
 `hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
-`tmdb_rating`, `tmdb_plot`, `tmdb_directors`, `tmdb_cast`, `tmdb_genres`,
-`imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`, `metacritic`.
+`tmdb_rating`, `tmdb_plot`, `tmdb_tagline`, `tmdb_directors`, `tmdb_cast`,
+`tmdb_genres`, `imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`,
+`rt_audience`, `trakt_rating`, `metacritic`.
 
 ### 7.5 Narrowing the Library Down
 
@@ -363,7 +372,7 @@ handful:
 |-----------|---------|
 | `hdr_format`, `el_type`, `resolution`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`) |
 | `search` | Substring of the file name or the TMDB title |
-| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating` (default `filename`) |
+| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
 | `order` | `asc` (default) or `desc` |
 | `limit`, `offset` | The window to return; `total` always counts every match before it |
 

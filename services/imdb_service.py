@@ -3,15 +3,13 @@
 """
 IMDb Integration Service
 
-Provides the two pieces of IMDb data the UI shows:
+Provides the IMDb Top 250 rank the poster badge shows, derived from IMDb's
+public Top 250 chart, and the id check the other services validate an IMDb id
+with. The ratings themselves come from MDBList (see
+services/mdblist_service.py).
 
-* the IMDb user rating, fetched from the OMDb API (the same source Kodi's
-  TMDb Helper uses - it needs a free per-user API key), and
-* the IMDb Top 250 rank, derived from IMDb's public Top 250 chart.
-
-Both are optional: without an OMDb key no IMDb rating is fetched (the UI then
-falls back to the TMDb rating), and a failing chart download simply means no
-Top 250 badge. Neither ever aborts a scan.
+The chart is optional: a failing download simply means no Top 250 badge, and it
+never aborts a scan.
 """
 import json
 import os
@@ -58,100 +56,6 @@ _top250_loaded_at = 0.0
 def is_valid_imdb_id(imdb_id):
     """True for a well-formed IMDb title id such as 'tt0111161'."""
     return bool(imdb_id) and bool(IMDB_ID_PATTERN.match(str(imdb_id).strip()))
-
-
-def get_omdb_ratings(imdb_id, omdb_api_key):
-    """
-    Fetch all ratings OMDb knows for an IMDb id in a single request.
-
-    Returns a dict with ``imdb_rating`` (float, 0-10), ``imdb_votes`` (int),
-    ``rt_rating`` (int, Rotten Tomatoes tomatometer in percent) and
-    ``metacritic`` (int, Metascore out of 100). Individual entries are None
-    when that rating does not exist for the title.
-
-    Returns None when the lookup itself failed (no key, unknown title, network
-    error) - the caller uses that to tell "nothing to show" apart from "not
-    asked yet" and retry later.
-    """
-    if not omdb_api_key or not REQUESTS_AVAILABLE:
-        return None
-
-    if not is_valid_imdb_id(imdb_id):
-        print(f"  [IMDb] Invalid IMDb ID: {imdb_id}")
-        return None
-
-    try:
-        response = requests.get(
-            'https://www.omdbapi.com/',
-            params={'apikey': omdb_api_key, 'i': str(imdb_id).strip()},
-            timeout=10)
-
-        if response.status_code != 200:
-            print(f"  [IMDb] OMDb API error for {imdb_id}: HTTP {response.status_code}")
-            return None
-
-        data = response.json()
-        if data.get('Response') != 'True':
-            print(f"  [IMDb] OMDb returned no data for {imdb_id}: {data.get('Error')}")
-            return None
-
-        # Rotten Tomatoes only appears in the Ratings list, Metacritic both
-        # there and as the top-level Metascore field.
-        rt_raw = None
-        for entry in data.get('Ratings') or []:
-            if entry.get('Source') == 'Rotten Tomatoes':
-                rt_raw = entry.get('Value')
-                break
-
-        return {
-            'imdb_rating': _parse_rating(data.get('imdbRating')),
-            'imdb_votes': _parse_votes(data.get('imdbVotes')),
-            'rt_rating': _parse_percent(rt_raw),
-            'metacritic': _parse_percent(data.get('Metascore')),
-        }
-    except requests.exceptions.Timeout:
-        print(f"  [IMDb] OMDb API timeout for {imdb_id}")
-    except requests.exceptions.RequestException as e:
-        print(f"  [IMDb] OMDb API request error for {imdb_id}: {e}")
-    except Exception as e:
-        print(f"  [IMDb] Error fetching OMDb ratings for {imdb_id}: {e}")
-
-    return None
-
-
-def _parse_rating(raw):
-    """OMDb reports the rating as a string ('8.7') or 'N/A'."""
-    try:
-        value = float(str(raw).strip())
-    except (TypeError, ValueError):
-        return None
-    return value if 0 < value <= 10 else None
-
-
-def _parse_votes(raw):
-    """OMDb reports votes as a thousands-separated string ('2,845,123')."""
-    try:
-        return int(str(raw).replace(',', '').strip())
-    except (TypeError, ValueError):
-        return None
-
-
-def _parse_percent(raw):
-    """
-    Parse OMDb's percentage-style ratings into a plain int.
-
-    Covers the Rotten Tomatoes tomatometer ('97%'), the Metascore both as the
-    bare field ('100') and as it appears in the Ratings list ('100/100'), and
-    the 'N/A' OMDb returns for titles without that rating.
-    """
-    text = str(raw).strip().rstrip('%')
-    if '/' in text:
-        text = text.split('/')[0]
-    try:
-        value = int(text)
-    except (TypeError, ValueError):
-        return None
-    return value if 0 <= value <= 100 else None
 
 
 def _parse_top250(html):
@@ -322,14 +226,15 @@ def get_top250_rank(imdb_id, cache_file, ttl_seconds):
 
 
 def backfill_imdb_data(scanned_files, scan_lock, save_database_func,
-                       get_imdb_id_func, get_omdb_ratings_func, top250_map):
+                       get_imdb_id_func, get_ratings_func, top250_map,
+                       ratings_queried_key='rt_audience'):
     """
-    Add IMDb/OMDb data to entries scanned before it was collected, and refresh
-    the Top 250 ranks of all entries.
+    Add IMDb data and the external ratings to entries scanned before they were
+    collected, and refresh the Top 250 ranks of all entries.
 
     Without this, an existing library would keep showing TMDB ratings until
-    every file is rescanned. The IMDb id and the OMDb ratings are only looked
-    up where they are missing (one request each, once); the rank comes from the
+    every file is rescanned. The IMDb id and the ratings are only looked up
+    where they are missing (one request each, once); the rank comes from the
     already-loaded chart map and is therefore refreshed for every entry on
     every start - it changes as the chart does.
     """
@@ -355,10 +260,13 @@ def backfill_imdb_data(scanned_files, scan_lock, save_database_func,
         if not imdb_id:
             continue
 
-        # A stored 'rt_rating' key marks the entry as already queried, so a
-        # title that genuinely has no OMDb ratings is not re-requested daily.
-        if 'rt_rating' not in file_info and get_omdb_ratings_func:
-            ratings = get_omdb_ratings_func(imdb_id)
+        # The marker key tells an entry that was already queried apart from one
+        # that never was, so a title that genuinely has no ratings is not
+        # re-requested daily. It is the newest of the rating fields, so entries
+        # from an older version are looked up once more and gain the Rotten
+        # Tomatoes audience score and the Trakt rating without a rescan.
+        if ratings_queried_key not in file_info and get_ratings_func:
+            ratings = get_ratings_func(imdb_id)
             if ratings is not None:
                 file_info.update(ratings)
                 rated += 1

@@ -282,6 +282,33 @@
         margin-bottom: 18px;
     }
 
+    /* All six rating sources stay on one line on a phone as well. The row is
+       what has to give, so the tiles lose their padding, the logos and the
+       values shrink - a second row would push the plot off the screen. */
+    .dialog-ratings {
+        gap: 5px;
+    }
+
+    .dialog-rating {
+        min-height: 56px;
+        gap: 5px;
+        padding: 7px 2px;
+    }
+
+    .dialog-rating-logo,
+    .dialog-rating-logo svg {
+        height: 21px;
+    }
+
+    .dialog-rating-logo svg {
+        width: 21px;
+    }
+
+    .dialog-rating-value {
+        /* Scales with the viewport so "100%" still fits on a 320px phone */
+        font-size: clamp(0.62rem, 2.7vw, 0.85rem);
+    }
+
     .dialog-info {
         gap: 16px;
     }

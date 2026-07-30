@@ -354,6 +354,10 @@
 }
 
 .media-dialog {
+    /* How wide the cover may get. The rating row under it is measured against
+       the same value, so the two line up whatever the dialog's own width is -
+       on a phone in landscape the dialog is far wider than the cover. */
+    --dialog-cover-width: 460px;
     background: var(--surface-2);
     border: 1px solid var(--border-strong);
     border-radius: 22px;
@@ -450,7 +454,7 @@
        image - that gap would push the bottom-anchored Top 250 badge inwards. */
     display: block;
     width: 100%;
-    max-width: 460px;
+    max-width: var(--dialog-cover-width);
     aspect-ratio: 16 / 9;
     height: auto;
     object-fit: cover;
@@ -471,18 +475,29 @@
 }
 
 /* Row of external ratings directly under the cover */
-/* Flex, not a fixed 4-column grid: without an OMDb key only the TMDb rating
+/* Flex, not a fixed column grid: without a ratings key only the TMDb rating
    remains, and the surviving tiles should share the full width instead of
-   clinging to the left with empty columns beside them. */
+   clinging to the left with empty columns beside them. All sources stay on one
+   line - responsive.css scales the tiles down for a phone rather than wrapping
+   them into a second row. */
 .dialog-ratings {
     display: flex;
     gap: 8px;
-    margin: 16px 0 20px;
+    /* Never wider than the cover above it, and centred under it - which is
+       also what keeps a handful of capped tiles in the middle instead of
+       against the left edge. */
+    justify-content: center;
+    max-width: var(--dialog-cover-width);
+    margin: 16px auto 20px;
 }
 
 .dialog-rating {
     display: flex;
     flex: 1 1 0;
+    /* The tiles share the row evenly, but stop growing at a size that still
+       looks like a tile: a single surviving source stretched across the whole
+       cover width would be one logo in a lot of empty space. */
+    max-width: 120px;
     min-width: 0;
     flex-direction: column;
     align-items: center;
@@ -531,6 +546,16 @@
 
 .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #fa7a68;
+}
+
+/* The audience score keeps Rotten Tomatoes' popcorn yellow, so the two RT
+   tiles read as one source without looking identical. */
+.dialog-rating-rt-audience :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #f7c94b;
+}
+
+.dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #ed3833;
 }
 
 .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
@@ -585,6 +610,19 @@
     font-size: 0.93rem;
     font-weight: 500;
     line-height: 1.45;
+}
+
+/* The slogan above the plot: same text colour as the plot itself, set apart
+   only by the italic, so it reads as the title's own words. */
+.dialog-tagline-text {
+    color: var(--text);
+    font-size: 0.93rem;
+    font-style: italic;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-wrap: balance;
+    max-width: 42ch;
 }
 
 .dialog-plot-text {

@@ -297,69 +297,89 @@ def get_tmdb_credits(tmdb_id, media_type, tmdb_api_key):
     return [], []
 
 
-def get_tmdb_genres(tmdb_id, media_type, tmdb_api_key, content_language):
+def get_tmdb_details(tmdb_id, media_type, tmdb_api_key, content_language):
     """
-    Fetch the genre names of a title from TMDB by ID. Returns a list of names.
+    Fetch the extra details of a title from TMDB by ID: the genre names and the
+    tagline - the one-line slogan the dialog shows above the plot.
 
-    The names come back translated by TMDB itself, so the dialog shows them in
-    the configured content language; English is used as a fallback when that
-    language has no genre list for the title. An empty list means "no genres
-    known", which is a valid answer and is stored as such.
+    Both come back translated by TMDB itself, so the dialog shows them in the
+    configured content language; English fills in what that language does not
+    have (a tagline in particular is often only written in English). Returns
+    ``{'tmdb_genres': [...], 'tmdb_tagline': '...'}``, or None when the title
+    could not be read at all - which is what tells the caller to try the other
+    media type. A title that genuinely has neither is a valid answer and comes
+    back with the empty values.
     """
     if not tmdb_api_key or not REQUESTS_AVAILABLE:
-        return []
+        return None
 
     if not tmdb_id or not isinstance(tmdb_id, (str, int)) or not str(tmdb_id).isdigit():
-        print(f"Invalid TMDB ID for genres: {tmdb_id}")
-        return []
+        print(f"Invalid TMDB ID for details: {tmdb_id}")
+        return None
 
     url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}'
     languages = [content_language]
     if content_language != 'en':
         languages.append('en')
 
+    genres = []
+    tagline = ''
+    found = False
+
     try:
         for language in languages:
             params = {'api_key': tmdb_api_key, 'language': language}
             response = requests.get(url, params=params, timeout=10)
 
-            if response.status_code == 200:
-                genres = [g.get('name', '').strip()
-                          for g in response.json().get('genres') or []]
-                genres = [name for name in genres if name]
-                if genres:
-                    return genres
-            elif response.status_code == 404:
-                return []
-            else:
-                print(f"TMDB genres API error for ID {tmdb_id}: HTTP {response.status_code}")
-                return []
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                print(f"TMDB details API error for ID {tmdb_id}: HTTP {response.status_code}")
+                return None if not found else {'tmdb_genres': genres, 'tmdb_tagline': tagline}
+
+            data = response.json()
+            found = True
+
+            if not genres:
+                names = [g.get('name', '').strip()
+                         for g in data.get('genres') or []]
+                genres = [name for name in names if name]
+            if not tagline:
+                tagline = (data.get('tagline') or '').strip()
+
+            # Nothing left the English pass could add
+            if genres and tagline:
+                break
+
+        return {'tmdb_genres': genres, 'tmdb_tagline': tagline} if found else None
     except requests.exceptions.Timeout:
-        print(f"TMDB genres API timeout for ID {tmdb_id}")
+        print(f"TMDB details API timeout for ID {tmdb_id}")
     except requests.exceptions.RequestException as e:
-        print(f"TMDB genres API request error for ID {tmdb_id}: {e}")
+        print(f"TMDB details API request error for ID {tmdb_id}: {e}")
     except Exception as e:
-        print(f"Error fetching TMDB genres for ID {tmdb_id}: {e}")
+        print(f"Error fetching TMDB details for ID {tmdb_id}: {e}")
 
-    return []
+    return None
 
 
-def backfill_tmdb_genres(scanned_files, scan_lock, save_database_func,
-                         get_tmdb_genres_func):
+def backfill_tmdb_details(scanned_files, scan_lock, save_database_func,
+                          get_tmdb_details_func):
     """
-    Add the genre list to entries scanned before genres were collected.
+    Add the genres and the tagline to entries scanned before they were
+    collected.
 
-    Without this an existing library would show no genres until every file is
-    rescanned. Entries are only looked up once: the key is written even when
-    the title genuinely has no genres, so the lookup is not repeated on every
-    start.
+    Without this an existing library would show neither until every file is
+    rescanned. Entries are only looked up once: the keys are written even when
+    the title genuinely has no genres or no tagline, so the lookup is not
+    repeated on every start.
     """
-    if not get_tmdb_genres_func:
+    if not get_tmdb_details_func:
         return 0
 
     with scan_lock:
         entries = [info for info in scanned_files.values()
-                   if info.get('tmdb_id') and 'tmdb_genres' not in info]
+                   if info.get('tmdb_id')
+                   and ('tmdb_genres' not in info or 'tmdb_tagline' not in info)]
 
     if not entries:
         return 0
@@ -367,14 +387,20 @@ def backfill_tmdb_genres(scanned_files, scan_lock, save_database_func,
     filled = 0
     for file_info in entries:
         tmdb_id = file_info.get('tmdb_id')
-        genres = get_tmdb_genres_func(tmdb_id, 'movie') or get_tmdb_genres_func(tmdb_id, 'tv')
-        file_info['tmdb_genres'] = genres or []
-        if genres:
-            filled += 1
+        details = (get_tmdb_details_func(tmdb_id, 'movie')
+                   or get_tmdb_details_func(tmdb_id, 'tv'))
+        if details is None:
+            # The lookup itself failed - leave the entry untouched so the next
+            # start tries again instead of storing (and keeping) empty values.
+            continue
+        file_info['tmdb_genres'] = details.get('tmdb_genres') or []
+        file_info['tmdb_tagline'] = details.get('tmdb_tagline') or ''
+        filled += 1
 
-    with scan_lock:
-        save_database_func()
-    print(f"✓ TMDB genres updated - {filled} of {len(entries)} entr(ies)")
+    if filled:
+        with scan_lock:
+            save_database_func()
+    print(f"✓ TMDB details updated - {filled} of {len(entries)} entr(ies)")
 
     return filled
 
