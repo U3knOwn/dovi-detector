@@ -354,6 +354,10 @@
 }
 
 .media-dialog {
+    /* How wide the cover may get. The rating row under it is measured against
+       the same value, so the two line up whatever the dialog's own width is -
+       on a phone in landscape the dialog is far wider than the cover. */
+    --dialog-cover-width: 460px;
     background: var(--surface-2);
     border: 1px solid var(--border-strong);
     border-radius: 22px;
@@ -450,7 +454,7 @@
        image - that gap would push the bottom-anchored Top 250 badge inwards. */
     display: block;
     width: 100%;
-    max-width: 460px;
+    max-width: var(--dialog-cover-width);
     aspect-ratio: 16 / 9;
     height: auto;
     object-fit: cover;
@@ -479,7 +483,9 @@
 .dialog-ratings {
     display: flex;
     gap: 8px;
-    margin: 16px 0 20px;
+    /* Exactly as wide as the cover above it, and centred under it */
+    max-width: var(--dialog-cover-width);
+    margin: 16px auto 20px;
 }
 
 .dialog-rating {
