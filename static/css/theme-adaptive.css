@@ -65,7 +65,6 @@
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) {
     position: relative;
     background-color: transparent;
-    --cover-wash: rgba(255, 255, 255, 0.055);
 }
 
 /* The cell the layer hangs off must not be positioned itself, or it becomes the
@@ -92,18 +91,19 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background-clip: padding-box;
-    /* Painted top-down: the wash that lifts the row off the page, the scrim
-       over the cover's colours, those over the surface the row would have had
-       anyway - which is all that is left of it for an entry scanned without a
-       TMDB key, since there is no cover to paint. */
+    /* Painted top-down: the scrim over the cover's colours, those over the
+       surface the row would have had anyway - which is all that is left of it
+       for an entry scanned without a TMDB key, since there is no cover to
+       paint. Nothing lifts the row off the page on top of that: a white wash
+       sat here and turned every row a shade of grey, whatever it was showing.
+       The row is told apart by its outline and by the cover under it. */
     background-color: var(--surface);
     background-image:
-        linear-gradient(var(--cover-wash), var(--cover-wash)),
         linear-gradient(var(--cover-scrim), var(--cover-scrim)),
         var(--cover-gradient, none);
     background-repeat: no-repeat;
-    /* What the cells used to take from the row with a backdrop filter. The wash
-       and the scrim are greys and come through untouched; only the cover's own
+    /* What the cells used to take from the row with a backdrop filter. The
+       scrim is a grey and comes through untouched; only the cover's own
        colours are carried, which is all the filter was ever there for. */
     filter: saturate(1.5);
 }
