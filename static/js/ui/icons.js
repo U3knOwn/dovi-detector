@@ -59,6 +59,21 @@ export const FLAG_SVGS = {
     zh: '<svg viewBox="0 0 20 14"><rect width="20" height="14" fill="#DE2910"/><polygon points="5,2.5 5.9,5.2 8.7,5.2 6.4,6.9 7.3,9.6 5,7.9 2.7,9.6 3.6,6.9 1.3,5.2 4.1,5.2" fill="#FFDE00"/></svg>'
 };
 
+// One icon per theme, used by both the toggle button (which shows the
+// icon of the theme a normal press switches to next) and its long-press menu
+// (which shows every theme next to its own icon).
+// The adaptive one is the plain moon with the shape itself frosted - the same
+// silhouette, filled the way the tinted surfaces are, so it reads as the dark
+// theme seen through them.
+const FROSTED = 'fill="currentColor" fill-opacity="0.55"';
+
+export const THEME_ICONS = {
+    light: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
+    dark: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+    'dark-adaptive': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ${FROSTED}/></svg>`,
+    midnight: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>`
+};
+
 // Status message icons (success / info / error), rendered as inline SVG.
 export const MSG_ICONS = {
     success: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,

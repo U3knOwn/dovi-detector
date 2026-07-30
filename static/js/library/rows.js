@@ -9,6 +9,7 @@ import { t } from '../core/i18n.js';
 import { makeElement } from '../helpers/dom.js';
 import { mediaAudioClass, mediaAudioText, mediaHdrClass, mediaResolutionClass, mediaTitleText } from './model.js';
 import { POSTER_PLACEHOLDER_SVG, RATING_STAR_SVG } from '../ui/icons.js';
+import { applyCoverGradient } from '../ui/cover-gradient.js';
 
 // A table cell with the label the stacked mobile layout shows in front of it.
 function makeCell(labelKey, className) {
@@ -86,6 +87,9 @@ function buildHdrCell(item) {
 
 export function buildMediaRow(item) {
     const row = makeElement('tr');
+    // The adaptive themes back the row with the colours of its own cover, the
+    // same way they back the details dialog.
+    applyCoverGradient(row, item.poster_url);
     row.appendChild(buildPosterCell(item));
     row.appendChild(buildHdrCell(item));
 

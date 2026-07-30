@@ -11,6 +11,7 @@ import { removeFileFromTable } from '../library/view.js';
 import { getMediaBody } from '../library/virtual-table.js';
 import { loadFileList } from './file-dialog.js';
 import { requestDelete, requestRescan } from '../core/api.js';
+import { applyCoverGradient } from './cover-gradient.js';
 
 let currentDialogFilePath = '';
 
@@ -243,7 +244,8 @@ export function showMediaDialog(item) {
     if (posterUrl) {
         dialogPosterImg.src = posterUrl;
         dialogPoster.style.display = 'block';
-        
+        applyCoverGradient(document.querySelector('.media-dialog'), posterUrl);
+
         // Set filename if available
         if (dialogFilenameItem && dialogFilename && filename && filename.trim() !== '') {
             dialogFilename.textContent = filename;
@@ -253,6 +255,7 @@ export function showMediaDialog(item) {
         }
     } else {
         dialogPoster.style.display = 'none';
+        applyCoverGradient(document.querySelector('.media-dialog'), '');
         // Without a poster the dialog title already is the filename, so the
         // separate row stays hidden - and must be reset, otherwise it would
         // keep showing the previously opened entry's filename.

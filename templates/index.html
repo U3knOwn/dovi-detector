@@ -3,20 +3,28 @@ Copyright (c) 2026 Jamal2367
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 -->
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0a0c12">
+    <meta name="theme-color" content="#0b0d14">
     <title>Universal Video Scanner</title>
     <script>
         // Apply the saved theme before the stylesheet renders to avoid a flash
-        // of the wrong theme. Dark is the default.
+        // of the wrong theme. Kept in step with DEFAULT_THEME,
+        // THEME_ORDER and migrateTheme in static/js/core/theme.js, all of
+        // which run far too late to prevent that flash.
         (function () {
-            var theme = 'dark';
+            var themes = ['light', 'dark', 'dark-adaptive', 'midnight'];
+            var theme = 'dark-adaptive';
             try {
-                if (localStorage.getItem('dovi_theme') === 'light') theme = 'light';
-            } catch (e) { /* localStorage unavailable -> keep dark */ }
+                var saved = localStorage.getItem('dovi_theme');
+                // Names that have been retired - kept in step with
+                // RETIRED_THEMES in static/js/core/theme.js.
+                if (saved === 'adaptive') saved = 'dark-adaptive';
+                else if (saved === 'light-adaptive') saved = 'light';
+                if (themes.indexOf(saved) !== -1) theme = saved;
+            } catch (e) { /* localStorage unavailable -> keep the default */ }
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -31,6 +39,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dialogs.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chrome.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-light.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-adaptive.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
@@ -44,16 +53,32 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                stored preference - that way the group never flashes open. #}
             <div class="header-actions collapsed">
                 <div class="header-actions-group" id="headerActionsGroup">
-                    <button id="themeToggle" class="controls-toggle theme-toggle" onclick="toggleTheme()">
-                        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="4"/>
-                            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-                        </svg>
-                        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                        </svg>
-                        <span class="visually-hidden" id="themeToggleLabel"></span>
-                    </button>
+                    {# Normal press walks THEME_ORDER in static/js/core/theme.js:
+                       light -> dark -> dark adaptive -> midnight. A long press
+                       (or right-click) opens themeMenu to pick one directly. #}
+                    <div class="theme-select" id="themeSelectWrap">
+                        <button id="themeToggle" class="controls-toggle theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
+                            <svg class="icon-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="4"/>
+                                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                            </svg>
+                            <svg class="icon-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            </svg>
+                            <svg class="icon-midnight" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                                <path d="M19 3v4"/>
+                                <path d="M21 5h-4"/>
+                            </svg>
+                            {# The adaptive one: the plain moon above, the shape itself
+                               frosted the way the tinted surfaces are. #}
+                            <svg class="icon-dark-adaptive" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" fill-opacity="0.55"/>
+                            </svg>
+                            <span class="visually-hidden" id="themeToggleLabel"></span>
+                        </button>
+                        <ul class="custom-select-menu" id="themeMenu" role="menu" aria-label="Theme" tabindex="-1"></ul>
+                    </div>
                     {# Show/hide the media table, between the theme and menu buttons. #}
                     <div class="controls-toggle collapse-btn" aria-expanded="true" aria-controls="collapsed_button">
                         <span class="toggle hide" data-i18n-title="show">

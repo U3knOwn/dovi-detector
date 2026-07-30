@@ -1,0 +1,104 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* What the dark adaptive theme overrides. */
+
+/* ============================================================
+   Dark Adaptive
+   ------------------------------------------------------------
+   The plain dark theme, with two exceptions: a table row and the
+   details dialog take their colour from the entry's own cover.
+   Nothing else changes - the header, the controls, the file
+   dialog and the rest inherit the dark theme untouched, so every
+   rule below is scoped to one of those two.
+
+   media-dialog.js and the table hand the cover over as
+   --cover-gradient (see ui/cover-gradient.js). Without one - an
+   entry scanned with no TMDB key - there is nothing to paint and
+   the plain dark surface shows through.
+   ============================================================ */
+
+:root[data-theme="dark-adaptive"] tbody tr,
+:root[data-theme="dark-adaptive"] .media-dialog {
+    /* Painted top-down: the scrim over the cover's colours, those over the
+       surface colour underneath.
+
+       Both ride on the element's own background rather than on a layer above
+       it. A background is anchored to the padding box, so on the dialog it
+       stays where it is while the panel scrolls its content - a positioned
+       layer would slide away with the text instead. */
+    background-image:
+        linear-gradient(var(--cover-scrim), var(--cover-scrim)),
+        var(--cover-gradient, none);
+    background-repeat: no-repeat;
+}
+
+/* On the table the gradient goes on the row, not on its cells: each cell would
+   paint the whole gradient over its own width, so the pools would repeat once
+   per column instead of spanning the row. The radius has to be repeated here -
+   the cells are what round the row's ends, and the row's own background is a
+   plain rectangle that would otherwise show through at the corners. */
+:root[data-theme="dark-adaptive"] tbody tr {
+    border-radius: var(--radius-lg);
+}
+
+/* The cells have to let the row through, so they trade the dark theme's opaque
+   surface for a plain light wash - a tinted one would drag the cover's colour
+   back towards the same slate whatever the poster was. */
+:root[data-theme="dark-adaptive"] tbody tr td {
+    background: rgba(255, 255, 255, 0.055);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.095);
+}
+
+:root[data-theme="dark-adaptive"] .media-dialog {
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+
+/* The chips inside the dialog, for the same reason as the cells above: left on
+   the dark theme's opaque slate they would sit on the tinted panel as cold grey
+   boxes. A softer blur than the panel itself - they are small, and at the full
+   strength the little they cover turns to a single flat colour. */
+:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-plot-toggle) {
+    background: rgba(255, 255, 255, 0.13);
+}
+
+:root[data-theme="dark-adaptive"] .dialog-rating {
+    background: rgba(255, 255, 255, 0.085);
+}
+
+:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating,
+        .dialog-plot-toggle, .dialog-link, .dialog-rescan-btn, .dialog-delete-btn) {
+    backdrop-filter: blur(8px) saturate(1.4);
+    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+}
+
+/* The quietest text in the two tinted areas, a step further from the surface
+   than the dark theme sets it. Theirs sits on one known colour; this sits on
+   whatever the entry's cover happens to be, and the quietest text is what runs
+   out of margin first - the dialog's field labels measured 3.3:1 against a warm
+   cover at the inherited value. Scoped to the tinted areas, so the column
+   headers above the table keep the dark theme's own. */
+:root[data-theme="dark-adaptive"] tbody tr,
+:root[data-theme="dark-adaptive"] .media-dialog {
+    --text-faint: #8b95ab;
+}
+
+/* The rating marks are the sources' own colours, picked against one fixed
+   surface. Here the panel carries the entry's cover, so a red mark can land on
+   a red cover: the Trakt score measured 2.8:1 against a warm one. These two
+   take a step away from it. */
+:root[data-theme="dark-adaptive"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #ff938c;
+}
+
+:root[data-theme="dark-adaptive"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #fda092;
+}

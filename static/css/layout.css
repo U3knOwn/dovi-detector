@@ -154,20 +154,53 @@ header {
     transform: rotate(180deg);
 }
 
+/* The button always shows the icon of the theme a normal press switches to
+   next, matching THEME_ORDER in theme.js: light -> dark -> dark-adaptive ->
+   midnight -> light. */
 .theme-toggle svg {
-    display: block;
-}
-
-.theme-toggle .icon-moon {
     display: none;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-sun {
-    display: none;
+:root[data-theme="light"] .theme-toggle .icon-dark {
+    display: block;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-moon {
+:root[data-theme="dark"] .theme-toggle .icon-dark-adaptive {
     display: block;
+}
+
+/* No attribute means the inline script in the template never ran, so what is
+   on screen is DEFAULT_THEME - dark-adaptive - and midnight comes next. */
+:root:not([data-theme]) .theme-toggle .icon-midnight,
+:root[data-theme="dark-adaptive"] .theme-toggle .icon-midnight {
+    display: block;
+}
+
+:root[data-theme="midnight"] .theme-toggle .icon-light {
+    display: block;
+}
+
+/* The menu is moved to <body> in JS (see theme.js) so the header-actions
+   group's overflow:hidden - used to animate its own collapse - cannot clip
+   it; theme.js positions it against the button's rect instead. The id
+   selector (rather than .theme-menu) is what makes these win over
+   .custom-select-menu's own position/left further down this file. */
+#themeMenu {
+    position: fixed;
+    width: max-content;
+    min-width: 160px;
+    /* theme.js sets top and left against the toggle; right has to go, or the
+       inherited one would stretch the menu across to it. */
+    right: auto;
+    /* Over the sticky header it drops out of, which would otherwise paint
+       across its top edge - the menu sits in <body>, so the header's own
+       z-index would win. Still under the dialog overlays at 1000. */
+    z-index: 200;
+}
+
+#themeMenu.open {
+    display: block;
+    animation: dropdownIn 0.15s ease;
 }
 /* ============================================================
    Control Panels

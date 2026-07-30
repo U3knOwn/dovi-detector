@@ -7,7 +7,7 @@
  */
 
 // i18n System
-export let currentLang = 'de';
+export let currentLang = 'en';
 let translations = {};
 
 /**
@@ -119,7 +119,7 @@ export async function setLanguage(lang) {
 }
 
 export async function initLanguage() {
-    const savedLang = localStorage.getItem('dovi_language') || 'de';
+    const savedLang = localStorage.getItem('dovi_language') || 'en';
     currentLang = savedLang;
     document.documentElement.lang = savedLang;
     await loadTranslations(savedLang);

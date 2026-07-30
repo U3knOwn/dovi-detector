@@ -79,3 +79,49 @@
     --bg-glow-1: rgba(99, 102, 241, 0.09);
     --bg-glow-2: rgba(236, 72, 153, 0.06);
 }
+
+/* Deeper and more saturated blue than the default dark theme. */
+:root[data-theme="midnight"] {
+    --bg: #04060c;
+    --surface: #0a0d17;
+    --surface-2: #0e1220;
+    --surface-3: #131829;
+    --control-bg: #070a12;
+    --border: rgba(147, 197, 253, 0.09);
+    --border-strong: rgba(147, 197, 253, 0.16);
+    --text: #e4eaf7;
+    --text-muted: #8b96b5;
+    --text-faint: #545f7d;
+    --accent: #3b82f6;
+    --accent-2: #6366f1;
+    --accent-grad: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    --title-grad: linear-gradient(135deg, #60a5fa 0%, #818cf8 45%, #22d3ee 100%);
+    --ring: rgba(59, 130, 246, 0.45);
+    --success: #34d399;
+    --info: #38bdf8;
+    --danger: #f87171;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --glow: 0 0 0 1px rgba(59, 130, 246, 0.4), 0 8px 24px rgba(59, 130, 246, 0.28);
+    --header-bg: rgba(8, 11, 19, 0.8);
+    --overlay-bg: rgba(2, 3, 6, 0.78);
+    --scroll-toggle-bg: rgba(14, 18, 32, 0.88);
+    --scrollbar-thumb: rgba(147, 197, 253, 0.14);
+    --scrollbar-thumb-hover: rgba(147, 197, 253, 0.24);
+    --progress-track: rgba(147, 197, 253, 0.08);
+    --accent-soft: #93c5fd;
+    --bg-glow-1: rgba(59, 130, 246, 0.16);
+    --bg-glow-2: rgba(99, 102, 241, 0.1);
+}
+
+/* Dark, with the table and the details dialog taking their colour from the
+   entry's own cover - see theme-adaptive.css, which is the only place that
+   differs from the plain dark theme. Everything not listed here is inherited
+   from it, deliberately: the header, the controls and the file dialog are
+   meant to look exactly as they do there. */
+:root[data-theme="dark-adaptive"] {
+    /* Laid over the cover's colours where they back a row or the dialog, so
+       the text on top keeps its contrast whatever the artwork looks like. */
+    --cover-scrim: rgba(11, 13, 20, 0.74);
+}

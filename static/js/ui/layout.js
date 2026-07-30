@@ -128,6 +128,13 @@ let headerActionsIdleTimer = null;
 // Whether the group still counts as being used, and should be left open for
 // another round rather than folding away under the user.
 function isHeaderActionsInUse(actions) {
+    // The theme menu is parented to <body> so the group's overflow cannot clip
+    // it, which also puts it out of reach of both checks below. Folding the
+    // group away under an open menu would take its anchor - the toggle - with
+    // it and leave the menu pointing at nothing.
+    const themeMenu = document.getElementById('themeMenu');
+    if (themeMenu && themeMenu.classList.contains('open')) return true;
+
     // Touch browsers can leave :hover stuck on whatever was tapped last, which
     // would keep the group open forever - so the pointer only counts on devices
     // that really hover.
