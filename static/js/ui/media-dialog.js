@@ -51,10 +51,12 @@ function updateHdrMetadataRows(hdrFormat, hdrMetadata) {
 }
 
 /**
- * Fill the row of external ratings under the cover. Each entry is hidden when
- * that source has no rating for the title; the whole row disappears when none
- * of them do. `ratings` holds the entry's raw scores, null where a source has
- * none.
+ * Fill the row of external ratings under the cover: IMDb and TMDb as their
+ * 0-10 user scores, then the percentage-based ones - the Rotten Tomatoes
+ * tomatometer with the audience score beside it, Trakt and Metacritic. Each
+ * entry is hidden when that source has no rating for the title; the whole row
+ * disappears when none of them do. `ratings` holds the entry's raw scores, null
+ * where a source has none.
  */
 function updateDialogRatings(ratings) {
     const container = document.getElementById('dialogRatings');
@@ -66,6 +68,8 @@ function updateDialogRatings(ratings) {
         ['dialogRatingImdb', 'dialogRatingImdbValue', ratings.imdb, v => `${v.toFixed(1)}`, false],
         ['dialogRatingTmdb', 'dialogRatingTmdbValue', ratings.tmdb, v => `${v.toFixed(1)}`, false],
         ['dialogRatingRt', 'dialogRatingRtValue', ratings.rt, v => `${Math.round(v)}%`, true],
+        ['dialogRatingRtAudience', 'dialogRatingRtAudienceValue', ratings.rtAudience, v => `${Math.round(v)}%`, true],
+        ['dialogRatingTrakt', 'dialogRatingTraktValue', ratings.trakt, v => `${Math.round(v)}%`, true],
         ['dialogRatingMetacritic', 'dialogRatingMetacriticValue', ratings.metacritic, v => `${Math.round(v)}`, true]
     ];
 
@@ -176,6 +180,7 @@ export function showMediaDialog(item) {
     const rating = item.rating;
     const imdbTop250 = item.imdb_top250;
     const plot = item.tmdb_plot || '';
+    const tagline = item.tmdb_tagline || '';
     const directors = (item.tmdb_directors || []).join(', ');
     const genres = (item.tmdb_genres || []).join(', ');
     const cast = (item.tmdb_cast || []).join(', ');
@@ -186,6 +191,8 @@ export function showMediaDialog(item) {
         imdb: item.imdb_rating,
         tmdb: item.tmdb_rating,
         rt: item.rt_rating,
+        rtAudience: item.rt_audience,
+        trakt: item.trakt_rating,
         metacritic: item.metacritic
     };
 
@@ -204,6 +211,8 @@ export function showMediaDialog(item) {
     const dialogTmdbLink = document.getElementById('dialogTmdbLink');
     const dialogTrailerLink = document.getElementById('dialogTrailerLink');
     const dialogLinksContainer = document.getElementById('dialogLinksContainer');
+    const dialogTagline = document.getElementById('dialogTagline');
+    const dialogTaglineText = document.getElementById('dialogTaglineText');
     const dialogPlot = document.getElementById('dialogPlot');
     const dialogPlotText = document.getElementById('dialogPlotText');
     const dialogDirectors = document.getElementById('dialogDirectors');
@@ -275,6 +284,16 @@ export function showMediaDialog(item) {
         }
     }
     
+    // Set the tagline - the title's slogan, shown above the plot it introduces
+    if (dialogTagline && dialogTaglineText) {
+        if (tagline) {
+            dialogTaglineText.textContent = tagline;
+            dialogTagline.style.display = 'flex';
+        } else {
+            dialogTagline.style.display = 'none';
+        }
+    }
+
     // Set plot if available, otherwise show fallback text. It starts folded to
     // five lines - whether the expand button is needed is decided once the
     // dialog is on screen and the text has a measurable height.

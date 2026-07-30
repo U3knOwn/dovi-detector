@@ -26,9 +26,9 @@ LIBRARY_FIELDS = (
     'filename', 'path', 'hdr_format', 'hdr_detail', 'el_type', 'resolution',
     'audio_codec', 'duration', 'video_bitrate', 'audio_bitrate', 'file_size',
     'mtime', 'dv_cm_version', 'hdr_metadata', 'tmdb_id', 'poster_url',
-    'tmdb_title', 'tmdb_year', 'tmdb_rating', 'tmdb_plot', 'tmdb_directors',
-    'tmdb_cast', 'tmdb_genres', 'imdb_id', 'imdb_rating', 'rt_rating',
-    'metacritic', 'imdb_top250',
+    'tmdb_title', 'tmdb_year', 'tmdb_rating', 'tmdb_plot', 'tmdb_tagline',
+    'tmdb_directors', 'tmdb_cast', 'tmdb_genres', 'imdb_id', 'imdb_rating',
+    'rt_rating', 'rt_audience', 'trakt_rating', 'metacritic', 'imdb_top250',
 )
 
 # The fields a caller may narrow the library down by. Compared case-insensitively
@@ -65,6 +65,12 @@ SORT_KEYS = {
     'tmdb_year': lambda entry: _as_float(entry.get('tmdb_year')),
     'tmdb_rating': lambda entry: _as_float(entry.get('tmdb_rating')),
     'imdb_rating': lambda entry: _as_float(entry.get('imdb_rating')),
+    # The same rating sources the interface sorts by, so an API consumer can ask
+    # for the order it sees on screen instead of sorting the library itself.
+    'rt_rating': lambda entry: _as_float(entry.get('rt_rating')),
+    'rt_audience': lambda entry: _as_float(entry.get('rt_audience')),
+    'trakt_rating': lambda entry: _as_float(entry.get('trakt_rating')),
+    'metacritic': lambda entry: _as_float(entry.get('metacritic')),
 }
 
 

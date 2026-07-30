@@ -187,6 +187,14 @@ function sortTableByRtRating() {
     sortTableByRatingSource('sortRtRating');
 }
 
+function sortTableByRtAudience() {
+    sortTableByRatingSource('sortRtAudience');
+}
+
+function sortTableByTraktRating() {
+    sortTableByRatingSource('sortTraktRating');
+}
+
 function sortTableByMetacritic() {
     sortTableByRatingSource('sortMetacritic');
 }
@@ -233,6 +241,8 @@ const SORT_HANDLERS = {
     rating:               sortTableByRating,
     rating_tmdb:          sortTableByTmdbRating,
     rating_rt:            sortTableByRtRating,
+    rating_rt_audience:   sortTableByRtAudience,
+    rating_trakt:         sortTableByTraktRating,
     rating_metacritic:    sortTableByMetacritic,
     filesize:             sortTableByFileSize,
     videobitrate:         sortTableByVideoBitrate,

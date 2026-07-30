@@ -106,6 +106,15 @@
     color: #dc2626;
 }
 
+:root[data-theme="light"] .dialog-rating-rt-audience :is(.dialog-rating-value, .dialog-rating-logo) {
+    /* The popcorn yellow disappears on a light surface */
+    color: #b45309;
+}
+
+:root[data-theme="light"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #b91c1c;
+}
+
 :root[data-theme="light"] .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #15803d;
 }

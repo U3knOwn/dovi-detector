@@ -11,6 +11,9 @@ import tempfile
 import itertools
 import subprocess
 import concurrent.futures
+from services.ratings_service import (
+    RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings, ratings_configured
+)
 from utils.media_utils import (
     get_channel_format, parse_bitrate_string,
     parse_mediainfo_int, parse_mediainfo_float
@@ -1035,8 +1038,8 @@ def get_audio_codec(tracks):
 def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_database_func,
                     get_fanart_poster_func, get_tmdb_poster_func, get_tmdb_poster_by_id_func,
                     get_tmdb_credits_func, get_cached_backdrop_path_func,
-                    get_imdb_id_func=None, get_omdb_ratings_func=None,
-                    get_top250_rank_func=None, get_tmdb_genres_func=None,
+                    get_imdb_id_func=None, get_ratings_func=None,
+                    get_top250_rank_func=None, get_tmdb_details_func=None,
                     defer_save=False):
     """
     Scan a video file and extract all metadata.
@@ -1131,7 +1134,7 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         filename, get_fanart_poster_func, get_tmdb_poster_func,
         get_tmdb_poster_by_id_func, get_tmdb_credits_func,
         get_cached_backdrop_path_func, get_imdb_id_func,
-        get_omdb_ratings_func, get_top250_rank_func, get_tmdb_genres_func)
+        get_ratings_func, get_top250_rank_func, get_tmdb_details_func)
 
     file_info = {
         'filename': filename,
@@ -1170,12 +1173,13 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
 def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func,
                           get_tmdb_poster_by_id_func, get_tmdb_credits_func,
                           get_cached_backdrop_path_func, get_imdb_id_func=None,
-                          get_omdb_ratings_func=None, get_top250_rank_func=None,
-                          get_tmdb_genres_func=None):
+                          get_ratings_func=None, get_top250_rank_func=None,
+                          get_tmdb_details_func=None):
     """
     Fetch everything about a title that comes from the network: poster, TMDB
-    metadata, credits and genres, the IMDb id with its OMDb ratings, and the
-    Top 250 rank. Returns the fields as they are stored in the database.
+    metadata, credits, genres and tagline, the IMDb id with its external
+    ratings, and the Top 250 rank. Returns the fields as they are stored in the
+    database.
 
     Kept separate from the file probing so an entry whose lookups failed - an
     API that was down, a key added later - can be refreshed without reading
@@ -1223,59 +1227,64 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
         if tmdb_directors or tmdb_cast:
             print(f"  [TMDB] Credits found - Directors: {len(tmdb_directors)}, Cast: {len(tmdb_cast)}")
 
-    # Get the genres if we have a TMDB ID - shown next to the directors
+    # Get the genres (shown next to the directors) and the tagline (the slogan
+    # above the plot) if we have a TMDB ID - both come from one lookup
     tmdb_genres = []
-    if tmdb_id and config.TMDB_API_KEY and get_tmdb_genres_func:
-        tmdb_genres = (get_tmdb_genres_func(tmdb_id, 'movie')
-                       or get_tmdb_genres_func(tmdb_id, 'tv'))
+    tmdb_tagline = ''
+    if tmdb_id and config.TMDB_API_KEY and get_tmdb_details_func:
+        details = (get_tmdb_details_func(tmdb_id, 'movie')
+                   or get_tmdb_details_func(tmdb_id, 'tv')
+                   or {})
+        tmdb_genres = details.get('tmdb_genres') or []
+        tmdb_tagline = details.get('tmdb_tagline') or ''
         if tmdb_genres:
             print(f"  [TMDB] Genres found: {', '.join(tmdb_genres)}")
+        if tmdb_tagline:
+            print(f"  [TMDB] Tagline found: {tmdb_tagline}")
 
-    # Get the IMDb / Rotten Tomatoes / Metacritic ratings and the Top 250 rank.
-    # The filename only carries a TMDB id, so IMDb is reached via TMDB's
-    # external_ids; without an OMDb key the ratings stay empty and the UI falls
-    # back to the TMDB rating.
+    # Get the external ratings (IMDb, both Rotten Tomatoes scores, Trakt and
+    # Metacritic) and the Top 250 rank. The filename only carries a TMDB id, so
+    # IMDb is reached via TMDB's external_ids; without a ratings key they stay
+    # empty and the UI falls back to the TMDB rating.
     imdb_id = None
-    imdb_rating = None
-    imdb_votes = None
-    rt_rating = None
-    metacritic = None
+    ratings = {}
     imdb_top250 = None
     if tmdb_id and get_imdb_id_func:
         imdb_id = get_imdb_id_func(tmdb_id, 'movie') or get_imdb_id_func(tmdb_id, 'tv')
         if imdb_id:
             print(f"  [IMDb] IMDb ID: {imdb_id}")
-            if get_omdb_ratings_func:
-                ratings = get_omdb_ratings_func(imdb_id) or {}
-                imdb_rating = ratings.get('imdb_rating')
-                imdb_votes = ratings.get('imdb_votes')
-                rt_rating = ratings.get('rt_rating')
-                metacritic = ratings.get('metacritic')
-                if imdb_rating:
-                    print(f"  [IMDb] Rating: {imdb_rating} ({imdb_votes} votes), "
-                          f"RT: {rt_rating}, Metacritic: {metacritic}")
+            if get_ratings_func:
+                ratings = get_ratings_func(imdb_id) or {}
+                if ratings.get('imdb_rating'):
+                    print(f"  [Ratings] IMDb: {ratings.get('imdb_rating')} "
+                          f"({ratings.get('imdb_votes')} votes), "
+                          f"RT: {ratings.get('rt_rating')}, "
+                          f"RT Audience: {ratings.get('rt_audience')}, "
+                          f"Trakt: {ratings.get('trakt_rating')}, "
+                          f"Metacritic: {ratings.get('metacritic')}")
             if get_top250_rank_func:
                 imdb_top250 = get_top250_rank_func(imdb_id)
                 if imdb_top250:
                     print(f"  [IMDb] Top 250 rank: #{imdb_top250}")
 
-    return {
+    metadata = {
         'tmdb_id': tmdb_id,
         'poster_url': cached_backdrop_path if cached_backdrop_path else poster_url,
         'tmdb_title': tmdb_title,
         'tmdb_year': tmdb_year,
         'tmdb_rating': tmdb_rating,
         'tmdb_plot': tmdb_plot,
+        'tmdb_tagline': tmdb_tagline,
         'tmdb_directors': tmdb_directors,
         'tmdb_cast': tmdb_cast,
         'tmdb_genres': tmdb_genres,
         'imdb_id': imdb_id,
-        'imdb_rating': imdb_rating,
-        'imdb_votes': imdb_votes,
-        'rt_rating': rt_rating,
-        'metacritic': metacritic,
         'imdb_top250': imdb_top250,
     }
+    # Written in full even when the lookup found nothing, so every entry carries
+    # the same set of rating keys - a missing one means "never asked".
+    metadata.update(complete_ratings(ratings))
+    return metadata
 
 
 def is_metadata_incomplete(file_info):
@@ -1302,7 +1311,9 @@ def is_metadata_incomplete(file_info):
         return True
     if config.TMDB_API_KEY and 'imdb_id' not in file_info:
         return True
-    if config.OMDB_API_KEY and file_info.get('imdb_id') and 'rt_rating' not in file_info:
+    if (ratings_configured(config.MDBLIST_API_KEY, config.OMDB_API_KEY)
+            and file_info.get('imdb_id')
+            and RATINGS_QUERIED_KEY not in file_info):
         return True
 
     return False
@@ -1362,6 +1373,15 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
         # cannot turn an existing poster or title back into None.
         gained = {k: v for k, v in (fresh or {}).items()
                   if v not in (None, '', [], {}) and not file_info.get(k)}
+
+        # A rating a source simply does not have is recorded as None as well:
+        # the entry has been asked, and an entry that never gets the key would
+        # count as incomplete - and be looked up again - on every single run.
+        if fresh and fresh.get('imdb_id'):
+            for field in RATING_FIELDS:
+                if field in fresh and field not in file_info:
+                    gained.setdefault(field, fresh[field])
+
         if not gained:
             continue
 

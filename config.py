@@ -27,8 +27,14 @@ IMDB_TOP250_TTL = 24 * 60 * 60
 # API Keys and Configuration
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 FANART_API_KEY = os.environ.get('FANART_API_KEY', '')
-# Optional OMDb key - the source of the IMDb ratings shown on the posters.
-# Without it the scanner falls back to the TMDB rating.
+# Optional MDBList key - the source of every rating the interface shows (IMDb,
+# both Rotten Tomatoes scores, Trakt and Metacritic), fetched in one request per
+# title. Without it the scanner falls back to OMDb, and without that one to the
+# TMDB rating.
+MDBLIST_API_KEY = os.environ.get('MDBLIST_API_KEY', '')
+# Optional OMDb key - the fallback ratings source for installations that were
+# set up before MDBList. It knows the IMDb rating, the Rotten Tomatoes
+# tomatometer and Metacritic, but neither the audience score nor Trakt.
 OMDB_API_KEY = os.environ.get('OMDB_API_KEY', '')
 IMAGE_SOURCE = os.environ.get('IMAGE_SOURCE', 'tmdb').lower()
 CONTENT_LANGUAGE = os.environ.get('CONTENT_LANGUAGE', 'en').lower()
