@@ -62,14 +62,13 @@ export const FLAG_SVGS = {
 // One icon per theme, used by both the toggle button (which shows the
 // icon of the theme a normal press switches to next) and its long-press menu
 // (which shows every theme next to its own icon).
-// The adaptive pair is the plain sun and moon with the shape itself frosted -
-// the same silhouette, filled the way the glass surfaces are, so each reads as
-// its own theme seen through them.
+// The adaptive one is the plain moon with the shape itself frosted - the same
+// silhouette, filled the way the tinted surfaces are, so it reads as the dark
+// theme seen through them.
 const FROSTED = 'fill="currentColor" fill-opacity="0.55"';
 
 export const THEME_ICONS = {
     light: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
-    'light-adaptive': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="5.2" ${FROSTED}/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
     dark: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
     'dark-adaptive': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ${FROSTED}/></svg>`,
     midnight: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>`

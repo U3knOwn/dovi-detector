@@ -155,17 +155,13 @@ header {
 }
 
 /* The button always shows the icon of the theme a normal press switches to
-   next, matching THEME_ORDER in theme.js: light -> light-adaptive -> dark ->
-   dark-adaptive -> midnight -> light. */
+   next, matching THEME_ORDER in theme.js: light -> dark -> dark-adaptive ->
+   midnight -> light. */
 .theme-toggle svg {
     display: none;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-light-adaptive {
-    display: block;
-}
-
-:root[data-theme="light-adaptive"] .theme-toggle .icon-dark {
+:root[data-theme="light"] .theme-toggle .icon-dark {
     display: block;
 }
 

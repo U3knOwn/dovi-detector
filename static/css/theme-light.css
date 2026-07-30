@@ -3,186 +3,138 @@
  * Licensed under the MIT License. See LICENSE file in the project root for full license information.
  */
 
-/* What the light themes override. The prefix selector catches plain light and
-   light-adaptive alike - every colour below is picked for a light surface, and
-   both have one. */
+/* What the light theme overrides. */
 
 /* ============================================================
    Light Theme Overrides
    ------------------------------------------------------------
    The badge text colors are pastel shades tuned for dark
    surfaces; on light surfaces they need darker counterparts
-   of the same hue to stay readable - without these, a pastel
-   on a light panel measures around 1.1:1 against it.
+   of the same hue to stay readable.
    ============================================================ */
 
-:root[data-theme^="light"] .hdr-dolby-vision {
+:root[data-theme="light"] .hdr-dolby-vision {
     color: #6d28d9;
 }
 
-:root[data-theme^="light"] .hdr-dolby-vision.el-fel,
-:root[data-theme^="light"] .el-fel,
-:root[data-theme^="light"] .audio-lossless {
+:root[data-theme="light"] .hdr-dolby-vision.el-fel,
+:root[data-theme="light"] .el-fel,
+:root[data-theme="light"] .audio-lossless {
     color: #047857;
 }
 
-:root[data-theme^="light"] .hdr-dolby-vision.el-mel,
-:root[data-theme^="light"] .el-mel {
+:root[data-theme="light"] .hdr-dolby-vision.el-mel,
+:root[data-theme="light"] .el-mel {
     color: #b45309;
 }
 
-:root[data-theme^="light"] .hdr-hdr10plus,
-:root[data-theme^="light"] .resolution-1440p,
-:root[data-theme^="light"] .audio-dtsx {
+:root[data-theme="light"] .hdr-hdr10plus,
+:root[data-theme="light"] .resolution-1440p,
+:root[data-theme="light"] .audio-dtsx {
     color: #c2410c;
 }
 
-:root[data-theme^="light"] .hdr-hdr10,
-:root[data-theme^="light"] .resolution-1080p-\(full-hd\),
-:root[data-theme^="light"] .audio-ddplus {
+:root[data-theme="light"] .hdr-hdr10,
+:root[data-theme="light"] .resolution-1080p-\(full-hd\),
+:root[data-theme="light"] .audio-ddplus {
     color: #0369a1;
 }
 
-:root[data-theme^="light"] .hdr-hlg,
-:root[data-theme^="light"] .resolution-720p-\(hd\),
-:root[data-theme^="light"] .resolution-768p,
-:root[data-theme^="light"] .audio-aac {
+:root[data-theme="light"] .hdr-hlg,
+:root[data-theme="light"] .resolution-720p-\(hd\),
+:root[data-theme="light"] .resolution-768p,
+:root[data-theme="light"] .audio-aac {
     color: #0f766e;
 }
 
-:root[data-theme^="light"] .hdr-sl-hdr,
-:root[data-theme^="light"] .hdr-sl-hdr1,
-:root[data-theme^="light"] .hdr-sl-hdr2,
-:root[data-theme^="light"] .hdr-sl-hdr3 {
+:root[data-theme="light"] .hdr-sl-hdr,
+:root[data-theme="light"] .hdr-sl-hdr1,
+:root[data-theme="light"] .hdr-sl-hdr2,
+:root[data-theme="light"] .hdr-sl-hdr3 {
     color: #be185d;
 }
 
-:root[data-theme^="light"] .hdr-hdr-vivid {
+:root[data-theme="light"] .hdr-hdr-vivid {
     color: #0e7490;
 }
 
-:root[data-theme^="light"] .hdr-sdr,
-:root[data-theme^="light"] .resolution-480p-\(sd\) {
+:root[data-theme="light"] .hdr-sdr,
+:root[data-theme="light"] .resolution-480p-\(sd\) {
     color: #475569;
 }
 
-:root[data-theme^="light"] .resolution-8k-\(uhd\),
-:root[data-theme^="light"] .audio-dts {
+:root[data-theme="light"] .resolution-8k-\(uhd\),
+:root[data-theme="light"] .audio-dts {
     color: #a21caf;
 }
 
-:root[data-theme^="light"] .resolution-4k-\(uhd\),
-:root[data-theme^="light"] .resolution-4k-dci,
-:root[data-theme^="light"] .audio-truehd-atmos {
+:root[data-theme="light"] .resolution-4k-\(uhd\),
+:root[data-theme="light"] .resolution-4k-dci,
+:root[data-theme="light"] .audio-truehd-atmos {
     color: #b91c1c;
 }
 
-:root[data-theme^="light"] .audio-truehd {
+:root[data-theme="light"] .audio-truehd {
     color: #be123c;
 }
 
-:root[data-theme^="light"] .audio-dts-hd-ma {
+:root[data-theme="light"] .audio-dts-hd-ma {
     color: #6d28d9;
 }
 
-:root[data-theme^="light"] .audio-dts-hd-hra {
+:root[data-theme="light"] .audio-dts-hd-hra {
     color: #7e22ce;
 }
 
-:root[data-theme^="light"] .audio-ddplus-atmos {
+:root[data-theme="light"] .audio-ddplus-atmos {
     color: #4338ca;
 }
 
-:root[data-theme^="light"] .audio-dolby-digital {
+:root[data-theme="light"] .audio-dolby-digital {
     color: #1d4ed8;
 }
 
-:root[data-theme^="light"] .dialog-rating-imdb :is(.dialog-rating-value, .dialog-rating-logo) {
+:root[data-theme="light"] .dialog-rating-imdb :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #a16207;
 }
 
-:root[data-theme^="light"] .dialog-rating-tmdb :is(.dialog-rating-value, .dialog-rating-logo) {
+:root[data-theme="light"] .dialog-rating-tmdb :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #0284c7;
 }
 
-:root[data-theme^="light"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
+:root[data-theme="light"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #dc2626;
 }
 
-:root[data-theme^="light"] .dialog-rating-rt-audience :is(.dialog-rating-value, .dialog-rating-logo) {
+:root[data-theme="light"] .dialog-rating-rt-audience :is(.dialog-rating-value, .dialog-rating-logo) {
     /* The popcorn yellow disappears on a light surface */
     color: #b45309;
 }
 
-:root[data-theme^="light"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
+:root[data-theme="light"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #b91c1c;
 }
 
-:root[data-theme^="light"] .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
+:root[data-theme="light"] .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #15803d;
 }
 
-:root[data-theme^="light"] .dialog-link.imdb {
+:root[data-theme="light"] .dialog-link.imdb {
     /* The brand yellow is unreadable on a light surface */
     color: #a16207;
 }
 
-:root[data-theme^="light"] .dialog-link.tmdb {
+:root[data-theme="light"] .dialog-link.tmdb {
     color: #0284c7;
 }
 
-:root[data-theme^="light"] .dialog-link.youtube {
+:root[data-theme="light"] .dialog-link.youtube {
     color: #dc2626;
 }
 
-:root[data-theme^="light"] .poster-placeholder {
+:root[data-theme="light"] .poster-placeholder {
     background:
         radial-gradient(130% 140% at 88% 8%, rgba(236, 72, 153, 0.14), transparent 55%),
         linear-gradient(135deg, #dfe4f5 0%, #e6dcf5 100%);
     color: rgba(28, 35, 51, 0.45);
-}
-
-/* ============================================================
-   Light Adaptive: One Step Darker
-   ------------------------------------------------------------
-   The colours above are picked against the flat light surface,
-   which leaves them a slim margin - the plain light theme's
-   tightest badge measures 4.5:1 against it. Under light-adaptive
-   the row and the dialog carry the entry's cover colours instead,
-   which is darker and more saturated than that surface and eats
-   the margin: the same badge measured between 3.7 and 4.7
-   depending on which cover it happened to sit on. These take each
-   hue one step down so it holds up on any of them.
-   ============================================================ */
-
-:root[data-theme="light-adaptive"] :is(.hdr-dolby-vision.el-mel, .el-mel) {
-    color: #92400e;
-}
-
-:root[data-theme="light-adaptive"] :is(.hdr-hdr10plus, .resolution-1440p, .audio-dtsx) {
-    color: #9a3412;
-}
-
-:root[data-theme="light-adaptive"] :is(.hdr-dolby-vision.el-fel, .el-fel, .audio-lossless) {
-    color: #065f46;
-}
-
-:root[data-theme="light-adaptive"] :is(.hdr-hdr10, .resolution-1080p-\(full-hd\), .audio-ddplus) {
-    color: #075985;
-}
-
-:root[data-theme="light-adaptive"] :is(.resolution-4k-\(uhd\), .resolution-4k-dci, .audio-truehd-atmos) {
-    color: #991b1b;
-}
-
-:root[data-theme="light-adaptive"] :is(.hdr-hlg, .resolution-720p-\(hd\), .resolution-768p, .audio-aac) {
-    color: #115e59;
-}
-
-:root[data-theme="light-adaptive"] :is(.resolution-8k-\(uhd\), .audio-dts) {
-    color: #5b21b6;
-}
-
-:root[data-theme="light-adaptive"] .audio-dts-hd-ma {
-    color: #5b21b6;
 }

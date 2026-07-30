@@ -32,10 +32,6 @@ html[data-theme="light"] {
     color-scheme: light;
 }
 
-html[data-theme="light-adaptive"] {
-    color-scheme: light;
-}
-
 html[data-theme="dark-adaptive"] {
     color-scheme: dark;
 }

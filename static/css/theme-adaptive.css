@@ -3,61 +3,27 @@
  * Licensed under the MIT License. See LICENSE file in the project root for full license information.
  */
 
-/* What the two adaptive (blur/glass) themes override. The suffix selector
-   matches both light-adaptive and dark-adaptive - they differ only in the
-   tokens set in tokens.css, never in the rules below. */
+/* What the dark adaptive theme overrides. */
 
 /* ============================================================
-   Adaptive Theme Overrides
+   Dark Adaptive
    ------------------------------------------------------------
-   tokens.css makes the adaptive theme's surfaces translucent;
-   this file adds the backdrop blur that turns them into glass
-   panels floating over the page's background glow.
+   The plain dark theme, with two exceptions: a table row and the
+   details dialog take their colour from the entry's own cover.
+   Nothing else changes - the header, the controls, the file
+   dialog and the rest inherit the dark theme untouched, so every
+   rule below is scoped to one of those two.
+
+   media-dialog.js and the table hand the cover over as
+   --cover-gradient (see ui/cover-gradient.js). Without one - an
+   entry scanned with no TMDB key - there is nothing to paint and
+   the plain dark surface shows through.
    ============================================================ */
 
-:root[data-theme$="adaptive"] .controls,
-:root[data-theme$="adaptive"] .file-dialog,
-:root[data-theme$="adaptive"] .media-dialog,
-:root[data-theme$="adaptive"] .custom-select-menu,
-:root[data-theme$="adaptive"] .custom-select-trigger,
-:root[data-theme$="adaptive"] .controls-toggle,
-:root[data-theme$="adaptive"] #searchInput,
-:root[data-theme$="adaptive"] #fileSelectTrigger,
-:root[data-theme$="adaptive"] tbody tr td {
-    backdrop-filter: blur(18px) saturate(1.5);
-    -webkit-backdrop-filter: blur(18px) saturate(1.5);
-}
-
-/* The chips inside a panel, frosted against the panel rather than left sitting
-   on it flat. A softer blur than the panels above: these are small, and at the
-   full strength the little they cover turns to a single flat colour. */
-:root[data-theme$="adaptive"] .dialog-close,
-:root[data-theme$="adaptive"] .dialog-rating,
-:root[data-theme$="adaptive"] .dialog-plot-toggle,
-:root[data-theme$="adaptive"] .dialog-link,
-:root[data-theme$="adaptive"] .dialog-rescan-btn,
-:root[data-theme$="adaptive"] .dialog-delete-btn,
-:root[data-theme$="adaptive"] .file-dialog-btn {
-    backdrop-filter: blur(8px) saturate(1.4);
-    -webkit-backdrop-filter: blur(8px) saturate(1.4);
-}
-
-/* ============================================================
-   Cover Backdrop
-   ------------------------------------------------------------
-   A gradient of the entry's own cover colours, behind a scrim,
-   backs the details dialog - so the panel takes its colours from
-   whatever is open rather than from a fixed surface.
-   media-dialog.js reads the cover and hands the gradient over as
-   --cover-gradient; without one (an entry scanned without a TMDB
-   key) there is nothing to paint and the plain glass surface
-   shows through.
-   ============================================================ */
-
-:root[data-theme$="adaptive"] .media-dialog,
-:root[data-theme$="adaptive"] tbody tr {
+:root[data-theme="dark-adaptive"] tbody tr,
+:root[data-theme="dark-adaptive"] .media-dialog {
     /* Painted top-down: the scrim over the cover's colours, those over the
-       theme's own surface colour.
+       surface colour underneath.
 
        Both ride on the element's own background rather than on a layer above
        it. A background is anchored to the padding box, so on the dialog it
@@ -71,54 +37,68 @@
 
 /* On the table the gradient goes on the row, not on its cells: each cell would
    paint the whole gradient over its own width, so the pools would repeat once
-   per column instead of spanning the row. The cells keep their translucent
-   wash and let the row through. The radius has to be repeated here - the cells
-   are what round the row's ends, and the row's own background is a plain
-   rectangle that would otherwise show through at the corners. */
-:root[data-theme$="adaptive"] tbody tr {
+   per column instead of spanning the row. The radius has to be repeated here -
+   the cells are what round the row's ends, and the row's own background is a
+   plain rectangle that would otherwise show through at the corners. */
+:root[data-theme="dark-adaptive"] tbody tr {
     border-radius: var(--radius-lg);
 }
 
-/* ============================================================
-   Dialog Marks On A Tinted Panel
-   ------------------------------------------------------------
-   The rating and link colours are the sources' own, picked
-   against the fixed themes' one surface. Here the panel carries
-   the entry's cover, so a red mark can land on a red cover: the
-   Trakt score measured 2.8:1 against a warm one. Each of these
-   takes a step away from the surface it now sits on. The chips
-   are translucent, so the cover reaches the text through them
-   and the mark cannot be left as it is.
-   ============================================================ */
+/* The cells have to let the row through, so they trade the dark theme's opaque
+   surface for a plain light wash - a tinted one would drag the cover's colour
+   back towards the same slate whatever the poster was. */
+:root[data-theme="dark-adaptive"] tbody tr td {
+    background: rgba(255, 255, 255, 0.055);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
 
+:root[data-theme="dark-adaptive"] tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.095);
+}
+
+:root[data-theme="dark-adaptive"] .media-dialog {
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+
+/* The chips inside the dialog, for the same reason as the cells above: left on
+   the dark theme's opaque slate they would sit on the tinted panel as cold grey
+   boxes. A softer blur than the panel itself - they are small, and at the full
+   strength the little they cover turns to a single flat colour. */
+:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-plot-toggle) {
+    background: rgba(255, 255, 255, 0.13);
+}
+
+:root[data-theme="dark-adaptive"] .dialog-rating {
+    background: rgba(255, 255, 255, 0.085);
+}
+
+:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating,
+        .dialog-plot-toggle, .dialog-link, .dialog-rescan-btn, .dialog-delete-btn) {
+    backdrop-filter: blur(8px) saturate(1.4);
+    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+}
+
+/* The quietest text in the two tinted areas, a step further from the surface
+   than the dark theme sets it. Theirs sits on one known colour; this sits on
+   whatever the entry's cover happens to be, and the quietest text is what runs
+   out of margin first - the dialog's field labels measured 3.3:1 against a warm
+   cover at the inherited value. Scoped to the tinted areas, so the column
+   headers above the table keep the dark theme's own. */
+:root[data-theme="dark-adaptive"] tbody tr,
+:root[data-theme="dark-adaptive"] .media-dialog {
+    --text-faint: #8b95ab;
+}
+
+/* The rating marks are the sources' own colours, picked against one fixed
+   surface. Here the panel carries the entry's cover, so a red mark can land on
+   a red cover: the Trakt score measured 2.8:1 against a warm one. These two
+   take a step away from it. */
 :root[data-theme="dark-adaptive"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #ff938c;
 }
 
 :root[data-theme="dark-adaptive"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
     color: #fda092;
-}
-
-:root[data-theme="light-adaptive"] :is(.dialog-rating-tmdb, .dialog-link.tmdb) :is(.dialog-rating-value, .dialog-rating-logo),
-:root[data-theme="light-adaptive"] .dialog-link.tmdb {
-    color: #075985;
-}
-
-:root[data-theme="light-adaptive"] :is(.dialog-rating-rt, .dialog-rating-trakt) :is(.dialog-rating-value, .dialog-rating-logo),
-:root[data-theme="light-adaptive"] .dialog-link.youtube,
-:root[data-theme="light-adaptive"] .dialog-delete-btn {
-    color: #991b1b;
-}
-
-:root[data-theme="light-adaptive"] :is(.dialog-rating-imdb, .dialog-rating-rt-audience) :is(.dialog-rating-value, .dialog-rating-logo),
-:root[data-theme="light-adaptive"] .dialog-link.imdb {
-    color: #7c3f0a;
-}
-
-:root[data-theme="light-adaptive"] .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #14532d;
-}
-
-:root[data-theme="light-adaptive"] .dialog-rescan-btn {
-    color: #3730a3;
 }

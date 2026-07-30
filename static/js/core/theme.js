@@ -14,7 +14,7 @@ import { THEME_ICONS } from '../ui/icons.js';
 
 // Also the order the menu lists them in, so a press walks the menu top to
 // bottom - the light pair, then the dark pair, then midnight.
-const THEME_ORDER = ['light', 'light-adaptive', 'dark', 'dark-adaptive', 'midnight'];
+const THEME_ORDER = ['light', 'dark', 'dark-adaptive', 'midnight'];
 
 // What a first visit gets, and what an unreadable or unknown stored value falls
 // back to. The inline script in templates/index.html hardcodes the same one -
@@ -23,7 +23,6 @@ const DEFAULT_THEME = 'dark-adaptive';
 
 const THEME_META_COLORS = {
     light: '#eef1f7',
-    'light-adaptive': '#eef1f7',
     dark: '#0a0c12',
     'dark-adaptive': '#0b0d14',
     midnight: '#04060c'
@@ -31,7 +30,6 @@ const THEME_META_COLORS = {
 
 const THEME_NAME_KEYS = {
     light: 'theme_name_light',
-    'light-adaptive': 'theme_name_light_adaptive',
     dark: 'theme_name_dark',
     'dark-adaptive': 'theme_name_dark_adaptive',
     midnight: 'theme_name_midnight'
@@ -48,15 +46,16 @@ const MENU_VIEWPORT_MARGIN = 8;
 /**
  * A stored theme under the name it goes by now.
  *
- * "adaptive" used to be one theme that read the OS preference; it is now two
- * that are picked outright. Anyone still on it keeps the one they were
- * actually looking at rather than being dropped back to the default.
+ * "adaptive" once read the OS preference and later became a light and a dark
+ * variant; only the dark one is left. Both older names land on what is nearest
+ * to what their owner was looking at, rather than being dropped back to the
+ * default.
  */
+const RETIRED_THEMES = { adaptive: 'dark-adaptive', 'light-adaptive': 'light' };
+
 function migrateTheme(saved) {
-    if (saved !== 'adaptive') return saved;
-    const prefersLight = window.matchMedia &&
-        window.matchMedia('(prefers-color-scheme: light)').matches;
-    const migrated = prefersLight ? 'light-adaptive' : 'dark-adaptive';
+    const migrated = RETIRED_THEMES[saved];
+    if (!migrated) return saved;
     persistTheme(migrated);
     return migrated;
 }

@@ -4,7 +4,7 @@
 /**
  * A gradient of the colours an entry's cover is made of.
  *
- * The adaptive themes paint it - behind a scrim - as the background of the
+ * The dark adaptive theme paints it - behind a scrim - as the background of the
  * details dialog and of every row in the table, so each of them takes its
  * colours from the entry it is showing. Every other theme ignores the property.
  */
@@ -23,12 +23,11 @@ const GRADIENT_COLORS = 3;
 const BUCKET_BITS = 4;
 
 // How far a cover may take the surface's lightness, as relative luminance. A
-// panel keeps the lightness its theme gives it and takes only the colour: on a
-// dark theme an almost white poster otherwise lifted a row from rgb(22,25,35)
-// to rgb(81,83,90) and left its badges at 3.8:1. Normally tinted rows sit
-// between 0.009 and 0.037, which is the band these keep them in.
-const DARK_TINT_MAX_LUMINANCE = 0.25;
-const LIGHT_TINT_MIN_LUMINANCE = 0.32;
+// panel keeps the lightness its theme gives it and takes only the colour: an
+// almost white poster otherwise lifted a row from rgb(22,25,35) to
+// rgb(81,83,90) and left its badges at 3.8:1. Normally tinted rows sit between
+// 0.009 and 0.037, which is the band this keeps them in.
+const TINT_MAX_LUMINANCE = 0.25;
 
 // How far apart two picked colours have to be (summed per-channel distance, of
 // a possible 765) to count as different ones. Without this a poster with one
@@ -119,19 +118,16 @@ function relativeLuminance([r, g, b]) {
  * How far the cover may take the surface, for the theme in force.
  *
  * A cover decides the panel's colour, not how light it is - that belongs to the
- * theme, and the text is picked against it. Only the adaptive themes read the
- * gradient at all, so the rest are left unlimited.
+ * theme, and the text is picked against it. Only dark-adaptive reads the
+ * gradient at all, so every other theme is left unlimited.
  */
 function tintLimit() {
-    const theme = document.documentElement.getAttribute('data-theme') || '';
-    if (!theme.endsWith('adaptive')) return null;
-    return theme.startsWith('light')
-        ? { min: LIGHT_TINT_MIN_LUMINANCE }
-        : { max: DARK_TINT_MAX_LUMINANCE };
+    const theme = document.documentElement.getAttribute('data-theme');
+    return theme === 'dark-adaptive' ? { max: TINT_MAX_LUMINANCE } : null;
 }
 
 /**
- * One colour pulled back inside that limit, hue intact.
+ * One colour pulled back under that limit, hue intact.
  *
  * Scaling every channel by the same factor keeps the ratios between them, so
  * the colour only loses lightness, never its hue - the exponent undoes sRGB's
@@ -141,15 +137,9 @@ function limitLuminance(rgb, limit) {
     if (!limit) return rgb;
     const luminance = relativeLuminance(rgb);
 
-    if (limit.max !== undefined && luminance > limit.max) {
+    if (luminance > limit.max) {
         const k = (limit.max / luminance) ** (1 / 2.2);
         return rgb.map(c => Math.round(c * k));
-    }
-    if (limit.min !== undefined && luminance < limit.min) {
-        // Towards white rather than away from black, so a near-black cover
-        // cannot sink a light surface.
-        const k = ((1 - limit.min) / (1 - luminance)) ** (1 / 2.2);
-        return rgb.map(c => Math.round(255 - (255 - c) * k));
     }
     return rgb;
 }

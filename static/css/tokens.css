@@ -115,88 +115,13 @@
     --bg-glow-2: rgba(99, 102, 241, 0.1);
 }
 
-/* Translucent surfaces for a glass look, paired with the backdrop-filter
-   blur rules in theme-adaptive.css. Comes in a light and a dark variant,
-   picked outright rather than taken from the OS - the suffix selector is
-   what lets both share everything below, with light-adaptive overriding
-   only what it has to further down. */
-:root[data-theme$="adaptive"] {
-    --bg: #0b0d14;
-    /* Plain light and dark washes rather than a colour of their own: every
-       surface here sits on something - the page's glow, or the cover gradient
-       backing the details dialog - and a tinted one would drag all of it back
-       towards the same slate. These let whatever is behind them through, which
-       is what makes a panel and the chips inside it read as one piece. */
-    --surface: rgba(255, 255, 255, 0.055);
-    --surface-2: rgba(255, 255, 255, 0.085);
-    --surface-3: rgba(255, 255, 255, 0.13);
-    --control-bg: rgba(0, 0, 0, 0.22);
-    --border: rgba(255, 255, 255, 0.1);
-    --border-strong: rgba(255, 255, 255, 0.18);
-    --text: #e8ecf4;
-    --text-muted: #9aa3b8;
-    /* A step further from the surface than the fixed themes use. Theirs sit on
-       one known colour; these sit on whatever the entry's cover happens to be,
-       and the quietest text is what runs out of margin first - the dialog's
-       field labels measured 3.3:1 against a warm cover at the old value. */
-    --text-faint: #8b95ab;
-    --accent: #818cf8;
-    --accent-2: #c084fc;
-    --accent-grad: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-    --title-grad: linear-gradient(135deg, #93c5fd 0%, #c4b5fd 45%, #f0abfc 100%);
-    --ring: rgba(129, 140, 248, 0.45);
-    --success: #34d399;
-    --info: #7dd3fc;
-    --danger: #f87171;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
-    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.35);
-    --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.5);
-    --glow: 0 0 0 1px rgba(129, 140, 248, 0.35), 0 8px 30px rgba(129, 140, 248, 0.2);
-    --header-bg: rgba(18, 21, 30, 0.5);
-    --overlay-bg: rgba(5, 7, 11, 0.55);
-    --scroll-toggle-bg: rgba(30, 34, 46, 0.6);
-    --scrollbar-thumb: rgba(255, 255, 255, 0.14);
-    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.24);
-    --progress-track: rgba(255, 255, 255, 0.1);
-    --accent-soft: #c4b5fd;
-    --bg-glow-1: rgba(129, 140, 248, 0.16);
-    --bg-glow-2: rgba(192, 132, 252, 0.1);
-    /* Laid over the entry's own cover where it backs the dialog, so the text
-       on top keeps its contrast whatever the artwork looks like. */
+/* Dark, with the table and the details dialog taking their colour from the
+   entry's own cover - see theme-adaptive.css, which is the only place that
+   differs from the plain dark theme. Everything not listed here is inherited
+   from it, deliberately: the header, the controls and the file dialog are
+   meant to look exactly as they do there. */
+:root[data-theme="dark-adaptive"] {
+    /* Laid over the cover's colours where they back a row or the dialog, so
+       the text on top keeps its contrast whatever the artwork looks like. */
     --cover-scrim: rgba(11, 13, 20, 0.74);
-}
-
-/* Same glass, lit the other way round. */
-:root[data-theme="light-adaptive"] {
-    --bg: #eef1f7;
-    --surface: rgba(255, 255, 255, 0.55);
-    --surface-2: rgba(255, 255, 255, 0.6);
-    --surface-3: rgba(255, 255, 255, 0.68);
-    --control-bg: rgba(255, 255, 255, 0.6);
-    --border: rgba(20, 28, 46, 0.12);
-    --border-strong: rgba(20, 28, 46, 0.2);
-    --text: #1c2333;
-    /* Both a step further from the surface than the plain light theme uses -
-       see the note in the block above. */
-    --text-muted: #3f4859;
-    --text-faint: #4d5769;
-    --title-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
-    --ring: rgba(99, 102, 241, 0.4);
-    --success: #059669;
-    --info: #0284c7;
-    --danger: #dc2626;
-    --shadow-sm: 0 1px 2px rgba(20, 28, 46, 0.06);
-    --shadow-md: 0 8px 24px rgba(20, 28, 46, 0.12);
-    --shadow-lg: 0 24px 64px rgba(20, 28, 46, 0.2);
-    --glow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 8px 24px rgba(99, 102, 241, 0.15);
-    --header-bg: rgba(255, 255, 255, 0.55);
-    --overlay-bg: rgba(23, 30, 46, 0.35);
-    --scroll-toggle-bg: rgba(255, 255, 255, 0.65);
-    --scrollbar-thumb: rgba(20, 28, 46, 0.16);
-    --scrollbar-thumb-hover: rgba(20, 28, 46, 0.28);
-    --progress-track: rgba(20, 28, 46, 0.1);
-    --accent-soft: #4f46e5;
-    --bg-glow-1: rgba(99, 102, 241, 0.08);
-    --bg-glow-2: rgba(236, 72, 153, 0.05);
-    --cover-scrim: rgba(238, 241, 247, 0.8);
 }
