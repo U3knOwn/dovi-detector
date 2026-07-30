@@ -483,7 +483,10 @@
 .dialog-ratings {
     display: flex;
     gap: 8px;
-    /* Exactly as wide as the cover above it, and centred under it */
+    /* Never wider than the cover above it, and centred under it - which is
+       also what keeps a handful of capped tiles in the middle instead of
+       against the left edge. */
+    justify-content: center;
     max-width: var(--dialog-cover-width);
     margin: 16px auto 20px;
 }
@@ -491,6 +494,10 @@
 .dialog-rating {
     display: flex;
     flex: 1 1 0;
+    /* The tiles share the row evenly, but stop growing at a size that still
+       looks like a tile: a single surviving source stretched across the whole
+       cover width would be one logo in a lot of empty space. */
+    max-width: 120px;
     min-width: 0;
     flex-direction: column;
     align-items: center;
