@@ -134,14 +134,29 @@
         0 8px 24px rgba(var(--cover-accent-rgb), 0.25);
 }
 
-/* The dialog's field labels take the same accent. They are the panel's own
-   furniture rather than the entry's own words - the slogan and the plot below
-   them stay the plain text colour - so the colour lands on the part of the
-   dialog that is there to be scanned past, not on the part being read. Without
-   a cover they fall back to the slate above, a shade off the --text-faint they
-   would otherwise have had. */
-:root[data-theme="dark-adaptive"] .dialog-label {
+/* What in the dialog takes the same accent: its title, its field labels, the
+   filename, the button that unfolds the plot and the one that closes it. The
+   close button only until it is pointed at - the dark theme turns it red there,
+   which says what the button does and is worth more than the colour.
+
+   All of them are the panel's own furniture rather than the entry's own words -
+   the slogan, the plot and the field values stay the plain text colour - so
+   the colour lands on what is there to be scanned past, not on what is being
+   read. Without a cover they fall back to the slate above, which for the
+   labels is a shade off the --text-faint they would otherwise have had. */
+:root[data-theme="dark-adaptive"] :is(.dialog-title, .dialog-label,
+        .dialog-filename-item .dialog-value, .dialog-plot-toggle, .dialog-close) {
     color: rgb(var(--cover-accent-rgb));
+}
+
+/* The button keeps its colour under the pointer and answers with its outline
+   and its fill instead, both the accent at the strength each can carry. The
+   dark theme lights the outline up in the fixed indigo, which is the one mark
+   left in the dialog that had nothing to do with the entry in front of it. */
+:root[data-theme="dark-adaptive"] .dialog-plot-toggle:hover {
+    color: rgb(var(--cover-accent-rgb));
+    border-color: rgba(var(--cover-accent-rgb), 0.55);
+    background: rgba(var(--cover-accent-rgb), 0.16);
 }
 
 /* The chips inside the dialog, for the same reason as the cells above: left on
