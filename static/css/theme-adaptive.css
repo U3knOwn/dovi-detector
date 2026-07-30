@@ -54,16 +54,27 @@
    shows through.
    ============================================================ */
 
-:root[data-theme$="adaptive"] .media-dialog {
+:root[data-theme$="adaptive"] .media-dialog,
+:root[data-theme$="adaptive"] tbody tr {
     /* Painted top-down: the scrim over the cover's colours, those over the
        theme's own surface colour.
 
-       Both ride on the dialog's own background rather than on a layer above
-       it. A background is anchored to the padding box, so it stays where it is
-       while the panel scrolls its content - a positioned layer would slide
-       away with the text instead. */
+       Both ride on the element's own background rather than on a layer above
+       it. A background is anchored to the padding box, so on the dialog it
+       stays where it is while the panel scrolls its content - a positioned
+       layer would slide away with the text instead. */
     background-image:
         linear-gradient(var(--cover-scrim), var(--cover-scrim)),
         var(--cover-gradient, none);
     background-repeat: no-repeat;
+}
+
+/* On the table the gradient goes on the row, not on its cells: each cell would
+   paint the whole gradient over its own width, so the pools would repeat once
+   per column instead of spanning the row. The cells keep their translucent
+   wash and let the row through. The radius has to be repeated here - the cells
+   are what round the row's ends, and the row's own background is a plain
+   rectangle that would otherwise show through at the corners. */
+:root[data-theme$="adaptive"] tbody tr {
+    border-radius: var(--radius-lg);
 }
