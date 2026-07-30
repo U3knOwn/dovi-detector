@@ -429,6 +429,14 @@ export function showMediaDialog(item) {
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 
+    // Always open at the top. The panel keeps whatever it was scrolled to when
+    // it was last closed, so without this an entry opened after a long one is
+    // shown from the middle. It has to happen after .active - an element that
+    // is still display:none takes no scroll position.
+    const dialogPanel = overlay.querySelector('.media-dialog');
+    if (dialogPanel) dialogPanel.scrollTop = 0;
+    overlay.scrollTop = 0;
+
     // Apply translations - only inside the dialog, the rest of the page is
     // already translated and may be a very long table.
     applyTranslations(overlay);

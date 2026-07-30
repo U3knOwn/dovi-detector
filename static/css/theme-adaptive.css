@@ -150,20 +150,21 @@
 }
 
 /* The button keeps its colour under the pointer and answers with its outline
-   and its fill instead, both the accent at the strength each can carry. The
-   dark theme lights the outline up in the fixed indigo, which is the one mark
-   left in the dialog that had nothing to do with the entry in front of it. */
+   instead, the accent at the strength it can carry. It stays unfilled - the
+   panel behind it is meant to show through - so the outline is the whole of
+   the answer. The dark theme lights it up in the fixed indigo, which is the
+   one mark left in the dialog that had nothing to do with the entry in front
+   of it. */
 :root[data-theme="dark-adaptive"] .dialog-plot-toggle:hover {
     color: rgb(var(--cover-accent-rgb));
     border-color: rgba(var(--cover-accent-rgb), 0.55);
-    background: rgba(var(--cover-accent-rgb), 0.16);
 }
 
-/* The chips inside the dialog, for the same reason as the cells above: left on
-   the dark theme's opaque slate they would sit on the tinted panel as cold grey
-   boxes. A soft blur, not the cells' - they are small, and at that strength the
-   little they cover turns to a single flat colour. */
-:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-plot-toggle) {
+/* The close button, for the same reason as the cells above: left on the dark
+   theme's opaque slate it would sit on the tinted panel as a cold grey box. A
+   soft blur, not the cells' - it is small, and at that strength the little it
+   covers turns to a single flat colour. */
+:root[data-theme="dark-adaptive"] .dialog-close {
     background: rgba(255, 255, 255, 0.13);
 }
 
@@ -172,7 +173,7 @@
 }
 
 :root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating,
-        .dialog-plot-toggle, .dialog-link, .dialog-rescan-btn, .dialog-delete-btn) {
+        .dialog-link, .dialog-rescan-btn, .dialog-delete-btn) {
     backdrop-filter: blur(8px) saturate(1.4);
     -webkit-backdrop-filter: blur(8px) saturate(1.4);
 }
