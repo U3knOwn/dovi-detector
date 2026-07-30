@@ -129,7 +129,16 @@ function positionThemeMenu() {
     const menu = document.getElementById('themeMenu');
     if (!btn || !menu) return;
     const rect = btn.getBoundingClientRect();
-    menu.style.top = `${rect.bottom + 6}px`;
+
+    // The button sits inside the header's padding, so hanging the menu off the
+    // button alone tucks its top edge behind the bar. Clearing the header
+    // instead drops it below the whole thing.
+    const header = document.querySelector('header');
+    const below = header
+        ? Math.max(rect.bottom, header.getBoundingClientRect().bottom)
+        : rect.bottom;
+
+    menu.style.top = `${below + 6}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
 }
 
