@@ -36,6 +36,12 @@
         linear-gradient(var(--cover-scrim), var(--cover-scrim)),
         var(--cover-gradient, none);
     background-repeat: no-repeat;
+    /* Stopped at the padding edge rather than run under the border. The border
+       is a translucent white line, so a cover left to paint through it came out
+       tinted instead of neutral, and along the rounded corners - where the
+       border's own curve and the background's are a pixel apart - the colour
+       spilled past the line altogether. */
+    background-clip: padding-box;
 }
 
 /* A row cannot do the same. Its own background is not an option: Firefox does
@@ -76,7 +82,16 @@
     position: absolute;
     inset: 0;
     z-index: -1;
+    /* The row's outline is drawn here rather than by the cells, so that one
+       element paints both it and the cover behind it. Two elements cannot be
+       made to agree along a curve: the cells' line and this layer's edge are
+       rounded a pixel apart, and whichever way they were nudged the cover
+       either came through the translucent line and tinted it, or left a dark
+       seam inside it. Clipped to the padding box, the cover now stops exactly
+       where this element's own border starts. */
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
+    background-clip: padding-box;
     /* Painted top-down: the wash that lifts the row off the page, the scrim
        over the cover's colours, those over the surface the row would have had
        anyway - which is all that is left of it for an entry scanned without a
@@ -104,6 +119,15 @@
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td,
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover td {
     background: transparent;
+    /* The line the cells used to draw is the layer's now - kept rather than
+       removed, so the row is still the same height as it is on every other
+       theme. */
+    border-color: transparent;
+}
+
+/* The layer answers the pointer with the line the cells used to brighten. */
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover td:first-child::after {
+    border-color: var(--border-strong);
 }
 
 /* What a row lights up with under the pointer. The dark theme's ring and title
