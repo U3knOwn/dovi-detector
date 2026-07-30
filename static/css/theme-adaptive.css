@@ -20,52 +20,83 @@
    the plain dark surface shows through.
    ============================================================ */
 
-:root[data-theme="dark-adaptive"] tbody tr,
-:root[data-theme="dark-adaptive"] .media-dialog {
-    /* Painted top-down: the scrim over the cover's colours, those over the
-       surface colour underneath.
+/* The dialog is one box and rounds itself, so it paints the cover on its own
+   background: the scrim over the cover's colours, those over the surface
+   colour underneath. A background is anchored to the padding box, so it stays
+   where it is while the panel scrolls its content - a positioned layer would
+   slide away with the text instead.
 
-       Both ride on the element's own background rather than on a layer above
-       it. A background is anchored to the padding box, so on the dialog it
-       stays where it is while the panel scrolls its content - a positioned
-       layer would slide away with the text instead. */
+   No backdrop filter here. The surface is opaque - the cover's own gradient
+   ends in a solid colour - so a filter had nothing left to read through it, and
+   showed up only where the panel is rounded: it is clipped to the plain
+   rectangle, so every corner came back as a square patch of the overlay
+   filtered differently from the overlay around it. */
+:root[data-theme="dark-adaptive"] .media-dialog {
     background-image:
         linear-gradient(var(--cover-scrim), var(--cover-scrim)),
         var(--cover-gradient, none);
     background-repeat: no-repeat;
 }
 
-/* On the table the gradient goes on the row, not on its cells: each cell would
-   paint the whole gradient over its own width, so the pools would repeat once
-   per column instead of spanning the row. The radius has to be repeated here -
-   the cells are what round the row's ends, and the row's own background is a
-   plain rectangle that would otherwise show through at the corners. */
-:root[data-theme="dark-adaptive"] tbody tr {
+/* A row cannot do the same. Its own background is not an option: Firefox does
+   not round a <tr> at all, so the gradient came out as a hard rectangle behind
+   the rounded cells and left a square corner at each end of the row. Nor can
+   the cells paint it - each would draw the whole gradient across its own width,
+   so the pools would repeat once per column instead of spanning the row, and
+   the stacked phone layout, where the cells are square and inset inside the
+   card, showed their boxes as a panel of their own.
+
+   So it goes on a layer of its own, hung off the first cell and stretched
+   across the row. The row is the containing block, so `inset: 0` is the row's
+   box whatever the columns do, and the layer rounds itself in every browser.
+   It sits behind the content rather than over it: the cells are transparent and
+   the page's background belongs to the canvas, so there is nothing between the
+   two for it to disappear into. */
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) {
+    position: relative;
+    --cover-wash: rgba(255, 255, 255, 0.055);
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover {
+    --cover-wash: rgba(255, 255, 255, 0.095);
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     border-radius: var(--radius-lg);
+    /* Painted top-down: the wash that lifts the row off the page, the scrim
+       over the cover's colours. */
+    background-image:
+        linear-gradient(var(--cover-wash), var(--cover-wash)),
+        linear-gradient(var(--cover-scrim), var(--cover-scrim)),
+        var(--cover-gradient, none);
+    background-repeat: no-repeat;
+    /* What the cells used to take from the row with a backdrop filter. The wash
+       and the scrim are greys and come through untouched; only the cover's own
+       colours are carried, which is all the filter was ever there for. */
+    filter: saturate(1.5);
 }
 
-/* The cells have to let the row through, so they trade the dark theme's opaque
-   surface for a plain light wash - a tinted one would drag the cover's colour
-   back towards the same slate whatever the poster was. */
-:root[data-theme="dark-adaptive"] tbody tr td {
-    background: rgba(255, 255, 255, 0.055);
-    backdrop-filter: blur(18px) saturate(1.5);
-    -webkit-backdrop-filter: blur(18px) saturate(1.5);
-}
+/* The cells have to let that layer through, so they give up the dark theme's
+   opaque surface. A tinted one would drag the cover's colour back towards the
+   same slate whatever the poster was.
 
-:root[data-theme="dark-adaptive"] tbody tr:hover td {
-    background: rgba(255, 255, 255, 0.095);
-}
-
-:root[data-theme="dark-adaptive"] .media-dialog {
-    backdrop-filter: blur(18px) saturate(1.5);
-    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+   The spacer rows that stand in for everything scrolled out of view are left
+   out of all of this: they are rows only as far as the table is concerned, and
+   a tint on one paints a band across however much of the list it is holding
+   open. */
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td,
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover td {
+    background: transparent;
 }
 
 /* The chips inside the dialog, for the same reason as the cells above: left on
    the dark theme's opaque slate they would sit on the tinted panel as cold grey
-   boxes. A softer blur than the panel itself - they are small, and at the full
-   strength the little they cover turns to a single flat colour. */
+   boxes. A soft blur, not the cells' - they are small, and at that strength the
+   little they cover turns to a single flat colour. */
 :root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-plot-toggle) {
     background: rgba(255, 255, 255, 0.13);
 }
