@@ -88,8 +88,8 @@ header {
 /* Only the menu button lights up while it is expanded - the show/hide button
    next to it shares the look but not that state. */
 #toggleControlsBtn[aria-expanded="true"] {
-    background: rgba(99, 102, 241, 0.14);
-    border-color: rgba(99, 102, 241, 0.4);
+    background: var(--accent-tint);
+    border-color: var(--accent-line);
     color: var(--accent-soft);
 }
 
@@ -156,28 +156,62 @@ header {
 
 /* The button always shows the icon of the theme a normal press switches to
    next, matching THEME_ORDER in theme.js: light -> dark -> dark-adaptive ->
-   midnight -> light. */
+   midnight -> dark-red -> dark-green -> dark-yellow -> light. */
 .theme-toggle svg {
     display: none;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-dark {
+:root[data-theme="light"] .theme-toggle .icon-light {
     display: block;
 }
 
-:root[data-theme="dark"] .theme-toggle .icon-dark-adaptive {
+:root[data-theme="dark"] .theme-toggle .icon-dark {
     display: block;
 }
 
 /* No attribute means the inline script in the template never ran, so what is
    on screen is DEFAULT_THEME - dark-adaptive - and midnight comes next. */
-:root:not([data-theme]) .theme-toggle .icon-midnight,
-:root[data-theme="dark-adaptive"] .theme-toggle .icon-midnight {
+:root:not([data-theme]) .theme-toggle .icon-dark-adaptive,
+:root[data-theme="dark-adaptive"] .theme-toggle .icon-dark-adaptive {
     display: block;
 }
 
-:root[data-theme="midnight"] .theme-toggle .icon-light {
+:root[data-theme="midnight"] .theme-toggle .icon-midnight {
     display: block;
+}
+
+:root[data-theme="dark-red"] .theme-toggle .icon-dark-red {
+    display: block;
+}
+
+:root[data-theme="dark-green"] .theme-toggle .icon-dark-green {
+    display: block;
+}
+
+:root[data-theme="dark-yellow"] .theme-toggle .icon-dark-yellow {
+    display: block;
+}
+
+/* The three coloured darks share one silhouette - see THEME_ICONS in
+   ui/icons.js - so the colour is the only thing that says which is which. It is
+   set here rather than drawn into the icon, and unconditionally: on the toggle
+   the icon stands for the theme a press switches *to*, not the one in force, so
+   it has to carry its own colour whatever theme is currently on screen. Both
+   places the icons appear are covered - the button, and the long-press menu,
+   where all seven are listed at once. */
+.theme-toggle .icon-dark-red,
+#themeMenu .custom-select-option[data-value="dark-red"] .custom-select-opt-icon {
+    color: rgba(239, 68, 68, 0.4);
+}
+
+.theme-toggle .icon-dark-green,
+#themeMenu .custom-select-option[data-value="dark-green"] .custom-select-opt-icon {
+    color: rgba(16, 185, 129, 0.4);
+}
+
+.theme-toggle .icon-dark-yellow,
+#themeMenu .custom-select-option[data-value="dark-yellow"] .custom-select-opt-icon {
+    color: rgba(234, 179, 8, 0.4);
 }
 
 /* The menu is moved to <body> in JS (see theme.js) so the header-actions
@@ -496,7 +530,7 @@ header {
 }
 
 .custom-select-option.selected {
-    background: rgba(99, 102, 241, 0.14);
+    background: var(--accent-tint);
     color: var(--accent-soft);
 }
 

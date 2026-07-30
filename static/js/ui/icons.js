@@ -67,11 +67,21 @@ export const FLAG_SVGS = {
 // theme seen through them.
 const FROSTED = 'fill="currentColor" fill-opacity="0.55"';
 
+// The three coloured darks are the plain moon filled solid. They are the same
+// theme in three hues and nothing about their shape could say which - what
+// tells them apart is the colour, which layout.css gives each of them, so the
+// fill has to follow the text colour rather than being drawn here.
+const MOON = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
+const FILLED = 'fill="currentColor" fill-opacity="0.9"';
+
 export const THEME_ICONS = {
     light: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
-    dark: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
-    'dark-adaptive': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ${FROSTED}/></svg>`,
-    midnight: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>`
+    dark: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="${MOON}"/></svg>`,
+    'dark-adaptive': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="${MOON}" ${FROSTED}/></svg>`,
+    midnight: `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>`,
+    'dark-red': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="${MOON}" ${FILLED}/></svg>`,
+    'dark-green': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="${MOON}" ${FILLED}/></svg>`,
+    'dark-yellow': `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="${MOON}" ${FILLED}/></svg>`
 };
 
 // Status message icons (success / info / error), rendered as inline SVG.

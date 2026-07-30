@@ -25,6 +25,12 @@
     --accent-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     --title-grad: linear-gradient(135deg, #818cf8 0%, #a78bfa 45%, #f472b6 100%);
     --ring: rgba(99, 102, 241, 0.4);
+    /* The accent as a surface and as a line, for a control that is switched on
+       or picked. Its label already goes to --accent-soft, so these have to be
+       the same theme's accent or the two disagree - which is what the coloured
+       darks below made plain, red text on an indigo tile. */
+    --accent-tint: rgba(99, 102, 241, 0.14);
+    --accent-line: rgba(99, 102, 241, 0.4);
     --success: #34d399;
     --info: #7dd3fc;
     --danger: #f87171;
@@ -97,6 +103,8 @@
     --accent-grad: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
     --title-grad: linear-gradient(135deg, #60a5fa 0%, #818cf8 45%, #22d3ee 100%);
     --ring: rgba(59, 130, 246, 0.45);
+    --accent-tint: rgba(59, 130, 246, 0.14);
+    --accent-line: rgba(59, 130, 246, 0.4);
     --success: #34d399;
     --info: #38bdf8;
     --danger: #f87171;
@@ -124,4 +132,123 @@
     /* Laid over the cover's colours where they back a row or the dialog, so
        the text on top keeps its contrast whatever the artwork looks like. */
     --cover-scrim: rgba(11, 13, 20, 0.74);
+}
+
+/* ------------------------------------------------------------
+   The three coloured darks, built the same way midnight is: the
+   dark theme with one hue carried all the way through it, from
+   the near-black background up to the accent.
+
+   They differ from each other only in that hue. Everything that
+   is not the hue - the lightnesses, the alphas, the shadows, and
+   the three status colours, which have to keep meaning what they
+   mean whatever the theme is - is deliberately identical.
+   ------------------------------------------------------------ */
+
+:root[data-theme="dark-red"] {
+    --bg: #0c0405;
+    --surface: #170a0c;
+    --surface-2: #1e0f11;
+    --surface-3: #291619;
+    --control-bg: #120608;
+    --border: rgba(254, 202, 202, 0.09);
+    --border-strong: rgba(254, 202, 202, 0.16);
+    --text: #f7e6e6;
+    --text-muted: #bb9497;
+    --text-faint: #806065;
+    --accent: #ef4444;
+    --accent-2: #f97316;
+    --accent-grad: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+    --title-grad: linear-gradient(135deg, #fb7185 0%, #f87171 45%, #fbbf24 100%);
+    --ring: rgba(239, 68, 68, 0.45);
+    --accent-tint: rgba(239, 68, 68, 0.14);
+    --accent-line: rgba(239, 68, 68, 0.4);
+    --success: #34d399;
+    --info: #38bdf8;
+    --danger: #f87171;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --glow: 0 0 0 1px rgba(239, 68, 68, 0.4), 0 8px 24px rgba(239, 68, 68, 0.28);
+    --header-bg: rgba(20, 9, 11, 0.8);
+    --overlay-bg: rgba(8, 3, 4, 0.78);
+    --scroll-toggle-bg: rgba(30, 15, 17, 0.88);
+    --scrollbar-thumb: rgba(254, 202, 202, 0.14);
+    --scrollbar-thumb-hover: rgba(254, 202, 202, 0.24);
+    --progress-track: rgba(254, 202, 202, 0.08);
+    --accent-soft: #fca5a5;
+    --bg-glow-1: rgba(239, 68, 68, 0.16);
+    --bg-glow-2: rgba(249, 115, 22, 0.1);
+}
+
+:root[data-theme="dark-green"] {
+    --bg: #040b07;
+    --surface: #0a1710;
+    --surface-2: #0e1e15;
+    --surface-3: #14291d;
+    --control-bg: #06120c;
+    --border: rgba(167, 243, 208, 0.09);
+    --border-strong: rgba(167, 243, 208, 0.16);
+    --text: #e4f7ec;
+    --text-muted: #8bb59f;
+    --text-faint: #547d68;
+    --accent: #10b981;
+    --accent-2: #22c55e;
+    --accent-grad: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+    --title-grad: linear-gradient(135deg, #34d399 0%, #4ade80 45%, #a3e635 100%);
+    --ring: rgba(16, 185, 129, 0.45);
+    --accent-tint: rgba(16, 185, 129, 0.14);
+    --accent-line: rgba(16, 185, 129, 0.4);
+    --success: #34d399;
+    --info: #38bdf8;
+    --danger: #f87171;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --glow: 0 0 0 1px rgba(16, 185, 129, 0.4), 0 8px 24px rgba(16, 185, 129, 0.28);
+    --header-bg: rgba(8, 19, 13, 0.8);
+    --overlay-bg: rgba(2, 6, 4, 0.78);
+    --scroll-toggle-bg: rgba(14, 30, 21, 0.88);
+    --scrollbar-thumb: rgba(167, 243, 208, 0.14);
+    --scrollbar-thumb-hover: rgba(167, 243, 208, 0.24);
+    --progress-track: rgba(167, 243, 208, 0.08);
+    --accent-soft: #6ee7b7;
+    --bg-glow-1: rgba(16, 185, 129, 0.16);
+    --bg-glow-2: rgba(132, 204, 22, 0.1);
+}
+
+:root[data-theme="dark-yellow"] {
+    --bg: #0c0904;
+    --surface: #17130a;
+    --surface-2: #1e190e;
+    --surface-3: #292214;
+    --control-bg: #120e06;
+    --border: rgba(253, 230, 138, 0.09);
+    --border-strong: rgba(253, 230, 138, 0.16);
+    --text: #f7f0e0;
+    --text-muted: #bbab8b;
+    --text-faint: #807452;
+    --accent: #eab308;
+    --accent-2: #f59e0b;
+    --accent-grad: linear-gradient(135deg, #eab308 0%, #f59e0b 100%);
+    --title-grad: linear-gradient(135deg, #fde047 0%, #fbbf24 45%, #fb923c 100%);
+    --ring: rgba(234, 179, 8, 0.45);
+    --accent-tint: rgba(234, 179, 8, 0.14);
+    --accent-line: rgba(234, 179, 8, 0.4);
+    --success: #34d399;
+    --info: #38bdf8;
+    --danger: #f87171;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --glow: 0 0 0 1px rgba(234, 179, 8, 0.4), 0 8px 24px rgba(234, 179, 8, 0.28);
+    --header-bg: rgba(20, 16, 8, 0.8);
+    --overlay-bg: rgba(8, 6, 2, 0.78);
+    --scroll-toggle-bg: rgba(30, 25, 14, 0.88);
+    --scrollbar-thumb: rgba(253, 230, 138, 0.14);
+    --scrollbar-thumb-hover: rgba(253, 230, 138, 0.24);
+    --progress-track: rgba(253, 230, 138, 0.08);
+    --accent-soft: #fde047;
+    --bg-glow-1: rgba(234, 179, 8, 0.16);
+    --bg-glow-2: rgba(249, 115, 22, 0.1);
 }

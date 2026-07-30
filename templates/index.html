@@ -15,7 +15,8 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         // THEME_ORDER and migrateTheme in static/js/core/theme.js, all of
         // which run far too late to prevent that flash.
         (function () {
-            var themes = ['light', 'dark', 'dark-adaptive', 'midnight'];
+            var themes = ['light', 'dark', 'dark-adaptive', 'midnight',
+                          'dark-red', 'dark-green', 'dark-yellow'];
             var theme = 'dark-adaptive';
             try {
                 var saved = localStorage.getItem('dovi_theme');
@@ -54,8 +55,9 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             <div class="header-actions collapsed">
                 <div class="header-actions-group" id="headerActionsGroup">
                     {# Normal press walks THEME_ORDER in static/js/core/theme.js:
-                       light -> dark -> dark adaptive -> midnight. A long press
-                       (or right-click) opens themeMenu to pick one directly. #}
+                       light -> dark -> dark adaptive -> midnight -> dark red ->
+                       dark green -> dark yellow. A long press (or right-click)
+                       opens themeMenu to pick one directly. #}
                     <div class="theme-select" id="themeSelectWrap">
                         <button id="themeToggle" class="controls-toggle theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
                             <svg class="icon-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -74,6 +76,18 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                                frosted the way the tinted surfaces are. #}
                             <svg class="icon-dark-adaptive" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" fill-opacity="0.55"/>
+                            </svg>
+                            {# The three coloured darks: the same moon filled solid,
+                               told apart by the colour layout.css gives each of them
+                               rather than by their shape. #}
+                            <svg class="icon-dark-red" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" fill-opacity="0.9"/>
+                            </svg>
+                            <svg class="icon-dark-green" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" fill-opacity="0.9"/>
+                            </svg>
+                            <svg class="icon-dark-yellow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" fill-opacity="0.9"/>
                             </svg>
                             <span class="visually-hidden" id="themeToggleLabel"></span>
                         </button>

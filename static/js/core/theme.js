@@ -13,8 +13,11 @@ import { onLanguageChange, t } from './i18n.js';
 import { THEME_ICONS } from '../ui/icons.js';
 
 // Also the order the menu lists them in, so a press walks the menu top to
-// bottom - the light pair, then the dark pair, then midnight.
-const THEME_ORDER = ['light', 'dark', 'dark-adaptive', 'midnight'];
+// bottom - the light one, then the two plain darks, then the four that carry a
+// hue, deepest first.
+const THEME_ORDER = [
+    'light', 'dark', 'dark-adaptive', 'midnight', 'dark-red', 'dark-green', 'dark-yellow'
+];
 
 // What a first visit gets, and what an unreadable or unknown stored value falls
 // back to. The inline script in templates/index.html hardcodes the same one -
@@ -25,14 +28,20 @@ const THEME_META_COLORS = {
     light: '#eef1f7',
     dark: '#0a0c12',
     'dark-adaptive': '#0b0d14',
-    midnight: '#04060c'
+    midnight: '#04060c',
+    'dark-red': '#0c0405',
+    'dark-green': '#040b07',
+    'dark-yellow': '#0c0904'
 };
 
 const THEME_NAME_KEYS = {
     light: 'theme_name_light',
     dark: 'theme_name_dark',
     'dark-adaptive': 'theme_name_dark_adaptive',
-    midnight: 'theme_name_midnight'
+    midnight: 'theme_name_midnight',
+    'dark-red': 'theme_name_dark_red',
+    'dark-green': 'theme_name_dark_green',
+    'dark-yellow': 'theme_name_dark_yellow'
 };
 
 // Holding the button down this long opens the menu instead of cycling.
