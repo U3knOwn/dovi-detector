@@ -154,34 +154,122 @@ export function toggleDialogPlot() {
     }
 }
 
-// How small the cover is boiled down to before the dialog stretches it back
-// out. This is what blurs it: at this size a poster is a handful of averaged
-// colours, and scaling that up is a soft wash of them rather than a picture.
-const COVER_SAMPLE_WIDTH = 24;
-const COVER_SAMPLE_HEIGHT = 36;
+// The cover is only read for its colours, so it is sampled small - a few
+// thousand pixels are plenty to find what a poster is mostly made of, and the
+// whole pass then costs nothing worth measuring.
+const COVER_SAMPLE_WIDTH = 32;
+const COVER_SAMPLE_HEIGHT = 48;
+
+// How many colours the gradient is built from.
+const COVER_GRADIENT_COLORS = 3;
+
+// Colours are counted in buckets this many bits per channel wide, so shades of
+// the same thing land together instead of each counting for itself.
+const COVER_BUCKET_BITS = 4;
+
+// How far apart two picked colours have to be (summed per-channel distance, of
+// a possible 765) to count as different ones. Without this a poster with one
+// strong colour fills every stop with the same shade and the gradient reads as
+// flat.
+const COVER_MIN_DISTANCE = 60;
 
 // A cover that loads late must not land on top of a newer one - the dialog is
 // reused, so the entry on screen may already have moved on by then.
 let coverRequest = 0;
 
 /**
- * Hand the entry's cover to the dialog as ``--dialog-cover``.
+ * The colours a poster is mostly made of, most prominent first.
  *
- * The adaptive theme paints it - softened and behind a scrim - as the dialog's
- * own backdrop, so the panel picks up the colours of whatever is open. Every
- * other theme ignores the property, so it is set regardless of the active one.
+ * Frequency alone picks the greys and near-blacks that fill the margins of
+ * most posters, so each bucket's weight is scaled by how saturated it is: a
+ * smaller patch of real colour beats a large flat backdrop, without excluding
+ * the dark tones that give a poster its mood.
+ */
+function coverColors(pixels, count) {
+    const buckets = new Map();
+    const shift = 8 - COVER_BUCKET_BITS;
+
+    for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] < 128) continue;
+        const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+        const key = ((r >> shift) << (COVER_BUCKET_BITS * 2)) |
+                    ((g >> shift) << COVER_BUCKET_BITS) |
+                    (b >> shift);
+        const bucket = buckets.get(key);
+        if (bucket) {
+            bucket.r += r; bucket.g += g; bucket.b += b; bucket.n++;
+        } else {
+            buckets.set(key, { r, g, b, n: 1 });
+        }
+    }
+
+    const ranked = [];
+    buckets.forEach(bucket => {
+        const r = Math.round(bucket.r / bucket.n);
+        const g = Math.round(bucket.g / bucket.n);
+        const b = Math.round(bucket.b / bucket.n);
+        const max = Math.max(r, g, b);
+        const saturation = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+        ranked.push({ rgb: [r, g, b], weight: bucket.n * (0.35 + saturation) });
+    });
+    ranked.sort((a, b) => b.weight - a.weight);
+
+    const picked = [];
+    for (const candidate of ranked) {
+        if (picked.length === count) break;
+        const distinct = picked.every(had =>
+            Math.abs(had[0] - candidate.rgb[0]) +
+            Math.abs(had[1] - candidate.rgb[1]) +
+            Math.abs(had[2] - candidate.rgb[2]) >= COVER_MIN_DISTANCE);
+        if (distinct) picked.push(candidate.rgb);
+    }
+
+    // A poster of essentially one colour yields fewer than asked for; the last
+    // one stands in for the rest so the gradient still has all its stops.
+    while (picked.length && picked.length < count) {
+        picked.push(picked[picked.length - 1]);
+    }
+    return picked;
+}
+
+/**
+ * Those colours as the gradient the dialog paints.
  *
- * The softening is done here rather than with a CSS filter because the dialog
- * scrolls its content: a background is anchored to the panel and stays put,
- * where a blurred layer over it would either slide away with the text or widen
- * the scrollable area into a scrollbar.
+ * Two soft pools over a vertical wash, which is the same shape as the glow
+ * behind the page itself - so the panel reads as part of the theme rather than
+ * as a picture behind the text. The pools fade to their own colour at zero
+ * alpha rather than to ``transparent``, which is transparent *black* and would
+ * dirty every fade with grey.
+ */
+function coverGradient(colors) {
+    const [one, two, three] = colors;
+    const rgb = c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+    const fade = c => `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`;
+    return [
+        `radial-gradient(120% 90% at 12% 0%, ${rgb(one)} 0%, ${fade(one)} 62%)`,
+        `radial-gradient(110% 85% at 88% 6%, ${rgb(two)} 0%, ${fade(two)} 60%)`,
+        `linear-gradient(180deg, ${rgb(two)} 0%, ${rgb(three)} 100%)`
+    ].join(', ');
+}
+
+/**
+ * Hand the entry's cover to the dialog as ``--cover-gradient``.
+ *
+ * The adaptive theme paints it - behind a scrim - as the dialog's own backdrop,
+ * so the panel picks up the colours of whatever is open. Every other theme
+ * ignores the property, so it is set regardless of the active one.
+ *
+ * A gradient rather than the cover itself, and built here rather than in CSS,
+ * because the dialog scrolls its content: a background is anchored to the panel
+ * and stays put, where a blurred image layer over it would either slide away
+ * with the text or widen the scrollable area into a scrollbar.
  */
 function setDialogCover(posterUrl) {
     const dialog = document.querySelector('.media-dialog');
     if (!dialog) return;
 
     const request = ++coverRequest;
-    dialog.style.removeProperty('--dialog-cover');
+    dialog.style.removeProperty('--cover-gradient');
     if (!posterUrl) return;
 
     const img = new Image();
@@ -194,7 +282,11 @@ function setDialogCover(posterUrl) {
             const ctx = canvas.getContext('2d');
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, COVER_SAMPLE_WIDTH, COVER_SAMPLE_HEIGHT);
-            dialog.style.setProperty('--dialog-cover', `url("${canvas.toDataURL()}")`);
+            const { data } = ctx.getImageData(0, 0, COVER_SAMPLE_WIDTH, COVER_SAMPLE_HEIGHT);
+
+            const colors = coverColors(data, COVER_GRADIENT_COLORS);
+            if (colors.length < COVER_GRADIENT_COLORS) return;
+            dialog.style.setProperty('--cover-gradient', coverGradient(colors));
         } catch (e) {
             // No canvas, or a poster served from somewhere that taints it.
             // The theme's own surface stands in.
