@@ -62,10 +62,6 @@
     --cover-wash: rgba(255, 255, 255, 0.055);
 }
 
-:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover {
-    --cover-wash: rgba(255, 255, 255, 0.095);
-}
-
 /* The cell the layer hangs off must not be positioned itself, or it becomes the
    containing block and the layer collapses onto the one column. It is static
    anyway in the table layout; this is for the stacked phone one, where
