@@ -161,13 +161,13 @@ header {
     display: none;
 }
 
+/* No attribute means the inline script in the template never ran, so what is
+   on screen is DEFAULT_THEME - the plain dark one. */
+:root:not([data-theme]) .theme-toggle .icon-dark,
 :root[data-theme="dark"] .theme-toggle .icon-dark {
     display: block;
 }
 
-/* No attribute means the inline script in the template never ran, so what is
-   on screen is DEFAULT_THEME - dark-adaptive - and midnight comes next. */
-:root:not([data-theme]) .theme-toggle .icon-dark-adaptive,
 :root[data-theme="dark-adaptive"] .theme-toggle .icon-dark-adaptive {
     display: block;
 }

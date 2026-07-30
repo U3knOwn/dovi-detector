@@ -19,7 +19,7 @@ const THEME_ORDER = ['dark', 'dark-adaptive', 'midnight'];
 // What a first visit gets, and what an unreadable or unknown stored value falls
 // back to. The inline script in templates/index.html hardcodes the same one -
 // it has to run before this module to head off a flash of the wrong theme.
-const DEFAULT_THEME = 'dark-adaptive';
+const DEFAULT_THEME = 'dark';
 
 const THEME_META_COLORS = {
     dark: '#0a0c12',
@@ -55,8 +55,8 @@ const MENU_AUTO_CLOSE_MS = 5000;
  */
 const RETIRED_THEMES = {
     adaptive: 'dark-adaptive',
-    'light-adaptive': 'dark-adaptive',
-    light: 'dark-adaptive',
+    'light-adaptive': 'dark',
+    light: 'dark',
     'dark-red': 'dark',
     'dark-green': 'dark',
     'dark-yellow': 'dark'

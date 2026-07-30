@@ -7,7 +7,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0b0d14">
+    <meta name="theme-color" content="#0a0c12">
     <title>Universal Video Scanner</title>
     <script>
         // Apply the saved theme before the stylesheet renders to avoid a flash
@@ -16,12 +16,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         // which run far too late to prevent that flash.
         (function () {
             var themes = ['dark', 'dark-adaptive', 'midnight'];
-            var theme = 'dark-adaptive';
+            var theme = 'dark';
             try {
                 var saved = localStorage.getItem('dovi_theme');
                 // Names that have been retired - kept in step with
                 // RETIRED_THEMES in static/js/core/theme.js.
-                if (saved === 'adaptive' || saved === 'light-adaptive' || saved === 'light') saved = 'dark-adaptive';
+                if (saved === 'adaptive') saved = 'dark-adaptive';
+                else if (saved === 'light-adaptive' || saved === 'light') saved = 'dark';
                 else if (saved === 'dark-red' || saved === 'dark-green' || saved === 'dark-yellow') saved = 'dark';
                 if (themes.indexOf(saved) !== -1) theme = saved;
             } catch (e) { /* localStorage unavailable -> keep the default */ }
