@@ -133,7 +133,6 @@ def _env_int(name, default):
 
 
 FILE_WRITE_DELAY = _env_int('FILE_WRITE_DELAY', 5)
-AUTO_REFRESH_INTERVAL = _env_int('AUTO_REFRESH_INTERVAL', 10)
 
 # How often (in minutes) entries with missing metadata are retried. Covers the
 # case where TMDB/MDBList were unreachable during the scan, a rate limit was hit,

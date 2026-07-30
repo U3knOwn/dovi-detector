@@ -9,7 +9,7 @@ import { applyTranslations, t } from '../core/i18n.js';
 import { formatDuration, formatFileSize, formatLuminance, formatMbps, formatNits, formatOffset } from '../helpers/format.js';
 import { removeFileFromTable } from '../library/view.js';
 import { getMediaBody } from '../library/virtual-table.js';
-import { loadFileList } from './file-dialog.js';
+import { refreshFileList } from './file-dialog.js';
 import { requestDelete, requestRescan } from '../core/api.js';
 import { applyCoverGradient } from './cover-gradient.js';
 
@@ -262,8 +262,10 @@ export function showMediaDialog(item) {
         dialogPoster.style.display = 'block';
         // Set on the overlay rather than on the panel: custom properties are
         // inherited, so the panel still reads both of them, and the overlay -
-        // which tints its own veil with the accent - can read them too.
-        applyCoverGradient(overlay, posterUrl);
+        // which tints its own veil with the accent - can read them too. The
+        // colours come from the poster the dialog is showing, which is the same
+        // image the table has already loaded.
+        applyCoverGradient(overlay, posterUrl, dialogPosterImg);
 
         // Set filename if available
         if (dialogFilenameItem && dialogFilename && filename && filename.trim() !== '') {
@@ -525,7 +527,7 @@ export async function deleteCurrentEntry() {
             // Remove the row from the DOM by data-path attribute on its card
             removeFileFromTable(currentDialogFilePath);
             currentDialogFilePath = '';
-            loadFileList();
+            refreshFileList();
         } else {
             alert(t('delete_entry_error') + ': ' + (data.error || ''));
         }

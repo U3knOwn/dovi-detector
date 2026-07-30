@@ -160,7 +160,6 @@ Everything is configured through environment variables in `docker-compose.yml`
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AUTO_REFRESH_INTERVAL` | `10` | Auto-refresh interval of the web UI in seconds |
 | `API_TOKEN` | *(empty)* | Token for the `/api/v1` API. Without it the API is disabled (`503`). Generate one with `openssl rand -hex 32` |
 | `API_CORS_ORIGINS` | *(empty)* | Comma-separated origins a **browser app** may call `/api/v1` from, or `*`. Empty = same-origin only; does not affect curl or server-side callers |
 

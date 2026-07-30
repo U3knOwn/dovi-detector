@@ -12,6 +12,14 @@ import { fetchMediaFiles, requestScan } from '../core/api.js';
 
 // File selection dialog state
 let availableFiles = [];
+
+// Whether the list has ever been fetched. The media directory is only walked
+// when the list is actually wanted - that walk covers every file below it, and
+// on a large library on network storage it is the slowest thing the server
+// does. Nothing but this dialog shows the list, so nothing but opening it
+// should pay for it.
+let filesLoaded = false;
+
 export let selectedPaths = new Set();
 
 export function loadFileList() {
@@ -19,6 +27,7 @@ export function loadFileList() {
         .then(data => {
             if (data.success) {
                 availableFiles = data.files || [];
+                filesLoaded = true;
 
                 // Drop selections whose files have vanished (e.g. after a scan
                 // reload or deletion) so the selection stays valid.
@@ -38,6 +47,17 @@ export function loadFileList() {
         .catch(error => {
             console.error('Error loading file list:', error);
         });
+}
+
+/**
+ * Bring an already fetched list up to date, e.g. after an entry was deleted.
+ *
+ * A list that was never fetched is left alone: the dialog fetches it when it
+ * opens, so there is nothing here that could go stale.
+ */
+export function refreshFileList() {
+    if (!filesLoaded) return Promise.resolve();
+    return loadFileList();
 }
 
 // Refresh the trigger button: show how many files are selected, or the
@@ -69,10 +89,15 @@ export function openFileDialog() {
     const search = document.getElementById('fileDialogSearch');
     if (search) search.value = '';
 
+    // What is already known is shown at once, so a second open is instant; the
+    // fetch behind it refreshes the list in place (loadFileList re-renders an
+    // open dialog), and on the first open it is what fills it.
     renderFileDialogList();
 
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
+
+    loadFileList();
 
     // Deliberately nothing is focused here: auto-focusing the search field pops
     // the on-screen keyboard open on mobile before the list can even be seen.
@@ -145,6 +170,14 @@ export function renderFileDialogList() {
     list.innerHTML = '';
 
     if (filtered.length === 0) {
+        // Nothing is said while the list is still on its way: "no files found"
+        // would be a wrong answer for as long as the walk over the media
+        // directory takes.
+        if (!filesLoaded) {
+            updateScanSelectedButton();
+            return;
+        }
+
         const empty = document.createElement('div');
         empty.className = 'file-dialog-empty';
         empty.textContent = t('file_dialog_empty');

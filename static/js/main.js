@@ -10,7 +10,7 @@
  * the user clicks on).
  */
 
-import { fetchScanStatus } from './core/api.js';
+import { fetchLibrary, fetchScanStatus } from './core/api.js';
 import { initLanguage, setLanguage } from './core/i18n.js';
 import { setupSSE } from './core/sse.js';
 import { initTheme, toggleTheme } from './core/theme.js';
@@ -28,7 +28,7 @@ import {
 import { setupClearButton } from './ui/clear-database.js';
 import { initCustomSelects } from './ui/custom-select.js';
 import {
-    closeFileDialog, debouncedRenderFileDialogList, deselectAllFiles, loadFileList,
+    closeFileDialog, debouncedRenderFileDialogList, deselectAllFiles,
     openFileDialog, renderFileDialogList, scanSelectedFiles, selectAllFiles, selectedPaths
 } from './ui/file-dialog.js';
 import {
@@ -48,21 +48,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Restore the saved sort direction before anything sorts or renders it
     initSortDirection();
 
+    // The library request the page started in its <head>, long before this
+    // module could run - it is rendered further down, once the dropdowns the
+    // sort order is read from exist. Waiting for the translations first would
+    // only queue the two round trips up behind each other; neither needs the
+    // other. Without the head's request (a template that does not start one)
+    // it is made here instead, caught so the browser does not call the
+    // rejection unhandled while the translations are still on their way -
+    // loadMediaLibrary reports the failure either way.
+    const libraryRequest = window.__uvsLibraryRequest || fetchLibrary().catch(() => null);
+
     // Initialize language first
     initLanguage().then(() => {
         // Build the custom sort/language dropdowns before anything reads them.
         initCustomSelects();
 
-        // Load file list for scan dropdown
-        loadFileList();
+        // The file list behind the scan dropdown is deliberately not fetched
+        // here: it costs a walk over the whole media directory and only the
+        // dialog shows it, so it is fetched when that dialog opens.
 
         // Only the rows in view are rendered, so the table has to follow the
         // scroll position and react to a viewport change.
         setupMediaVirtualScroll();
         setupMediaTableInteraction();
 
-        // Fetch the library and render it in the stored sort order
-        loadMediaLibrary();
+        // Render the library that was requested above, in the stored sort order
+        loadMediaLibrary(libraryRequest);
 
         // Update clear button state on initial load
         updateClearButton();
