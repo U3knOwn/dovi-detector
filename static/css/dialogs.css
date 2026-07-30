@@ -694,7 +694,10 @@
        they wrap onto a second line instead of scrolling out of view. */
     flex-wrap: wrap;
     padding-bottom: 6px;
+    /* The same width as the cover and the rating row above, so the three
+       blocks under the poster line up as one column. */
     width: 100%;
+    max-width: var(--dialog-cover-width);
 }
 
 .dialog-link {
@@ -703,7 +706,13 @@
     justify-content: center;
     gap: 8px;
     padding: 0 20px;
+    /* The links share the row the way the rating tiles share theirs: they grow
+       into the full cover width, but stop at a size that still looks like a
+       button, so a title with only its IMDb link left does not end up with one
+       pill stretched across the whole panel. */
+    flex: 1 1 auto;
     min-width: 124px;
+    max-width: 160px;
     height: 40px;
     border-radius: var(--radius-pill);
     background: transparent;
@@ -756,7 +765,7 @@
     justify-content: center;
     gap: 10px;
     width: 100%;
-    max-width: 420px;
+    max-width: var(--dialog-cover-width);
 }
 
 .dialog-action-btn {
