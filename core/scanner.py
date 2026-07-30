@@ -35,7 +35,7 @@ def scan_video_file_with_deps(file_path, defer_save=False):
         lambda tmdb_id, media_type: get_tmdb_credits(tmdb_id, media_type, config.TMDB_API_KEY),
         lambda tmdb_id, poster_url: get_cached_backdrop_path(tmdb_id, poster_url, config.POSTER_CACHE_DIR),
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
-        lambda imdb_id: get_ratings(imdb_id, config.MDBLIST_API_KEY),
+        lambda imdb_id, media_type=None: get_ratings(imdb_id, config.MDBLIST_API_KEY, media_type),
         lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL),
         lambda tmdb_id, media_type: get_tmdb_details(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE),
         defer_save=defer_save
@@ -52,7 +52,7 @@ def fetch_online_metadata_with_deps(filename):
         lambda tmdb_id, media_type: get_tmdb_credits(tmdb_id, media_type, config.TMDB_API_KEY),
         lambda tmdb_id, poster_url: get_cached_backdrop_path(tmdb_id, poster_url, config.POSTER_CACHE_DIR),
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
-        lambda imdb_id: get_ratings(imdb_id, config.MDBLIST_API_KEY),
+        lambda imdb_id, media_type=None: get_ratings(imdb_id, config.MDBLIST_API_KEY, media_type),
         lambda imdb_id: get_top250_rank(imdb_id, config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL),
         lambda tmdb_id, media_type: get_tmdb_details(tmdb_id, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE)
     )

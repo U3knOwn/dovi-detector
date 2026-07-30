@@ -13,7 +13,8 @@ from core.scan_state import (begin_scan, cancel_requested, end_scan,
 from core.scanner import fetch_online_metadata_with_deps, scan_video_file_with_deps
 from services import database
 from services.imdb_service import backfill_imdb_data, load_top250
-from services.ratings_service import RATINGS_QUERIED_KEY, get_ratings
+from services.ratings_service import (RATINGS_QUERIED_KEY, get_ratings,
+                                      verify_ratings_key)
 from services.tmdb_service import backfill_tmdb_details, get_imdb_id
 from services.tmdb_service import get_tmdb_details
 from services.video_scanner import background_scan_new_files, refresh_incomplete_entries
@@ -53,12 +54,20 @@ def refresh_imdb_data():
     chart.
     """
     top250_map = load_top250(config.IMDB_TOP250_CACHE_FILE, config.IMDB_TOP250_TTL)
+
+    # Check the key before walking the library with it: a key MDBList refuses
+    # otherwise looks exactly like a library whose titles have no ratings, and
+    # the answer also reports how much of the daily budget is left for the
+    # backfill.
+    if config.MDBLIST_API_KEY:
+        verify_ratings_key(config.MDBLIST_API_KEY)
+
     backfill_imdb_data(
         database.scanned_files,
         database.scan_lock,
         lambda: database.save_database(config.DB_FILE),
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
-        lambda imdb_id: get_ratings(imdb_id, config.MDBLIST_API_KEY),
+        lambda imdb_id, media_type=None: get_ratings(imdb_id, config.MDBLIST_API_KEY, media_type),
         top250_map,
         RATINGS_QUERIED_KEY
     )

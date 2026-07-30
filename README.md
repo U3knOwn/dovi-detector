@@ -251,6 +251,17 @@ One request per title returns every rating at once, so a title costs a single
 call out of the free tier's 1000 per day. The same sources are also what the
 sort dropdown offers, so the library can be ordered by any one of them.
 
+The key is checked once at startup, so the log says whether MDBList accepts it
+and how much of the day's budget is already spent:
+
+```
+✓ MDBList key accepted - 12/1000 requests used today
+```
+
+A key added to an existing library needs no rescan - the ratings are looked up
+in the background on the next start, and again every `METADATA_RETRY_INTERVAL`
+minutes for whatever a spent budget or an unreachable API left over.
+
 The IMDb Top 250 badge does not need a key at all: the chart is read from IMDb
 itself once a day and cached, so the rank is shown even without MDBList.
 
