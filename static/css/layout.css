@@ -156,7 +156,7 @@ header {
 
 /* The button always shows the icon of the theme a normal press switches to
    next, matching THEME_ORDER in theme.js (dark -> light -> midnight ->
-   dark red -> adaptive -> dark). */
+   adaptive -> dark). */
 .theme-toggle svg {
     display: none;
 }
@@ -170,11 +170,7 @@ header {
     display: block;
 }
 
-:root[data-theme="midnight"] .theme-toggle .icon-darkred {
-    display: block;
-}
-
-:root[data-theme="darkred"] .theme-toggle .icon-adaptive {
+:root[data-theme="midnight"] .theme-toggle .icon-adaptive {
     display: block;
 }
 

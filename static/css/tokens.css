@@ -115,51 +115,21 @@
     --bg-glow-2: rgba(99, 102, 241, 0.1);
 }
 
-/* Near-black with red undertones instead of the default indigo accent. */
-:root[data-theme="darkred"] {
-    --bg: #0f0505;
-    --surface: #170808;
-    --surface-2: #1d0a0a;
-    --surface-3: #250d0d;
-    --control-bg: #120606;
-    --border: rgba(248, 113, 113, 0.1);
-    --border-strong: rgba(248, 113, 113, 0.18);
-    --text: #f4e8e8;
-    --text-muted: #ab8b8b;
-    --text-faint: #6e5252;
-    --accent: #ef4444;
-    --accent-2: #f97316;
-    --accent-grad: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
-    --title-grad: linear-gradient(135deg, #f87171 0%, #fb7185 45%, #fb923c 100%);
-    --ring: rgba(239, 68, 68, 0.45);
-    --success: #34d399;
-    --info: #7dd3fc;
-    --danger: #f87171;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
-    --glow: 0 0 0 1px rgba(239, 68, 68, 0.4), 0 8px 24px rgba(239, 68, 68, 0.28);
-    --header-bg: rgba(15, 6, 6, 0.8);
-    --overlay-bg: rgba(5, 2, 2, 0.78);
-    --scroll-toggle-bg: rgba(29, 10, 10, 0.88);
-    --scrollbar-thumb: rgba(248, 113, 113, 0.16);
-    --scrollbar-thumb-hover: rgba(248, 113, 113, 0.26);
-    --progress-track: rgba(248, 113, 113, 0.09);
-    --accent-soft: #fca5a5;
-    --bg-glow-1: rgba(239, 68, 68, 0.18);
-    --bg-glow-2: rgba(249, 115, 22, 0.1);
-}
-
 /* Translucent surfaces for a glass look (paired with the backdrop-filter
    blur rules in theme-adaptive.css). Follows the OS light/dark preference
    instead of a fixed choice, hence "adaptive". Dark is the fallback for
    browsers without prefers-color-scheme support. */
 :root[data-theme="adaptive"] {
     --bg: #0b0d14;
-    --surface: rgba(23, 27, 38, 0.55);
-    --surface-2: rgba(30, 35, 48, 0.55);
-    --surface-3: rgba(38, 44, 60, 0.55);
-    --control-bg: rgba(13, 16, 23, 0.55);
+    /* Plain light and dark washes rather than a colour of their own: every
+       surface here sits on something - the page's glow, or the cover gradient
+       backing the details dialog - and a tinted one would drag all of it back
+       towards the same slate. These let whatever is behind them through, which
+       is what makes a panel and the chips inside it read as one piece. */
+    --surface: rgba(255, 255, 255, 0.055);
+    --surface-2: rgba(255, 255, 255, 0.085);
+    --surface-3: rgba(255, 255, 255, 0.13);
+    --control-bg: rgba(0, 0, 0, 0.22);
     --border: rgba(255, 255, 255, 0.1);
     --border-strong: rgba(255, 255, 255, 0.18);
     --text: #e8ecf4;

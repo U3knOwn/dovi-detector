@@ -12,13 +12,12 @@
 import { onLanguageChange, t } from './i18n.js';
 import { THEME_ICONS } from '../ui/icons.js';
 
-const THEME_ORDER = ['dark', 'light', 'midnight', 'darkred', 'adaptive'];
+const THEME_ORDER = ['dark', 'light', 'midnight', 'adaptive'];
 
 const THEME_META_COLORS = {
     dark: '#0a0c12',
     light: '#eef1f7',
     midnight: '#04060c',
-    darkred: '#160607',
     adaptive: '#0b0d14'
 };
 
@@ -26,7 +25,6 @@ const THEME_NAME_KEYS = {
     dark: 'theme_name_dark',
     light: 'theme_name_light',
     midnight: 'theme_name_midnight',
-    darkred: 'theme_name_darkred',
     adaptive: 'theme_name_adaptive'
 };
 

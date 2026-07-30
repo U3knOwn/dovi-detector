@@ -26,6 +26,20 @@
     -webkit-backdrop-filter: blur(18px) saturate(1.5);
 }
 
+/* The chips inside a panel, frosted against the panel rather than left sitting
+   on it flat. A softer blur than the panels above: these are small, and at the
+   full strength the little they cover turns to a single flat colour. */
+:root[data-theme="adaptive"] .dialog-close,
+:root[data-theme="adaptive"] .dialog-rating,
+:root[data-theme="adaptive"] .dialog-plot-toggle,
+:root[data-theme="adaptive"] .dialog-link,
+:root[data-theme="adaptive"] .dialog-rescan-btn,
+:root[data-theme="adaptive"] .dialog-delete-btn,
+:root[data-theme="adaptive"] .file-dialog-btn {
+    backdrop-filter: blur(8px) saturate(1.4);
+    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+}
+
 /* ============================================================
    Cover Backdrop
    ------------------------------------------------------------
