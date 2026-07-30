@@ -12,7 +12,7 @@ import itertools
 import subprocess
 import concurrent.futures
 from services.ratings_service import (
-    RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings
+    RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings, empty_ratings
 )
 from utils.media_utils import (
     get_channel_format, parse_bitrate_string,
@@ -1247,15 +1247,26 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
     # IMDb is reached via TMDB's external_ids; without a ratings key they stay
     # empty and the UI falls back to the TMDB rating.
     imdb_id = None
-    ratings = {}
+    imdb_media_type = None
+    ratings = None
     imdb_top250 = None
     if tmdb_id and get_imdb_id_func:
-        imdb_id = get_imdb_id_func(tmdb_id, 'movie') or get_imdb_id_func(tmdb_id, 'tv')
+        # Remember which of the two the title turned out to be: MDBList keeps
+        # movies and series under separate endpoints, so knowing it here saves
+        # the wrong guess and with it one request out of the daily budget.
+        for media_type in ('movie', 'tv'):
+            imdb_id = get_imdb_id_func(tmdb_id, media_type)
+            if imdb_id:
+                imdb_media_type = media_type
+                break
         if imdb_id:
             print(f"  [IMDb] IMDb ID: {imdb_id}")
             if get_ratings_func:
-                ratings = get_ratings_func(imdb_id) or {}
-                if ratings.get('imdb_rating'):
+                ratings = get_ratings_func(imdb_id, imdb_media_type)
+                if ratings is None:
+                    print("  [Ratings] No answer from MDBList - the entry stays "
+                          "marked and is looked up again later")
+                elif ratings.get('imdb_rating'):
                     print(f"  [Ratings] IMDb: {ratings.get('imdb_rating')} "
                           f"({ratings.get('imdb_votes')} votes), "
                           f"RT: {ratings.get('rt_rating')}, "
@@ -1281,9 +1292,21 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
         'imdb_id': imdb_id,
         'imdb_top250': imdb_top250,
     }
-    # Written in full even when the lookup found nothing, so every entry carries
-    # the same set of rating keys - a missing one means "never asked".
-    metadata.update(complete_ratings(ratings))
+    # A lookup that answered is written in full - every entry then carries the
+    # same set of rating keys, and the ones the title has no rating for are
+    # stored as None rather than left out.
+    #
+    # A lookup that got no answer at all (no key configured, MDBList
+    # unreachable, daily budget spent) leaves the keys out entirely instead:
+    # writing them as None would stamp the entry as "asked, has nothing" and it
+    # would never be looked up again - which is exactly what makes a key added
+    # afterwards look like it does nothing. A title without an IMDb id has
+    # nothing to ask for and is written out as None, so it is not retried
+    # forever.
+    if ratings is not None:
+        metadata.update(complete_ratings(ratings))
+    elif not imdb_id:
+        metadata.update(empty_ratings())
     return metadata
 
 
@@ -1373,10 +1396,12 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
         gained = {k: v for k, v in (fresh or {}).items()
                   if v not in (None, '', [], {}) and not file_info.get(k)}
 
-        # A rating a source simply does not have is recorded as None as well:
-        # the entry has been asked, and an entry that never gets the key would
-        # count as incomplete - and be looked up again - on every single run.
-        if fresh and fresh.get('imdb_id'):
+        # A rating a source simply does not have is recorded as None as well, so
+        # a title that genuinely has none is not asked again on every run. Only
+        # for a lookup that answered though - ``fetch_online_metadata`` leaves
+        # the rating keys out entirely otherwise, and the source stamp that
+        # comes with an answer is picked up by the comprehension above.
+        if fresh and fresh.get('imdb_id') and fresh.get(RATINGS_QUERIED_KEY):
             for field in RATING_FIELDS:
                 if field in fresh and field not in file_info:
                     gained.setdefault(field, fresh[field])

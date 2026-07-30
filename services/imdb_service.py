@@ -227,16 +227,16 @@ def get_top250_rank(imdb_id, cache_file, ttl_seconds):
 
 def backfill_imdb_data(scanned_files, scan_lock, save_database_func,
                        get_imdb_id_func, get_ratings_func, top250_map,
-                       ratings_queried_key='rt_audience'):
+                       ratings_queried_key='ratings_source'):
     """
     Add IMDb data and the external ratings to entries scanned before they were
     collected, and refresh the Top 250 ranks of all entries.
 
     Without this, an existing library would keep showing TMDB ratings until
     every file is rescanned. The IMDb id and the ratings are only looked up
-    where they are missing (one request each, once); the rank comes from the
-    already-loaded chart map and is therefore refreshed for every entry on
-    every start - it changes as the chart does.
+    where they are missing (one request each, once per answered lookup); the
+    rank comes from the already-loaded chart map and is therefore refreshed for
+    every entry on every start - it changes as the chart does.
     """
     resolved = 0
     rated = 0
@@ -262,9 +262,10 @@ def backfill_imdb_data(scanned_files, scan_lock, save_database_func,
 
         # The marker key tells an entry that was already queried apart from one
         # that never was, so a title that genuinely has no ratings is not
-        # re-requested daily. It is the newest of the rating fields, so entries
-        # from an older version are looked up once more and gain the Rotten
-        # Tomatoes audience score and the Trakt rating without a rescan.
+        # re-requested daily. It is written only for a lookup that answered, so
+        # entries from an older version - and entries whose lookup failed
+        # because the key was missing or MDBList was unreachable - are looked up
+        # once more and gain their ratings without a rescan.
         if ratings_queried_key not in file_info and get_ratings_func:
             ratings = get_ratings_func(imdb_id)
             if ratings is not None:
