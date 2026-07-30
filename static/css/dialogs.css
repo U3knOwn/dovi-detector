@@ -339,7 +339,12 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: var(--overlay-bg);
+    /* A veil in the accent over the darkened page, so the blur behind the
+       dialog reads as frosted glass rather than as the page turned down. It
+       goes on top of --overlay-bg rather than into it: the token is the plain
+       scrim and is used where nothing is meant to be lit up. */
+    background-color: var(--overlay-bg);
+    background-image: linear-gradient(var(--overlay-veil), var(--overlay-veil));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     z-index: 1000;

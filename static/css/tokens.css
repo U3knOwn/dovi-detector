@@ -44,6 +44,11 @@
     --glow: 0 0 0 1px rgba(99, 102, 241, 0.4), 0 8px 24px rgba(99, 102, 241, 0.25);
     --header-bg: rgba(15, 18, 26, 0.78);
     --overlay-bg: rgba(5, 7, 11, 0.72);
+    /* Laid over --overlay-bg behind the details dialog, so the blur there reads
+       as frosted glass rather than as the page turned down. The theme's accent,
+       kept far quieter than any of the marks that use it - it covers the whole
+       screen. */
+    --overlay-veil: rgba(99, 102, 241, 0.09);
     --scroll-toggle-bg: rgba(23, 27, 38, 0.85);
     --scrollbar-thumb: rgba(255, 255, 255, 0.12);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
@@ -83,6 +88,7 @@
     --glow: 0 0 0 1px rgba(59, 130, 246, 0.4), 0 8px 24px rgba(59, 130, 246, 0.28);
     --header-bg: rgba(8, 11, 19, 0.8);
     --overlay-bg: rgba(2, 3, 6, 0.78);
+    --overlay-veil: rgba(59, 130, 246, 0.09);
     --scroll-toggle-bg: rgba(14, 18, 32, 0.88);
     --scrollbar-thumb: rgba(147, 197, 253, 0.14);
     --scrollbar-thumb-hover: rgba(147, 197, 253, 0.24);

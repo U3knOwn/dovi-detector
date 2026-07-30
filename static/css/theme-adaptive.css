@@ -44,6 +44,14 @@
     background-clip: padding-box;
 }
 
+/* The veil behind the panel takes the entry's own accent here, the way every
+   other mark in the dialog does. The colour is set on the overlay itself (see
+   media-dialog.js), so this reads the entry in front of the pointer; without a
+   cover it falls back to the slate --cover-accent-rgb carries by default. */
+:root[data-theme="dark-adaptive"] .media-dialog-overlay {
+    --overlay-veil: rgba(var(--cover-accent-rgb), 0.1);
+}
+
 /* A row cannot do the same. Its own background is not an option: Firefox does
    not round a <tr> at all, so the gradient came out as a hard rectangle behind
    the rounded cells and left a square corner at each end of the row. Nor can
@@ -191,6 +199,12 @@
    them together. */
 :root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating) {
     background: transparent;
+}
+
+/* The tiles' outline comes off the cover as well, quiet enough to read as an
+   edge rather than as a mark of its own. */
+:root[data-theme="dark-adaptive"] .dialog-rating {
+    border: 2px solid rgba(var(--cover-accent-rgb), 0.1);
 }
 
 /* The quietest text in the two tinted areas, a step further from the surface

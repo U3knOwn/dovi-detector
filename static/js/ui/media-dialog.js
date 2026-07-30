@@ -260,7 +260,10 @@ export function showMediaDialog(item) {
     if (posterUrl) {
         dialogPosterImg.src = posterUrl;
         dialogPoster.style.display = 'block';
-        applyCoverGradient(document.querySelector('.media-dialog'), posterUrl);
+        // Set on the overlay rather than on the panel: custom properties are
+        // inherited, so the panel still reads both of them, and the overlay -
+        // which tints its own veil with the accent - can read them too.
+        applyCoverGradient(overlay, posterUrl);
 
         // Set filename if available
         if (dialogFilenameItem && dialogFilename && filename && filename.trim() !== '') {
@@ -271,7 +274,7 @@ export function showMediaDialog(item) {
         }
     } else {
         dialogPoster.style.display = 'none';
-        applyCoverGradient(document.querySelector('.media-dialog'), '');
+        applyCoverGradient(overlay, '');
         // Without a poster the dialog title already is the filename, so the
         // separate row stays hidden - and must be reset, otherwise it would
         // keep showing the previously opened entry's filename.
