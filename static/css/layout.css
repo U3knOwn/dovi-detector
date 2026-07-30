@@ -155,14 +155,10 @@ header {
 }
 
 /* The button always shows the icon of the theme a normal press switches to
-   next, matching THEME_ORDER in theme.js: light -> dark -> dark-adaptive ->
-   midnight -> dark-red -> dark-green -> dark-yellow -> light. */
+   next, matching THEME_ORDER in theme.js: dark -> dark-adaptive ->
+   midnight -> dark. */
 .theme-toggle svg {
     display: none;
-}
-
-:root[data-theme="light"] .theme-toggle .icon-light {
-    display: block;
 }
 
 :root[data-theme="dark"] .theme-toggle .icon-dark {
@@ -178,40 +174,6 @@ header {
 
 :root[data-theme="midnight"] .theme-toggle .icon-midnight {
     display: block;
-}
-
-:root[data-theme="dark-red"] .theme-toggle .icon-dark-red {
-    display: block;
-}
-
-:root[data-theme="dark-green"] .theme-toggle .icon-dark-green {
-    display: block;
-}
-
-:root[data-theme="dark-yellow"] .theme-toggle .icon-dark-yellow {
-    display: block;
-}
-
-/* The three coloured darks share one silhouette - see THEME_ICONS in
-   ui/icons.js - so the colour is the only thing that says which is which. It is
-   set here rather than drawn into the icon, and unconditionally: on the toggle
-   the icon stands for the theme a press switches *to*, not the one in force, so
-   it has to carry its own colour whatever theme is currently on screen. Both
-   places the icons appear are covered - the button, and the long-press menu,
-   where all seven are listed at once. */
-.theme-toggle .icon-dark-red,
-#themeMenu .custom-select-option[data-value="dark-red"] .custom-select-opt-icon {
-    color: rgba(239, 68, 68, 0.4);
-}
-
-.theme-toggle .icon-dark-green,
-#themeMenu .custom-select-option[data-value="dark-green"] .custom-select-opt-icon {
-    color: rgba(16, 185, 129, 0.4);
-}
-
-.theme-toggle .icon-dark-yellow,
-#themeMenu .custom-select-option[data-value="dark-yellow"] .custom-select-opt-icon {
-    color: rgba(234, 179, 8, 0.4);
 }
 
 /* The menu is moved to <body> in JS (see theme.js) so the header-actions

@@ -13,11 +13,8 @@ import { onLanguageChange, t } from './i18n.js';
 import { THEME_ICONS } from '../ui/icons.js';
 
 // Also the order the menu lists them in, so a press walks the menu top to
-// bottom - the light one, then the two plain darks, then the four that carry a
-// hue, deepest first.
-const THEME_ORDER = [
-    'light', 'dark', 'dark-adaptive', 'midnight', 'dark-red', 'dark-green', 'dark-yellow'
-];
+// bottom - the two plain darks, then the one that carries a hue.
+const THEME_ORDER = ['dark', 'dark-adaptive', 'midnight'];
 
 // What a first visit gets, and what an unreadable or unknown stored value falls
 // back to. The inline script in templates/index.html hardcodes the same one -
@@ -25,23 +22,15 @@ const THEME_ORDER = [
 const DEFAULT_THEME = 'dark-adaptive';
 
 const THEME_META_COLORS = {
-    light: '#eef1f7',
     dark: '#0a0c12',
     'dark-adaptive': '#0b0d14',
-    midnight: '#04060c',
-    'dark-red': '#0c0405',
-    'dark-green': '#040b07',
-    'dark-yellow': '#0c0904'
+    midnight: '#04060c'
 };
 
 const THEME_NAME_KEYS = {
-    light: 'theme_name_light',
     dark: 'theme_name_dark',
     'dark-adaptive': 'theme_name_dark_adaptive',
-    midnight: 'theme_name_midnight',
-    'dark-red': 'theme_name_dark_red',
-    'dark-green': 'theme_name_dark_green',
-    'dark-yellow': 'theme_name_dark_yellow'
+    midnight: 'theme_name_midnight'
 };
 
 // Holding the button down this long opens the menu instead of cycling.
@@ -60,11 +49,18 @@ const MENU_AUTO_CLOSE_MS = 5000;
  * A stored theme under the name it goes by now.
  *
  * "adaptive" once read the OS preference and later became a light and a dark
- * variant; only the dark one is left. Both older names land on what is nearest
- * to what their owner was looking at, rather than being dropped back to the
- * default.
+ * variant; only the dark one is left. The light theme and the three coloured
+ * darks are gone too - anyone left on one of them lands on the nearest theme
+ * that remains rather than on the default.
  */
-const RETIRED_THEMES = { adaptive: 'dark-adaptive', 'light-adaptive': 'light' };
+const RETIRED_THEMES = {
+    adaptive: 'dark-adaptive',
+    'light-adaptive': 'dark-adaptive',
+    light: 'dark-adaptive',
+    'dark-red': 'dark',
+    'dark-green': 'dark',
+    'dark-yellow': 'dark'
+};
 
 function migrateTheme(saved) {
     const migrated = RETIRED_THEMES[saved];

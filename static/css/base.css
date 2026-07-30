@@ -28,10 +28,6 @@ html {
     color-scheme: dark;
 }
 
-html[data-theme="light"] {
-    color-scheme: light;
-}
-
 html[data-theme="dark-adaptive"] {
     color-scheme: dark;
 }
@@ -58,10 +54,6 @@ body {
 ::selection {
     background: rgba(99, 102, 241, 0.35);
     color: #fff;
-}
-
-:root[data-theme="light"] ::selection {
-    color: #1c2333;
 }
 
 ::-webkit-scrollbar {
