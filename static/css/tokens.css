@@ -135,7 +135,11 @@
     --border-strong: rgba(255, 255, 255, 0.18);
     --text: #e8ecf4;
     --text-muted: #9aa3b8;
-    --text-faint: #6b7488;
+    /* A step further from the surface than the fixed themes use. Theirs sit on
+       one known colour; these sit on whatever the entry's cover happens to be,
+       and the quietest text is what runs out of margin first - the dialog's
+       field labels measured 3.3:1 against a warm cover at the old value. */
+    --text-faint: #8b95ab;
     --accent: #818cf8;
     --accent-2: #c084fc;
     --accent-grad: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
@@ -172,8 +176,10 @@
     --border: rgba(20, 28, 46, 0.12);
     --border-strong: rgba(20, 28, 46, 0.2);
     --text: #1c2333;
-    --text-muted: #55617a;
-    --text-faint: #8791a5;
+    /* Both a step further from the surface than the plain light theme uses -
+       see the note in the block above. */
+    --text-muted: #3f4859;
+    --text-faint: #4d5769;
     --title-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
     --ring: rgba(99, 102, 241, 0.4);
     --success: #059669;

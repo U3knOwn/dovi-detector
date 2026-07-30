@@ -78,3 +78,47 @@
 :root[data-theme$="adaptive"] tbody tr {
     border-radius: var(--radius-lg);
 }
+
+/* ============================================================
+   Dialog Marks On A Tinted Panel
+   ------------------------------------------------------------
+   The rating and link colours are the sources' own, picked
+   against the fixed themes' one surface. Here the panel carries
+   the entry's cover, so a red mark can land on a red cover: the
+   Trakt score measured 2.8:1 against a warm one. Each of these
+   takes a step away from the surface it now sits on. The chips
+   are translucent, so the cover reaches the text through them
+   and the mark cannot be left as it is.
+   ============================================================ */
+
+:root[data-theme="dark-adaptive"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #ff938c;
+}
+
+:root[data-theme="dark-adaptive"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #fda092;
+}
+
+:root[data-theme="light-adaptive"] :is(.dialog-rating-tmdb, .dialog-link.tmdb) :is(.dialog-rating-value, .dialog-rating-logo),
+:root[data-theme="light-adaptive"] .dialog-link.tmdb {
+    color: #075985;
+}
+
+:root[data-theme="light-adaptive"] :is(.dialog-rating-rt, .dialog-rating-trakt) :is(.dialog-rating-value, .dialog-rating-logo),
+:root[data-theme="light-adaptive"] .dialog-link.youtube,
+:root[data-theme="light-adaptive"] .dialog-delete-btn {
+    color: #991b1b;
+}
+
+:root[data-theme="light-adaptive"] :is(.dialog-rating-imdb, .dialog-rating-rt-audience) :is(.dialog-rating-value, .dialog-rating-logo),
+:root[data-theme="light-adaptive"] .dialog-link.imdb {
+    color: #7c3f0a;
+}
+
+:root[data-theme="light-adaptive"] .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
+    color: #14532d;
+}
+
+:root[data-theme="light-adaptive"] .dialog-rescan-btn {
+    color: #3730a3;
+}
