@@ -110,6 +110,40 @@
     background: transparent;
 }
 
+/* What a row lights up with under the pointer. The dark theme's ring and title
+   are one fixed indigo, which on a row that has taken a poster's colours reads
+   as a mark from a different theme sitting on top of it - so those two take
+   the cover's colour as well, handed over by ui/cover-gradient.js.
+
+   Only the hue comes from the cover; the lightness is the theme's, so a row
+   lights up by the same amount whatever it is showing. Rows without a cover,
+   and any row whose cover has not been read yet, fall back to the slate below,
+   which is the theme's own border colour rather than an accent - nothing to
+   pick up here means nothing to answer with. */
+:root[data-theme="dark-adaptive"] {
+    --cover-accent-rgb: 148, 163, 184;
+}
+
+:root[data-theme="dark-adaptive"] .poster-container:hover .poster-title {
+    color: rgb(var(--cover-accent-rgb));
+}
+
+:root[data-theme="dark-adaptive"] .poster-container:hover .poster-img {
+    box-shadow:
+        0 0 0 0px rgba(var(--cover-accent-rgb), 0.45),
+        0 8px 24px rgba(var(--cover-accent-rgb), 0.25);
+}
+
+/* The dialog's field labels take the same accent. They are the panel's own
+   furniture rather than the entry's own words - the slogan and the plot below
+   them stay the plain text colour - so the colour lands on the part of the
+   dialog that is there to be scanned past, not on the part being read. Without
+   a cover they fall back to the slate above, a shade off the --text-faint they
+   would otherwise have had. */
+:root[data-theme="dark-adaptive"] .dialog-label {
+    color: rgb(var(--cover-accent-rgb));
+}
+
 /* The chips inside the dialog, for the same reason as the cells above: left on
    the dark theme's opaque slate they would sit on the tinted panel as cold grey
    boxes. A soft blur, not the cells' - they are small, and at that strength the

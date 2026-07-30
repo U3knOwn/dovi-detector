@@ -145,6 +145,71 @@ function limitLuminance(rgb, limit) {
 }
 
 /**
+ * The cover's colour as a mark rather than as a surface: the ring and the title
+ * a row lights up with while the pointer is on it.
+ *
+ * This is the opposite problem to the tint. A surface has to stay dark enough
+ * for the text on it; a mark sits on that surface and has to stand off it, at
+ * one predictable strength whatever the poster is - a dark cover would
+ * otherwise light the row up in something barely distinguishable from the row
+ * itself. So only the hue is taken from the cover and it is given the theme's
+ * own lightness, which is where the fixed indigo it replaces already sat.
+ *
+ * The hue comes from the most colourful of the picked colours rather than the
+ * most prominent: the one a poster is mostly made of is often a near-grey, and
+ * a grey has no hue to lend.
+ */
+const ACCENT_SATURATION = 0.62;
+const ACCENT_LIGHTNESS = 0.76;
+
+function accentColor(palette) {
+    let best = palette[0];
+    let bestSaturation = -1;
+
+    for (const rgb of palette) {
+        const max = Math.max(...rgb);
+        const saturation = max === 0 ? 0 : (max - Math.min(...rgb)) / max;
+        if (saturation > bestSaturation) {
+            bestSaturation = saturation;
+            best = rgb;
+        }
+    }
+
+    // A cover with no colour at all - a black and white poster - has no hue to
+    // take, and forcing one on it would invent a tint the artwork never had.
+    // Its mark is left grey, at the same lightness as any other.
+    const hue = bestSaturation < 0.08 ? null : hueOf(best);
+    const grey = Math.round(ACCENT_LIGHTNESS * 255);
+    return hue === null
+        ? [grey, grey, grey]
+        : hslToRgb(hue, ACCENT_SATURATION, ACCENT_LIGHTNESS);
+}
+
+function hueOf([r, g, b]) {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const span = max - min;
+    if (span === 0) return 0;
+
+    let hue;
+    if (max === r) hue = ((g - b) / span) % 6;
+    else if (max === g) hue = (b - r) / span + 2;
+    else hue = (r - g) / span + 4;
+    return (hue * 60 + 360) % 360;
+}
+
+function hslToRgb(hue, saturation, lightness) {
+    const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+    const second = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const base = lightness - chroma / 2;
+    const sector = Math.floor(hue / 60) % 6;
+    const [r, g, b] = [
+        [chroma, second, 0], [second, chroma, 0], [0, chroma, second],
+        [0, second, chroma], [second, 0, chroma], [chroma, 0, second]
+    ][sector];
+    return [r, g, b].map(c => Math.round((c + base) * 255));
+}
+
+/**
  * Those colours as the gradient a panel paints.
  *
  * Two soft pools over a vertical wash, which is the same shape as the glow
@@ -202,23 +267,33 @@ function readCover(posterUrl) {
     return request;
 }
 
+// The accent goes out as its three channels rather than as a colour, so the
+// stylesheet can hold it at whatever opacity each mark needs - a ring and the
+// shadow under it are the same colour at two different strengths.
 function paint(element, palette) {
-    if (palette) element.style.setProperty('--cover-gradient', buildGradient(palette));
-    else element.style.removeProperty('--cover-gradient');
+    if (palette) {
+        element.style.setProperty('--cover-gradient', buildGradient(palette));
+        element.style.setProperty('--cover-accent-rgb', accentColor(palette).join(', '));
+    } else {
+        element.style.removeProperty('--cover-gradient');
+        element.style.removeProperty('--cover-accent-rgb');
+    }
 }
 
 /**
- * Give ``element`` the gradient of ``posterUrl`` as ``--cover-gradient``.
+ * Give ``element`` the colours of ``posterUrl``: the gradient it is backed with
+ * as ``--cover-gradient``, and the accent its marks take as
+ * ``--cover-accent-rgb``.
  *
  * Set on every theme, not just the adaptive ones - the others simply never read
- * the property, so nothing has to be undone when one of them is picked.
+ * the properties, so nothing has to be undone when one of them is picked.
  */
 export function applyCoverGradient(element, posterUrl) {
     if (!element) return;
     wanted.set(element, posterUrl || null);
 
     if (!posterUrl) {
-        element.style.removeProperty('--cover-gradient');
+        paint(element, null);
         return;
     }
 
@@ -230,7 +305,7 @@ export function applyCoverGradient(element, posterUrl) {
         return;
     }
 
-    element.style.removeProperty('--cover-gradient');
+    paint(element, null);
     readCover(posterUrl).then(palette => {
         if (wanted.get(element) !== posterUrl) return;
         paint(element, palette);
