@@ -28,6 +28,18 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             } catch (e) { /* localStorage unavailable -> keep the default */ }
             document.documentElement.setAttribute('data-theme', theme);
         })();
+
+        // Ask for the library here rather than from the modules below. A module
+        // script does not run until its whole import graph has been fetched and
+        // parsed, so the request would otherwise wait for every file in
+        // static/js to arrive - on a slow connection that is most of a second
+        // with the connection sitting idle. main.js takes this over (see the
+        // library request in its DOMContentLoaded handler); a failure is
+        // reported there, and is swallowed here only so the browser does not
+        // call the rejection unhandled in the meantime.
+        window.__uvsLibraryRequest = fetch('/api/library')
+            .then(function (response) { return response.json(); })
+            .catch(function () { return null; });
     </script>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/inter.css') }}">
@@ -41,6 +53,15 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chrome.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-adaptive.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
+    {# The interface is loaded as ES modules, and a browser only learns that a
+       module exists once the one importing it has arrived - so the graph would
+       be fetched one level at a time, which on a slow connection is a round
+       trip per level. These start all of them at once. The list comes from the
+       files on disk (see routes/library.py), so it cannot fall out of step with
+       what static/js actually holds. #}
+    {% for module in js_modules %}
+    <link rel="modulepreload" href="{{ url_for('static', filename=module) }}">
+    {%- endfor %}
 </head>
 <body>
     <div class="container">

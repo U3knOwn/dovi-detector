@@ -16,8 +16,16 @@ import {
 } from './store.js';
 import { getMediaBody, renderMediaWindow } from './virtual-table.js';
 
-export function loadMediaLibrary() {
-    return fetchLibrary()
+/**
+ * Fill the table from the server.
+ *
+ * ``request`` is a library request that is already on its way - the page starts
+ * one before the translations so the two do not queue up behind each other. A
+ * caller with nothing in flight (a reload from the console) simply omits it and
+ * one is made here.
+ */
+export function loadMediaLibrary(request) {
+    return (request || fetchLibrary())
         .then(data => {
             if (!data || !data.success) throw new Error('Library request failed');
             setMediaItems((data.files || []).map(prepareMediaItem));

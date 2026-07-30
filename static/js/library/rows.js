@@ -89,9 +89,12 @@ function buildHdrCell(item) {
 export function buildMediaRow(item) {
     const row = makeElement('tr');
     // The adaptive themes back the row with the colours of its own cover, the
-    // same way they back the details dialog.
-    applyCoverGradient(row, item.poster_url);
-    row.appendChild(buildPosterCell(item));
+    // same way they back the details dialog. The cell is built first so the
+    // colours can be read from the poster the row is showing anyway, rather
+    // than from a second copy of it.
+    const posterCell = buildPosterCell(item);
+    applyCoverGradient(row, item.poster_url, posterCell.querySelector('img.poster-img'));
+    row.appendChild(posterCell);
     row.appendChild(buildHdrCell(item));
 
     const audioCell = makeCell('table_header_audio', 'audio-codec');

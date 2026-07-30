@@ -46,10 +46,13 @@ const MIN_DISTANCE = 48;
 const palettes = new Map();
 const inFlight = new Map();
 
-// What each element last asked for. An entry that is scrolled away, or a dialog
-// reopened on something else, must not be painted by a cover that only finishes
-// loading afterwards.
-const wanted = new WeakMap();
+// What each element last asked for is kept on the element itself, as
+// ``data-cover``. It settles two questions at once: an entry that is scrolled
+// away, or a dialog reopened on something else, must not be painted by a cover
+// that only finishes loading afterwards - and a theme switch has to find
+// everything that wants a cover, including the ones nothing has been read for
+// yet (see the observer at the bottom).
+const COVER_ATTR = 'cover';
 
 /**
  * The colours a poster is mostly made of, most prominent first.
@@ -132,6 +135,13 @@ function relativeLuminance([r, g, b]) {
     return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
+// The one theme whose stylesheet reads the properties this module sets.
+const ADAPTIVE_THEME = 'dark-adaptive';
+
+function themeReadsCover() {
+    return document.documentElement.getAttribute('data-theme') === ADAPTIVE_THEME;
+}
+
 /**
  * How far the cover may take the surface, for the theme in force.
  *
@@ -140,8 +150,7 @@ function relativeLuminance([r, g, b]) {
  * gradient at all, so every other theme is left unlimited.
  */
 function tintLimit() {
-    const theme = document.documentElement.getAttribute('data-theme');
-    return theme === 'dark-adaptive' ? { max: TINT_MAX_LUMINANCE } : null;
+    return themeReadsCover() ? { max: TINT_MAX_LUMINANCE } : null;
 }
 
 /**
@@ -318,8 +327,47 @@ function paletteFromImage(img) {
     }
 }
 
-function readCover(posterUrl) {
+/**
+ * Resolves once ``image`` can be read: true when it has pixels, false when it
+ * will never load.
+ *
+ * An image that is taken out of the document before it loads - a row scrolled
+ * past while its poster was still on the way - simply never resolves. It is
+ * collected together with the row it belonged to, and nothing is recorded for
+ * the poster, so the next row showing it reads it again.
+ */
+function imageReady(image) {
+    if (image.complete) return Promise.resolve(image.naturalWidth > 0);
+
+    return new Promise(resolve => {
+        image.addEventListener('load', () => resolve(image.naturalWidth > 0), { once: true });
+        image.addEventListener('error', () => resolve(false), { once: true });
+    });
+}
+
+/**
+ * The colours of ``posterUrl``, read from ``image`` when the page is already
+ * showing that poster.
+ *
+ * Reading the image the table (or the dialog) has anyway is the difference
+ * between one decode and two, and it leaves ``loading="lazy"`` in charge of
+ * whether the poster is fetched at all: an Image() of its own downloads every
+ * cover in the table the moment the rows are built, however few of them are on
+ * screen. Only a caller without an image to point at - there is none today -
+ * falls back to loading one here.
+ */
+function readCover(posterUrl, image) {
     if (palettes.has(posterUrl)) return Promise.resolve(palettes.get(posterUrl));
+
+    if (image) {
+        return imageReady(image).then(ready => {
+            if (!ready) return null;
+            const palette = paletteFromImage(image);
+            palettes.set(posterUrl, palette);
+            return palette;
+        });
+    }
+
     if (inFlight.has(posterUrl)) return inFlight.get(posterUrl);
 
     const request = new Promise(resolve => {
@@ -353,19 +401,26 @@ function paint(element, palette) {
 /**
  * Give ``element`` the colours of ``posterUrl``: the gradient it is backed with
  * as ``--cover-gradient``, and the accent its marks take as
- * ``--cover-accent-rgb``.
+ * ``--cover-accent-rgb``. ``image`` is the poster the element is already
+ * showing, which is what the colours are read from.
  *
- * Set on every theme, not just the adaptive ones - the others simply never read
- * the properties, so nothing has to be undone when one of them is picked.
+ * A colour already known is set on every theme, not just the adaptive ones -
+ * the others simply never read the properties, so nothing has to be undone when
+ * one of them is picked. Reading a cover that is *not* known yet is left to the
+ * theme that actually paints it: it costs a decode and a canvas read per
+ * poster, which on a table of covers is the most expensive thing on the page,
+ * and no other theme would show anything for it.
  */
-export function applyCoverGradient(element, posterUrl) {
+export function applyCoverGradient(element, posterUrl, image) {
     if (!element) return;
-    wanted.set(element, posterUrl || null);
 
     if (!posterUrl) {
+        delete element.dataset[COVER_ATTR];
         paint(element, null);
         return;
     }
+
+    element.dataset[COVER_ATTR] = posterUrl;
 
     // Already known: paint it now rather than a frame later, so a row scrolled
     // back into view does not flash the plain surface first.
@@ -376,15 +431,20 @@ export function applyCoverGradient(element, posterUrl) {
     }
 
     paint(element, null);
-    readCover(posterUrl).then(palette => {
-        if (wanted.get(element) !== posterUrl) return;
+    if (!themeReadsCover()) return;
+
+    readCover(posterUrl, image).then(palette => {
+        if (element.dataset[COVER_ATTR] !== posterUrl) return;
         paint(element, palette);
     });
 }
 
+// The poster an element is showing: a row's own image, or the dialog's.
+const COVER_IMAGE = 'img.poster-img, img.dialog-poster-img';
+
 // How far the cover may take the surface is the theme's call, so every cover on
-// screen has to be repainted when the theme changes. The colours themselves are
-// cached and unaffected, so this is only string building.
+// screen has to be repainted when the theme changes - and switching *to* the
+// adaptive theme is the moment the covers nothing has read yet are read.
 //
 // Whoever is wearing one is asked of the DOM rather than kept in a registry
 // here. A row is given its cover while it is still in the fragment it is being
@@ -392,9 +452,9 @@ export function applyCoverGradient(element, posterUrl) {
 // one that has been thrown away - and rows are thrown away on every render.
 if (typeof MutationObserver === 'function') {
     new MutationObserver(() => {
-        document.querySelectorAll('[style*="--cover-gradient"]').forEach(element => {
-            const posterUrl = wanted.get(element);
-            if (posterUrl) paint(element, palettes.get(posterUrl));
+        document.querySelectorAll(`[data-${COVER_ATTR}]`).forEach(element => {
+            applyCoverGradient(element, element.dataset[COVER_ATTR],
+                               element.querySelector(COVER_IMAGE));
         });
     }).observe(document.documentElement, {
         attributes: true, attributeFilter: ['data-theme']
