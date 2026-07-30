@@ -52,6 +52,22 @@ function updateHdrMetadataRows(hdrFormat, hdrMetadata) {
 }
 
 /**
+ * Hide the rows of the info grid that have no field left to show.
+ *
+ * A row whose fields are all hidden still takes the grid's gap, and the HDR
+ * fields fill three of the five rows - so an SDR entry, which has none of them,
+ * ended up with a block of empty space between the bitrates and the filename.
+ * Run this once every field has been set.
+ */
+function collapseEmptyInfoRows() {
+    document.querySelectorAll('.dialog-info-grid .dialog-info-row').forEach(row => {
+        const hasVisibleItem = Array.from(row.children)
+            .some(item => item.style.display !== 'none');
+        row.style.display = hasVisibleItem ? '' : 'none';
+    });
+}
+
+/**
  * Fill the row of external ratings under the cover: IMDb and TMDb as their
  * 0-10 user scores, then the percentage-based ones - the Rotten Tomatoes
  * tomatometer with the audience score beside it, Trakt and Metacritic. Each
@@ -425,6 +441,8 @@ export function showMediaDialog(item) {
         if (dialogLinksContainer) dialogLinksContainer.style.display = hasImdbLink ? '' : 'none';
     }
     
+    collapseEmptyInfoRows();
+
     // Show dialog
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
