@@ -16,6 +16,11 @@ import { THEME_ICONS } from '../ui/icons.js';
 // bottom - the light pair, then the dark pair, then midnight.
 const THEME_ORDER = ['light', 'light-adaptive', 'dark', 'dark-adaptive', 'midnight'];
 
+// What a first visit gets, and what an unreadable or unknown stored value falls
+// back to. The inline script in templates/index.html hardcodes the same one -
+// it has to run before this module to head off a flash of the wrong theme.
+const DEFAULT_THEME = 'dark-adaptive';
+
 const THEME_META_COLORS = {
     light: '#eef1f7',
     'light-adaptive': '#eef1f7',
@@ -61,7 +66,7 @@ let longPressFired = false;
 
 function getCurrentTheme() {
     const attr = document.documentElement.getAttribute('data-theme');
-    return THEME_ORDER.includes(attr) ? attr : 'dark';
+    return THEME_ORDER.includes(attr) ? attr : DEFAULT_THEME;
 }
 
 function persistTheme(theme) {
@@ -71,10 +76,10 @@ function persistTheme(theme) {
 }
 
 function applyTheme(theme) {
-    if (!THEME_ORDER.includes(theme)) theme = 'dark';
+    if (!THEME_ORDER.includes(theme)) theme = DEFAULT_THEME;
     document.documentElement.setAttribute('data-theme', theme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', THEME_META_COLORS[theme] || THEME_META_COLORS.dark);
+    if (meta) meta.setAttribute('content', THEME_META_COLORS[theme] || THEME_META_COLORS[DEFAULT_THEME]);
     updateThemeToggleLabel();
     updateThemeMenuSelection();
 }
@@ -256,7 +261,7 @@ export function initTheme() {
         saved = localStorage.getItem('dovi_theme');
     } catch (e) { /* localStorage unavailable -> keep default */ }
     saved = migrateTheme(saved);
-    applyTheme(THEME_ORDER.includes(saved) ? saved : 'dark');
+    applyTheme(THEME_ORDER.includes(saved) ? saved : DEFAULT_THEME);
     setupThemeToggle();
 }
 

@@ -3,20 +3,20 @@ Copyright (c) 2026 Jamal2367
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 -->
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0a0c12">
+    <meta name="theme-color" content="#0b0d14">
     <title>Universal Video Scanner</title>
     <script>
         // Apply the saved theme before the stylesheet renders to avoid a flash
-        // of the wrong theme. Dark is the default. Kept in step with
-        // THEME_ORDER and migrateTheme in static/js/core/theme.js, which runs
-        // far too late to prevent that flash.
+        // of the wrong theme. Kept in step with DEFAULT_THEME,
+        // THEME_ORDER and migrateTheme in static/js/core/theme.js, all of
+        // which run far too late to prevent that flash.
         (function () {
             var themes = ['light', 'light-adaptive', 'dark', 'dark-adaptive', 'midnight'];
-            var theme = 'dark';
+            var theme = 'dark-adaptive';
             try {
                 var saved = localStorage.getItem('dovi_theme');
                 if (saved === 'adaptive') {
@@ -27,7 +27,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                         ? 'light-adaptive' : 'dark-adaptive';
                 }
                 if (themes.indexOf(saved) !== -1) theme = saved;
-            } catch (e) { /* localStorage unavailable -> keep dark */ }
+            } catch (e) { /* localStorage unavailable -> keep the default */ }
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
