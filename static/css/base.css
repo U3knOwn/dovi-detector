@@ -32,6 +32,10 @@ html[data-theme="light"] {
     color-scheme: light;
 }
 
+html[data-theme="adaptive"] {
+    color-scheme: light dark;
+}
+
 body {
     font-family: var(--font);
     background-color: var(--bg);

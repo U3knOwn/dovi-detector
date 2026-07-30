@@ -154,20 +154,49 @@ header {
     transform: rotate(180deg);
 }
 
+/* The button always shows the icon of the theme a normal press switches to
+   next, matching THEME_ORDER in theme.js (dark -> light -> midnight ->
+   dark red -> adaptive -> dark). */
 .theme-toggle svg {
-    display: block;
-}
-
-.theme-toggle .icon-moon {
     display: none;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-sun {
-    display: none;
+:root:not([data-theme]) .theme-toggle .icon-light,
+:root[data-theme="dark"] .theme-toggle .icon-light {
+    display: block;
 }
 
-:root[data-theme="light"] .theme-toggle .icon-moon {
+:root[data-theme="light"] .theme-toggle .icon-midnight {
     display: block;
+}
+
+:root[data-theme="midnight"] .theme-toggle .icon-darkred {
+    display: block;
+}
+
+:root[data-theme="darkred"] .theme-toggle .icon-adaptive {
+    display: block;
+}
+
+:root[data-theme="adaptive"] .theme-toggle .icon-dark {
+    display: block;
+}
+
+/* The menu is moved to <body> in JS (see theme.js) so the header-actions
+   group's overflow:hidden - used to animate its own collapse - cannot clip
+   it; theme.js positions it against the button's rect instead. The id
+   selector (rather than .theme-menu) is what makes these win over
+   .custom-select-menu's own position/left further down this file. */
+#themeMenu {
+    position: fixed;
+    width: max-content;
+    min-width: 160px;
+    left: auto;
+}
+
+#themeMenu.open {
+    display: block;
+    animation: dropdownIn 0.15s ease;
 }
 /* ============================================================
    Control Panels

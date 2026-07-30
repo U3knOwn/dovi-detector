@@ -1,0 +1,27 @@
+/*
+ * Copyright (c) 2026 Jamal2367
+ * Licensed under the MIT License. See LICENSE file in the project root for full license information.
+ */
+
+/* What the adaptive (blur/glass) theme overrides. */
+
+/* ============================================================
+   Adaptive Theme Overrides
+   ------------------------------------------------------------
+   tokens.css makes the adaptive theme's surfaces translucent;
+   this file adds the backdrop blur that turns them into glass
+   panels floating over the page's background glow.
+   ============================================================ */
+
+:root[data-theme="adaptive"] .controls,
+:root[data-theme="adaptive"] .file-dialog,
+:root[data-theme="adaptive"] .media-dialog,
+:root[data-theme="adaptive"] .custom-select-menu,
+:root[data-theme="adaptive"] .custom-select-trigger,
+:root[data-theme="adaptive"] .controls-toggle,
+:root[data-theme="adaptive"] #searchInput,
+:root[data-theme="adaptive"] #fileSelectTrigger,
+:root[data-theme="adaptive"] tbody tr td {
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}

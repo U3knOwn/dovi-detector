@@ -13,9 +13,11 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         // Apply the saved theme before the stylesheet renders to avoid a flash
         // of the wrong theme. Dark is the default.
         (function () {
+            var themes = ['dark', 'light', 'midnight', 'darkred', 'adaptive'];
             var theme = 'dark';
             try {
-                if (localStorage.getItem('dovi_theme') === 'light') theme = 'light';
+                var saved = localStorage.getItem('dovi_theme');
+                if (themes.indexOf(saved) !== -1) theme = saved;
             } catch (e) { /* localStorage unavailable -> keep dark */ }
             document.documentElement.setAttribute('data-theme', theme);
         })();
@@ -31,6 +33,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dialogs.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chrome.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-light.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-adaptive.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
@@ -44,16 +47,34 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                stored preference - that way the group never flashes open. #}
             <div class="header-actions collapsed">
                 <div class="header-actions-group" id="headerActionsGroup">
-                    <button id="themeToggle" class="controls-toggle theme-toggle" onclick="toggleTheme()">
-                        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="4"/>
-                            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-                        </svg>
-                        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                        </svg>
-                        <span class="visually-hidden" id="themeToggleLabel"></span>
-                    </button>
+                    {# Normal press cycles dark -> light -> midnight -> dark red -> adaptive.
+                       A long press (or right-click) opens themeMenu to pick one directly. #}
+                    <div class="theme-select" id="themeSelectWrap">
+                        <button id="themeToggle" class="controls-toggle theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
+                            <svg class="icon-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="4"/>
+                                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                            </svg>
+                            <svg class="icon-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            </svg>
+                            <svg class="icon-midnight" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                                <path d="M19 3v4"/>
+                                <path d="M21 5h-4"/>
+                            </svg>
+                            <svg class="icon-darkred" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                            </svg>
+                            <svg class="icon-adaptive" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="m12 3-9 4.5 9 4.5 9-4.5Z"/>
+                                <path d="m3 12 9 4.5 9-4.5"/>
+                                <path d="m3 16.5 9 4.5 9-4.5"/>
+                            </svg>
+                            <span class="visually-hidden" id="themeToggleLabel"></span>
+                        </button>
+                        <ul class="custom-select-menu" id="themeMenu" role="menu" aria-label="Theme" tabindex="-1"></ul>
+                    </div>
                     {# Show/hide the media table, between the theme and menu buttons. #}
                     <div class="controls-toggle collapse-btn" aria-expanded="true" aria-controls="collapsed_button">
                         <span class="toggle hide" data-i18n-title="show">
