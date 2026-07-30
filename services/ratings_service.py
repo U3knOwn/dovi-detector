@@ -4,20 +4,16 @@
 Where the ratings of a title come from.
 
 MDBList is the source: one request per title returns the IMDb rating, both
-Rotten Tomatoes scores (tomatometer and audience), Trakt and Metacritic. OMDb
-is kept as a fallback for installations that were set up before MDBList existed
-and only carry an OMDb key - it knows neither the audience score nor Trakt, so
-those simply stay empty there.
-
-Whichever provider answers, the result always has the same shape (see
-``RATING_FIELDS``), so an entry never carries half a set of keys.
+Rotten Tomatoes scores (tomatometer and audience), Trakt and Metacritic. This
+module is what the rest of the application asks, so the provider stays in one
+place and every entry ends up with the same set of keys (see ``RATING_FIELDS``)
+- an entry never carries half a set.
 """
-from services.imdb_service import get_omdb_ratings
 from services.mdblist_service import get_mdblist_ratings
 
-# Every rating field an entry can carry. Written in full even when a provider
-# knows nothing about a field, so "asked and there is none" is stored as None
-# and is not mistaken for "never asked" (which would be retried forever).
+# Every rating field an entry can carry. Written in full even when a title has
+# no such rating, so "asked and there is none" is stored as None and is not
+# mistaken for "never asked" (which would be retried forever).
 RATING_FIELDS = (
     'imdb_rating', 'imdb_votes', 'rt_rating', 'rt_audience', 'trakt_rating',
     'metacritic',
@@ -30,22 +26,15 @@ RATING_FIELDS = (
 RATINGS_QUERIED_KEY = 'rt_audience'
 
 
-def ratings_configured(mdblist_api_key, omdb_api_key):
-    """True when at least one ratings provider has a key."""
-    return bool(mdblist_api_key or omdb_api_key)
-
-
-def get_ratings(imdb_id, mdblist_api_key, omdb_api_key):
+def get_ratings(imdb_id, mdblist_api_key):
     """
-    Every rating for an IMDb id, from MDBList or - failing that - from OMDb.
+    Every rating for an IMDb id.
 
     Returns the full set of ``RATING_FIELDS`` (None where the title has no such
-    rating), or None when no provider produced an answer at all, which is what
+    rating), or None when the lookup produced no answer at all, which is what
     tells the caller to try again later rather than to store an empty result.
     """
     ratings = get_mdblist_ratings(imdb_id, mdblist_api_key)
-    if ratings is None:
-        ratings = get_omdb_ratings(imdb_id, omdb_api_key)
     if ratings is None:
         return None
     return complete_ratings(ratings)

@@ -29,13 +29,8 @@ TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 FANART_API_KEY = os.environ.get('FANART_API_KEY', '')
 # Optional MDBList key - the source of every rating the interface shows (IMDb,
 # both Rotten Tomatoes scores, Trakt and Metacritic), fetched in one request per
-# title. Without it the scanner falls back to OMDb, and without that one to the
-# TMDB rating.
+# title. Without it the scanner falls back to the TMDB rating.
 MDBLIST_API_KEY = os.environ.get('MDBLIST_API_KEY', '')
-# Optional OMDb key - the fallback ratings source for installations that were
-# set up before MDBList. It knows the IMDb rating, the Rotten Tomatoes
-# tomatometer and Metacritic, but neither the audience score nor Trakt.
-OMDB_API_KEY = os.environ.get('OMDB_API_KEY', '')
 IMAGE_SOURCE = os.environ.get('IMAGE_SOURCE', 'tmdb').lower()
 CONTENT_LANGUAGE = os.environ.get('CONTENT_LANGUAGE', 'en').lower()
 
@@ -141,7 +136,7 @@ FILE_WRITE_DELAY = _env_int('FILE_WRITE_DELAY', 5)
 AUTO_REFRESH_INTERVAL = _env_int('AUTO_REFRESH_INTERVAL', 10)
 
 # How often (in minutes) entries with missing metadata are retried. Covers the
-# case where TMDB/OMDb were unreachable during the scan, a rate limit was hit,
+# case where TMDB/MDBList were unreachable during the scan, a rate limit was hit,
 # or an API key was only added afterwards - the entry then fills itself in
 # without a rescan. Set to 0 to disable the retries entirely.
 METADATA_RETRY_INTERVAL = max(0, _env_int('METADATA_RETRY_INTERVAL', 30))

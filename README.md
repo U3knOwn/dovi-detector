@@ -151,7 +151,6 @@ Everything is configured through environment variables in `docker-compose.yml`
 | `TMDB_API_KEY` | *(empty)* | [TMDB](https://www.themoviedb.org/settings/api) key for posters and movie details (optional) |
 | `FANART_API_KEY` | *(empty)* | [Fanart.tv](https://fanart.tv/get-an-api-key/) key for thumb posters (optional) |
 | `MDBLIST_API_KEY` | *(empty)* | [MDBList](https://mdblist.com/preferences/) key for every rating - IMDb, Rotten Tomatoes Tomatometer and Audience, Trakt and Metacritic (optional - without it the TMDB rating is shown) |
-| `OMDB_API_KEY` | *(empty)* | [OMDb](https://www.omdbapi.com/apikey.aspx) key, used only when no MDBList key is set. Knows no audience score and no Trakt rating |
 | `IMAGE_SOURCE` | `tmdb` | Image source: `tmdb` or `fanart` |
 | `CONTENT_LANGUAGE` | `en` | Preferred content language (ISO 639-1) for TMDB/Fanart.tv content and audio track selection |
 | `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
@@ -197,7 +196,7 @@ configured language, then English (`eng`), then the first available track.
 
 ## 5. Metadata Sources
 
-All four services are optional - without any key the app works normally and
+All three services are optional - without any key the app works normally and
 shows filenames instead of posters.
 
 ### TMDB (posters, titles, plot, tagline, cast)
@@ -252,19 +251,8 @@ One request per title returns every rating at once, so a title costs a single
 call out of the free tier's 1000 per day. The same sources are also what the
 sort dropdown offers, so the library can be ordered by any one of them.
 
-### OMDb (fallback ratings)
-
-[OMDb](https://www.omdbapi.com/apikey.aspx) is used only when no MDBList key is
-set - it exists for installations that were configured before MDBList. It knows
-the IMDb rating, the Rotten Tomatoes Tomatometer and Metacritic, but neither the
-Rotten Tomatoes audience score nor the Trakt rating, so those stay empty.
-
-```yaml
-environment:
-  - OMDB_API_KEY=your_api_key_here
-```
-
-Setting both keys is fine: MDBList answers, OMDb is never asked.
+The IMDb Top 250 badge does not need a key at all: the chart is read from IMDb
+itself once a day and cached, so the rank is shown even without MDBList.
 
 ---
 

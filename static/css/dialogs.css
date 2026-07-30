@@ -473,19 +473,18 @@
 /* Row of external ratings directly under the cover */
 /* Flex, not a fixed column grid: without a ratings key only the TMDb rating
    remains, and the surviving tiles should share the full width instead of
-   clinging to the left with empty columns beside them. Six sources do not fit
-   next to each other on a phone, so the row wraps rather than squeezing the
-   tiles below a readable width. */
+   clinging to the left with empty columns beside them. All sources stay on one
+   line - responsive.css scales the tiles down for a phone rather than wrapping
+   them into a second row. */
 .dialog-ratings {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
     margin: 16px 0 20px;
 }
 
 .dialog-rating {
     display: flex;
-    flex: 1 1 68px;
+    flex: 1 1 0;
     min-width: 0;
     flex-direction: column;
     align-items: center;
@@ -600,10 +599,10 @@
     line-height: 1.45;
 }
 
-/* The slogan above the plot: set apart as a quiet italic line so it reads as
-   the title's own words rather than as another data field. */
+/* The slogan above the plot: same text colour as the plot itself, set apart
+   only by the italic, so it reads as the title's own words. */
 .dialog-tagline-text {
-    color: var(--text-muted);
+    color: var(--text);
     font-size: 0.93rem;
     font-style: italic;
     font-weight: 500;

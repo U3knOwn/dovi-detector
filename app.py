@@ -109,11 +109,6 @@ def _report_configuration():
     if config.MDBLIST_API_KEY:
         print("✓ MDBList API key configured - IMDb, Rotten Tomatoes (Tomatometer "
               "and Audience), Trakt and Metacritic ratings enabled")
-    elif config.OMDB_API_KEY:
-        print("✓ OMDb API key configured - IMDb, Rotten Tomatoes (Tomatometer) "
-              "and Metacritic ratings enabled")
-        print("  Set MDBLIST_API_KEY to also get the Rotten Tomatoes audience "
-              "score and the Trakt rating")
     else:
         print("⚠ Warning: MDBLIST_API_KEY not configured - falling back to TMDB ratings")
 

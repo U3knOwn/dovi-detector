@@ -58,7 +58,7 @@ def refresh_imdb_data():
         database.scan_lock,
         lambda: database.save_database(config.DB_FILE),
         lambda tmdb_id, media_type: get_imdb_id(tmdb_id, media_type, config.TMDB_API_KEY),
-        lambda imdb_id: get_ratings(imdb_id, config.MDBLIST_API_KEY, config.OMDB_API_KEY),
+        lambda imdb_id: get_ratings(imdb_id, config.MDBLIST_API_KEY),
         top250_map,
         RATINGS_QUERIED_KEY
     )

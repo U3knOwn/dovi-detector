@@ -5,13 +5,11 @@ MDBList Integration Service
 
 MDBList (https://api.mdblist.com/) answers with every rating a title has - IMDb,
 Rotten Tomatoes tomatometer *and* audience score, Trakt and Metacritic - in a
-single request, where OMDb knows neither the audience score nor Trakt. The free
-tier allows 1000 requests per day, the same budget as OMDb, so one request per
+single request. The free tier allows 1000 requests per day, so one request per
 title is all the ratings cost.
 
-The key is optional: without it no MDBList lookup happens at all and the caller
-falls back to OMDb (see services/ratings_service.py). A failing request never
-aborts a scan.
+The key is optional: without it no lookup happens at all and the interface falls
+back to the TMDB rating. A failing request never aborts a scan.
 """
 try:
     import requests
@@ -45,7 +43,7 @@ def get_mdblist_ratings(imdb_id, mdblist_api_key):
 
     Returns None when the lookup itself failed (no key, unknown title, network
     error) - the caller uses that to tell "nothing to show" apart from "not
-    asked yet" and to fall back to another provider.
+    asked yet" and retry later.
     """
     if not mdblist_api_key or not REQUESTS_AVAILABLE:
         return None

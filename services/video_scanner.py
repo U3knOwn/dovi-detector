@@ -12,7 +12,7 @@ import itertools
 import subprocess
 import concurrent.futures
 from services.ratings_service import (
-    RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings, ratings_configured
+    RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings
 )
 from utils.media_utils import (
     get_channel_format, parse_bitrate_string,
@@ -1311,8 +1311,7 @@ def is_metadata_incomplete(file_info):
         return True
     if config.TMDB_API_KEY and 'imdb_id' not in file_info:
         return True
-    if (ratings_configured(config.MDBLIST_API_KEY, config.OMDB_API_KEY)
-            and file_info.get('imdb_id')
+    if (config.MDBLIST_API_KEY and file_info.get('imdb_id')
             and RATINGS_QUERIED_KEY not in file_info):
         return True
 
