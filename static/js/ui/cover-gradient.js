@@ -12,28 +12,28 @@
 // The cover is only read for its colours, so it is sampled small - a few
 // thousand pixels are plenty to find what a poster is mostly made of, and the
 // whole pass then costs nothing worth measuring.
-const SAMPLE_WIDTH = 32;
-const SAMPLE_HEIGHT = 48;
+const SAMPLE_WIDTH = 40;
+const SAMPLE_HEIGHT = 60;
 
 // How many colours the gradient is built from.
-const GRADIENT_COLORS = 3;
+const GRADIENT_COLORS = 4;
 
 // Colours are counted in buckets this many bits per channel wide, so shades of
 // the same thing land together instead of each counting for itself.
-const BUCKET_BITS = 4;
+const BUCKET_BITS = 5;
 
 // How far a cover may take the surface's lightness, as relative luminance. A
 // panel keeps the lightness its theme gives it and takes only the colour: an
 // almost white poster otherwise lifted a row from rgb(22,25,35) to
 // rgb(81,83,90) and left its badges at 3.8:1. Normally tinted rows sit between
 // 0.009 and 0.037, which is the band this keeps them in.
-const TINT_MAX_LUMINANCE = 0.25;
+const TINT_MAX_LUMINANCE = 0.22;
 
 // How far apart two picked colours have to be (summed per-channel distance, of
 // a possible 765) to count as different ones. Without this a poster with one
 // strong colour fills every stop with the same shade and the gradient reads as
 // flat.
-const MIN_DISTANCE = 60;
+const MIN_DISTANCE = 48;
 
 // Reading a cover costs an image decode and a canvas read, and the table
 // rebuilds its rows on every scroll frame - so each cover is read once and the
@@ -55,9 +55,10 @@ const wanted = new WeakMap();
  * The colours a poster is mostly made of, most prominent first.
  *
  * Frequency alone picks the greys and near-blacks that fill the margins of
- * most posters, so each bucket's weight is scaled by how saturated it is: a
- * smaller patch of real colour beats a large flat backdrop, without excluding
- * the dark tones that give a poster its mood.
+ * most posters, so each bucket's weight is scaled by how saturated it is and
+ * by a mild luminance preference: a smaller patch of real colour beats a large
+ * flat backdrop, without excluding the dark tones that give a poster its mood.
+ * Very dark near-blacks are down-weighted so they do not monopolise every stop.
  */
 function coverColors(pixels, count) {
     const buckets = new Map();
@@ -83,8 +84,20 @@ function coverColors(pixels, count) {
         const g = Math.round(bucket.g / bucket.n);
         const b = Math.round(bucket.b / bucket.n);
         const max = Math.max(r, g, b);
-        const saturation = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
-        ranked.push({ rgb: [r, g, b], weight: bucket.n * (0.35 + saturation) });
+        const min = Math.min(r, g, b);
+        const saturation = max === 0 ? 0 : (max - min) / max;
+        // Relative luminance approximation (no gamma) — enough for ranking.
+        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        // Prefer colour over pure grey; still allow dark mood tones, but
+        // suppress pure black / pure white that would flatten the gradient.
+        const chromaBoost = 0.28 + saturation * 1.35;
+        const lumaGuard = luma < 0.04 ? 0.35 : luma > 0.92 ? 0.45 : 1;
+        ranked.push({
+            rgb: [r, g, b],
+            weight: bucket.n * chromaBoost * lumaGuard,
+            saturation,
+            luma
+        });
     });
     ranked.sort((a, b) => b.weight - a.weight);
 
@@ -98,10 +111,15 @@ function coverColors(pixels, count) {
         if (distinct) picked.push(candidate.rgb);
     }
 
-    // A poster of essentially one colour yields fewer than asked for; the last
-    // one stands in for the rest so the gradient still has all its stops.
-    while (picked.length && picked.length < count) {
-        picked.push(picked[picked.length - 1]);
+    // A poster of essentially one colour yields fewer than asked for; derive
+    // companion stops by shifting lightness so the gradient still has depth
+    // instead of repeating the same shade.
+    if (picked.length && picked.length < count) {
+        const base = picked[picked.length - 1];
+        while (picked.length < count) {
+            const factor = 0.72 + (picked.length * 0.08);
+            picked.push(base.map(c => Math.round(Math.min(255, c * factor))));
+        }
     }
     return picked;
 }
@@ -145,6 +163,14 @@ function limitLuminance(rgb, limit) {
 }
 
 /**
+ * Soften a colour toward a darker companion so radial pools feel atmospheric
+ * rather than flat solid blobs.
+ */
+function deepen(rgb, amount = 0.55) {
+    return rgb.map(c => Math.round(c * amount));
+}
+
+/**
  * The cover's colour as a mark rather than as a surface: the ring and the title
  * a row lights up with while the pointer is on it.
  *
@@ -159,8 +185,8 @@ function limitLuminance(rgb, limit) {
  * most prominent: the one a poster is mostly made of is often a near-grey, and
  * a grey has no hue to lend.
  */
-const ACCENT_SATURATION = 0.62;
-const ACCENT_LIGHTNESS = 0.76;
+const ACCENT_SATURATION = 0.68;
+const ACCENT_LIGHTNESS = 0.74;
 
 function accentColor(palette) {
     let best = palette[0];
@@ -212,21 +238,42 @@ function hslToRgb(hue, saturation, lightness) {
 /**
  * Those colours as the gradient a panel paints.
  *
- * Two soft pools over a vertical wash, which is the same shape as the glow
- * behind the page itself - so a panel reads as part of the theme rather than as
- * a picture behind the text. The pools fade to their own colour at zero alpha
- * rather than to ``transparent``, which is transparent *black* and would dirty
- * every fade with grey.
+ * Four layered stops that read as soft atmospheric pools rather than hard
+ * colour blocks:
+ *   1–2  large radial glows at opposite corners (primary + secondary)
+ *   3    a smaller mid-tone bloom for depth
+ *   4    a vertical wash that anchors the whole surface
+ *
+ * Every radial fades to its own colour at zero alpha (never to transparent
+ * black) so the edges stay clean. The vertical wash is deliberately darker
+ * at the bottom so rows keep readable contrast under the scrim.
  */
 function buildGradient(palette) {
     const limit = tintLimit();
-    const [one, two, three] = palette.map(c => limitLuminance(c, limit));
+    const colors = palette.map(c => limitLuminance(c, limit));
+
+    // Ensure we always have four stops even if extraction returned fewer.
+    while (colors.length < 4) {
+        colors.push(colors[colors.length - 1] || [30, 32, 40]);
+    }
+
+    const [c0, c1, c2, c3] = colors;
+    const d0 = deepen(c0, 0.42);
+    const d1 = deepen(c1, 0.48);
+    const d2 = deepen(c2, 0.55);
+
     const rgb = c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-    const fade = c => `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`;
+    const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+
     return [
-        `radial-gradient(120% 90% at 12% 0%, ${rgb(one)} 0%, ${fade(one)} 62%)`,
-        `radial-gradient(110% 85% at 88% 6%, ${rgb(two)} 0%, ${fade(two)} 60%)`,
-        `linear-gradient(180deg, ${rgb(two)} 0%, ${rgb(three)} 100%)`
+        // Primary glow – top-left, large and soft
+        `radial-gradient(140% 110% at 8% -5%, ${rgb(c0)} 0%, ${rgba(c0, 0.55)} 28%, ${rgba(d0, 0)} 68%)`,
+        // Secondary glow – top-right
+        `radial-gradient(120% 95% at 92% 2%, ${rgb(c1)} 0%, ${rgba(c1, 0.45)} 32%, ${rgba(d1, 0)} 65%)`,
+        // Mid bloom – lower centre, gives the surface body
+        `radial-gradient(90% 70% at 50% 85%, ${rgba(c2, 0.5)} 0%, ${rgba(d2, 0)} 70%)`,
+        // Vertical anchor – darker toward the bottom for contrast under the scrim
+        `linear-gradient(180deg, ${rgba(c1, 0.35)} 0%, ${rgba(c3, 0.55)} 55%, ${rgb(deepen(c3, 0.65))} 100%)`
     ].join(', ');
 }
 
@@ -241,7 +288,7 @@ function paletteFromImage(img) {
         const { data } = ctx.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
 
         const colors = coverColors(data, GRADIENT_COLORS);
-        return colors.length < GRADIENT_COLORS ? null : colors;
+        return colors.length < 2 ? null : colors;
     } catch (e) {
         // No canvas, or a poster served from somewhere that taints it.
         return null;
