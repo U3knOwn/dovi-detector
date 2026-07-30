@@ -180,20 +180,23 @@
     border-color: rgba(var(--cover-accent-rgb), 0.55);
 }
 
-/* The close button, for the same reason as the cells above: left on the dark
-   theme's opaque slate it would sit on the tinted panel as a cold grey box. A
-   soft blur, not the cells' - it is small, and at that strength the little it
-   covers turns to a single flat colour. */
-:root[data-theme="dark-adaptive"] .dialog-close {
-    background: rgba(255, 255, 255, 0.13);
+/* The close button's outline goes the same way. The dark theme turns it red
+   there, which is the fixed colour again; the fill it takes at the same moment
+   is left alone, so the red still says what the button does. */
+:root[data-theme="dark-adaptive"] .dialog-close:hover {
+    border-color: rgba(var(--cover-accent-rgb), 0.55);
 }
 
-:root[data-theme="dark-adaptive"] .dialog-rating {
-    background: rgba(255, 255, 255, 0.085);
+/* The close button and the rating tiles are left unfilled, so the panel's own
+   colour carries straight through them: the dark theme's opaque slate would sit
+   on the tinted panel as cold grey boxes. Their outlines still hold each of
+   them together. */
+:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating) {
+    background: transparent;
 }
 
-:root[data-theme="dark-adaptive"] :is(.dialog-close, .dialog-rating,
-        .dialog-link, .dialog-rescan-btn, .dialog-delete-btn) {
+:root[data-theme="dark-adaptive"] :is(.dialog-link, .dialog-rescan-btn,
+        .dialog-delete-btn) {
     backdrop-filter: blur(8px) saturate(1.4);
     -webkit-backdrop-filter: blur(8px) saturate(1.4);
 }
