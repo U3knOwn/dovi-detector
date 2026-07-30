@@ -25,3 +25,32 @@
     backdrop-filter: blur(18px) saturate(1.5);
     -webkit-backdrop-filter: blur(18px) saturate(1.5);
 }
+
+/* ============================================================
+   Cover Backdrop
+   ------------------------------------------------------------
+   The entry's own cover, blurred out behind a scrim, backs the
+   details dialog - so the panel takes its colours from whatever
+   is open rather than from a fixed surface. media-dialog.js
+   hands the image over as --dialog-cover; without one (an entry
+   scanned without a TMDB key) the layer simply has nothing to
+   paint and the plain glass surface shows through.
+   ============================================================ */
+
+:root[data-theme="adaptive"] .media-dialog {
+    /* Painted top-down: the scrim over the cover, the cover over the theme's
+       own surface colour.
+
+       Both ride on the dialog's own background rather than on a layer above
+       it. A background is anchored to the padding box, so it stays where it is
+       while the panel scrolls its content - a positioned layer would either
+       slide away with the text or, given the bleed a CSS blur needs, widen the
+       scrollable area into a horizontal scrollbar. media-dialog.js hands the
+       cover over already softened for the same reason. */
+    background-image:
+        linear-gradient(var(--cover-scrim), var(--cover-scrim)),
+        var(--dialog-cover, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}

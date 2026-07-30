@@ -154,6 +154,55 @@ export function toggleDialogPlot() {
     }
 }
 
+// How small the cover is boiled down to before the dialog stretches it back
+// out. This is what blurs it: at this size a poster is a handful of averaged
+// colours, and scaling that up is a soft wash of them rather than a picture.
+const COVER_SAMPLE_WIDTH = 24;
+const COVER_SAMPLE_HEIGHT = 36;
+
+// A cover that loads late must not land on top of a newer one - the dialog is
+// reused, so the entry on screen may already have moved on by then.
+let coverRequest = 0;
+
+/**
+ * Hand the entry's cover to the dialog as ``--dialog-cover``.
+ *
+ * The adaptive theme paints it - softened and behind a scrim - as the dialog's
+ * own backdrop, so the panel picks up the colours of whatever is open. Every
+ * other theme ignores the property, so it is set regardless of the active one.
+ *
+ * The softening is done here rather than with a CSS filter because the dialog
+ * scrolls its content: a background is anchored to the panel and stays put,
+ * where a blurred layer over it would either slide away with the text or widen
+ * the scrollable area into a scrollbar.
+ */
+function setDialogCover(posterUrl) {
+    const dialog = document.querySelector('.media-dialog');
+    if (!dialog) return;
+
+    const request = ++coverRequest;
+    dialog.style.removeProperty('--dialog-cover');
+    if (!posterUrl) return;
+
+    const img = new Image();
+    img.onload = () => {
+        if (request !== coverRequest) return;
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = COVER_SAMPLE_WIDTH;
+            canvas.height = COVER_SAMPLE_HEIGHT;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, COVER_SAMPLE_WIDTH, COVER_SAMPLE_HEIGHT);
+            dialog.style.setProperty('--dialog-cover', `url("${canvas.toDataURL()}")`);
+        } catch (e) {
+            // No canvas, or a poster served from somewhere that taints it.
+            // The theme's own surface stands in.
+        }
+    };
+    img.src = posterUrl;
+}
+
 /**
  * Open the details dialog for one library entry.
  *
@@ -243,7 +292,8 @@ export function showMediaDialog(item) {
     if (posterUrl) {
         dialogPosterImg.src = posterUrl;
         dialogPoster.style.display = 'block';
-        
+        setDialogCover(posterUrl);
+
         // Set filename if available
         if (dialogFilenameItem && dialogFilename && filename && filename.trim() !== '') {
             dialogFilename.textContent = filename;
@@ -253,6 +303,7 @@ export function showMediaDialog(item) {
         }
     } else {
         dialogPoster.style.display = 'none';
+        setDialogCover('');
         // Without a poster the dialog title already is the filename, so the
         // separate row stays hidden - and must be reset, otherwise it would
         // keep showing the previously opened entry's filename.

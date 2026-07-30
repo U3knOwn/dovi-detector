@@ -186,6 +186,9 @@
     --accent-soft: #c4b5fd;
     --bg-glow-1: rgba(129, 140, 248, 0.16);
     --bg-glow-2: rgba(192, 132, 252, 0.1);
+    /* Laid over the entry's own cover where it backs the dialog, so the text
+       on top keeps its contrast whatever the artwork looks like. */
+    --cover-scrim: rgba(11, 13, 20, 0.74);
 }
 
 @media (prefers-color-scheme: light) {
@@ -218,5 +221,6 @@
         --accent-soft: #4f46e5;
         --bg-glow-1: rgba(99, 102, 241, 0.08);
         --bg-glow-2: rgba(236, 72, 153, 0.05);
+        --cover-scrim: rgba(238, 241, 247, 0.8);
     }
 }
