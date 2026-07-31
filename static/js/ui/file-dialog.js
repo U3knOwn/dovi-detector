@@ -9,6 +9,7 @@ import { currentLang, onLanguageChange, t } from '../core/i18n.js';
 import { debounce } from '../helpers/dom.js';
 import { setMessageContent } from './message.js';
 import { fetchMediaFiles, requestScan } from '../core/api.js';
+import { dialogClosed, dialogOpened } from './dialog-history.js';
 
 // File selection dialog state
 let availableFiles = [];
@@ -97,6 +98,9 @@ export function openFileDialog() {
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 
+    // So the back gesture closes the dialog instead of leaving the page
+    dialogOpened('files', closeFileDialog);
+
     loadFileList();
 
     // Deliberately nothing is focused here: auto-focusing the search field pops
@@ -106,9 +110,10 @@ export function openFileDialog() {
 export function closeFileDialog(event) {
     if (event) event.stopPropagation();
     const overlay = document.getElementById('fileDialogOverlay');
-    if (!overlay) return;
+    if (!overlay || !overlay.classList.contains('active')) return;
     overlay.classList.remove('active');
     document.body.style.overflow = '';
+    dialogClosed('files');
 }
 
 // Files currently visible in the dialog (honouring the search filter).

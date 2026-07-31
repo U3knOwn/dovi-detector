@@ -16,6 +16,7 @@ import { setupSSE } from './core/sse.js';
 import { initTheme, toggleTheme } from './core/theme.js';
 import { mediaTitleText } from './library/model.js';
 import { applySort, initSortDirection, toggleSortDirection } from './library/sorting.js';
+import { restoreScrollPosition, setupScrollRestore } from './library/scroll-restore.js';
 import { mediaItems, mediaVisible } from './library/store.js';
 import {
     applyMediaFilter, clearSearch, debouncedSearchMedia, loadMediaLibrary,
@@ -45,6 +46,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme (labels are refreshed once translations are loaded)
     initTheme();
 
+    // Take the scroll position off the browser before it can put the page back
+    // at the top - the table it would need does not exist yet at that point.
+    setupScrollRestore();
+
     // Restore the saved sort direction before anything sorts or renders it
     initSortDirection();
 
@@ -72,8 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
         setupMediaVirtualScroll();
         setupMediaTableInteraction();
 
-        // Render the library that was requested above, in the stored sort order
-        loadMediaLibrary(libraryRequest);
+        // Render the library that was requested above, in the stored sort order.
+        // Only now does the page have its full height back, so this is the
+        // earliest point the position from before a reload can be restored.
+        loadMediaLibrary(libraryRequest).then(restoreScrollPosition);
 
         // Update clear button state on initial load
         updateClearButton();
