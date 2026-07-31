@@ -16,11 +16,14 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         // which run far too late to prevent that flash. The same goes for how
         // strongly the adaptive theme tints (DEFAULT_STRENGTH in
         // static/js/ui/cover-gradient.js): a row painted at the wrong strength
-        // and corrected afterwards is the same flash again.
+        // and corrected afterwards is the same flash again - and the season it is
+        // dressed for goes with it (SEASON_ORDER in the same file).
         (function () {
             var themes = ['dark', 'dark-adaptive', 'midnight'];
             var theme = 'dark';
             var strength = 2;
+            var season = 'none';
+            var seasons = ['none', 'halloween', 'christmas'];
             try {
                 var saved = localStorage.getItem('dovi_theme');
                 // Names that have been retired - kept in step with
@@ -32,9 +35,13 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
 
                 var level = parseInt(localStorage.getItem('dovi_cover_strength'), 10);
                 if (level >= 0 && level <= 3) strength = level;
+
+                var saison = localStorage.getItem('dovi_cover_season');
+                if (seasons.indexOf(saison) !== -1) season = saison;
             } catch (e) { /* localStorage unavailable -> keep the defaults */ }
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('data-cover-strength', strength);
+            document.documentElement.setAttribute('data-cover-season', season);
         })();
 
         // Ask for the library here rather than from the modules below. A module

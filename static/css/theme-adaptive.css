@@ -230,7 +230,14 @@
 }
 
 /* Switched off, the theme is the plain dark one again - so the halo rests as
-   well, and is only what the pointer lights up. */
+   well, and is only what the pointer lights up, and the layer that would have
+   carried the tint lifts the row the way the plain dark theme's own cells do.
+   What is left of the adaptive theme at that point is the accent: every mark
+   still takes the entry's colour instead of the fixed indigo. */
+:root[data-theme="dark-adaptive"][data-cover-strength="0"] tbody tr:not(.media-spacer) td:first-child::before {
+    background-color: var(--surface-2);
+}
+
 :root[data-theme="dark-adaptive"][data-cover-strength="0"] .poster-img-wrapper::before {
     opacity: 0;
 }

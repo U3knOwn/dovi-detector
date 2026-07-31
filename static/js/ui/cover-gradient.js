@@ -105,6 +105,27 @@ const STRENGTH_LEVELS = [
 ];
 export const DEFAULT_STRENGTH = 2;
 
+// A costume for the table, for the few weeks in the year where one is wanted.
+//
+// It does not replace the cover: every colour still comes out of the poster and
+// keeps its place, its lightness and everything measured on top of it - only the
+// hue is pulled towards the nearest of the season's, and the chroma is given a
+// floor so the season is legible on a muted poster. A library dressed for
+// Halloween is still a library where each entry looks like itself; it just
+// leans orange, purple and toxic green while it does.
+//
+// The hues are the season's own colours as OKLab reads them: pumpkin, witch's
+// purple and poison green; fir, christmas red and gold.
+const SEASONS = {
+    halloween: { hues: [47, 293, 131], pull: 0.78, chroma: 0.10 },
+    christmas: { hues: [26, 151, 84], pull: 0.75, chroma: 0.095 }
+};
+
+// Also the order the menu lists them in. "none" is the year-round theme, and
+// the one nothing has to be said about.
+export const SEASON_ORDER = ['none', 'halloween', 'christmas'];
+export const DEFAULT_SEASON = 'none';
+
 // The marks that carry a source's own colour rather than the theme's. They are
 // declared here and consumed as `var(--rating-trakt, #ed3833)` and friends, so
 // every theme but this one keeps the brand colour untouched while this one
@@ -346,10 +367,38 @@ function paletteFromImage(img) {
  * A cover with no colour at all - a black and white poster - is left grey.
  * Forcing chroma on it would invent a tint the artwork never had.
  */
-function tintColor(rgb, lightness, chromaGain) {
+function tintColor(rgb, lightness, chromaGain, season) {
     const [, chroma, hue] = rgbToOklch(rgb);
-    if (chroma < GREY_CHROMA) return oklchToRgb(lightness, 0, hue);
-    return oklchToRgb(lightness, Math.max(chroma, MIN_CHROMA) * CHROMA_GAIN * chromaGain, hue);
+    if (chroma < GREY_CHROMA) {
+        // A black and white poster has no hue, so a season has to lend it one -
+        // quietly, since the artwork itself said nothing. Without a season it
+        // stays grey: inventing a tint is exactly what the year-round theme
+        // must not do.
+        return season
+            ? oklchToRgb(lightness, season.chroma * 0.7, season.hues[0])
+            : oklchToRgb(lightness, 0, hue);
+    }
+    const [seasonal, floor] = towardSeason(hue, Math.max(chroma, MIN_CHROMA), season);
+    return oklchToRgb(lightness, floor * CHROMA_GAIN * chromaGain, seasonal);
+}
+
+/**
+ * One hue leaned towards the season it is being worn for.
+ *
+ * The nearest of the season's own hues is the one it goes to, and it only goes
+ * most of the way - what is left of the distance is what still tells two covers
+ * apart. The chroma floor is the season's, so a nearly grey poster still shows
+ * which season it is dressed for.
+ */
+function towardSeason(hue, chroma, season) {
+    if (!season) return [hue, chroma];
+
+    let nearest = 180;
+    for (const anchor of season.hues) {
+        const delta = ((anchor - hue + 540) % 360) - 180;
+        if (Math.abs(delta) < Math.abs(nearest)) nearest = delta;
+    }
+    return [(hue + nearest * season.pull + 360) % 360, Math.max(chroma, season.chroma)];
 }
 
 /**
@@ -410,7 +459,7 @@ function liftAgainst(rgb, surface, ratio) {
  * most prominent: the one a poster is mostly made of is often a near-grey, and
  * a grey has no hue to lend.
  */
-function accentColor(palette) {
+function accentColor(palette, season) {
     let best = palette[0];
     let bestChroma = -1;
 
@@ -423,10 +472,12 @@ function accentColor(palette) {
     }
 
     if (bestChroma < GREY_CHROMA * 3) {
-        const grey = oklchToRgb(ACCENT_LIGHTNESS, 0, 0);
-        return grey;
+        return season
+            ? oklchToRgb(ACCENT_LIGHTNESS, ACCENT_CHROMA, season.hues[0])
+            : oklchToRgb(ACCENT_LIGHTNESS, 0, 0);
     }
-    return oklchToRgb(ACCENT_LIGHTNESS, ACCENT_CHROMA, rgbToOklch(best)[2]);
+    const [hue] = towardSeason(rgbToOklch(best)[2], ACCENT_CHROMA, season);
+    return oklchToRgb(ACCENT_LIGHTNESS, ACCENT_CHROMA, hue);
 }
 
 /* ============================================================
@@ -501,6 +552,11 @@ const ADAPTIVE_THEME = 'dark-adaptive';
 
 function themeReadsCover() {
     return document.documentElement.getAttribute('data-theme') === ADAPTIVE_THEME;
+}
+
+export function coverSeason() {
+    const name = document.documentElement.getAttribute('data-cover-season');
+    return SEASONS[name] ? name : DEFAULT_SEASON;
 }
 
 export function coverStrength() {
@@ -631,19 +687,21 @@ const derived = new Map();
 
 function paintValues(palette, variant, key) {
     const strength = coverStrength();
-    const cacheKey = key && `${key}|${variant}|${strength}`;
+    const season = coverSeason();
+    const cacheKey = key && `${key}|${variant}|${strength}|${season}`;
     if (cacheKey && derived.has(cacheKey)) return derived.get(cacheKey);
 
-    const values = deriveValues(palette, variant, STRENGTH_LEVELS[strength]);
+    const values = deriveValues(palette, variant, STRENGTH_LEVELS[strength], SEASONS[season]);
     if (cacheKey) derived.set(cacheKey, values);
     return values;
 }
 
-function deriveValues(palette, variant, level) {
+function deriveValues(palette, variant, level, season) {
     const values = {};
     // The accent is what the entry is recognised by, so it survives even when
-    // the tint is switched off entirely.
-    values['--cover-accent-rgb'] = accentColor(palette).join(', ');
+    // the tint is switched off entirely - a season included, which is then the
+    // only thing left of it.
+    values['--cover-accent-rgb'] = accentColor(palette, season).join(', ');
     if (!level) return values;
 
     const spec = VARIANTS[variant] || VARIANTS.row;
@@ -651,7 +709,7 @@ function deriveValues(palette, variant, level) {
     const text = themeColor('--text', [232, 236, 244]);
 
     const colors = palette.map((rgb, index) => {
-        const tinted = tintColor(rgb, STOP_LIGHTNESS[index] + level.lightness, level.chroma);
+        const tinted = tintColor(rgb, STOP_LIGHTNESS[index] + level.lightness, level.chroma, season);
         return level.mix < 1 ? composite(tinted, base, level.mix) : tinted;
     });
 
@@ -787,8 +845,9 @@ export function applyCoverGradient(element, posterUrl, image, variant = 'row') {
 // The poster an element is showing: a row's own image, or the dialog's.
 const COVER_IMAGE = 'img.poster-img, img.dialog-poster-img';
 
-// How far a cover may be taken is the theme's call and the strength's, so every
-// cover on screen has to be repainted when either changes - and switching *to*
+// How far a cover may be taken is the theme's call, the strength's and the
+// season's, so every cover on screen has to be repainted when any of them
+// changes - and switching *to*
 // the adaptive theme is the moment the covers nothing has read yet are read.
 //
 // Whoever is wearing one is asked of the DOM rather than kept in a registry
@@ -807,6 +866,7 @@ export function repaintCovers() {
 
 if (typeof MutationObserver === 'function') {
     new MutationObserver(repaintCovers).observe(document.documentElement, {
-        attributes: true, attributeFilter: ['data-theme', 'data-cover-strength']
+        attributes: true,
+        attributeFilter: ['data-theme', 'data-cover-strength', 'data-cover-season']
     });
 }
