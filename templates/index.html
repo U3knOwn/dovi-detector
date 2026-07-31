@@ -13,10 +13,14 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         // Apply the saved theme before the stylesheet renders to avoid a flash
         // of the wrong theme. Kept in step with DEFAULT_THEME,
         // THEME_ORDER and migrateTheme in static/js/core/theme.js, all of
-        // which run far too late to prevent that flash.
+        // which run far too late to prevent that flash. The same goes for how
+        // strongly the adaptive theme tints (DEFAULT_STRENGTH in
+        // static/js/ui/cover-gradient.js): a row painted at the wrong strength
+        // and corrected afterwards is the same flash again.
         (function () {
             var themes = ['dark', 'dark-adaptive', 'midnight'];
             var theme = 'dark';
+            var strength = 2;
             try {
                 var saved = localStorage.getItem('dovi_theme');
                 // Names that have been retired - kept in step with
@@ -25,8 +29,12 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 else if (saved === 'light-adaptive' || saved === 'light') saved = 'dark';
                 else if (saved === 'dark-red' || saved === 'dark-green' || saved === 'dark-yellow') saved = 'dark';
                 if (themes.indexOf(saved) !== -1) theme = saved;
-            } catch (e) { /* localStorage unavailable -> keep the default */ }
+
+                var level = parseInt(localStorage.getItem('dovi_cover_strength'), 10);
+                if (level >= 0 && level <= 3) strength = level;
+            } catch (e) { /* localStorage unavailable -> keep the defaults */ }
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-cover-strength', strength);
         })();
 
         // Ask for the library here rather than from the modules below. A module

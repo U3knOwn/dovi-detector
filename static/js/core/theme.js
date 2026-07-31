@@ -11,10 +11,19 @@
 
 import { onLanguageChange, t } from './i18n.js';
 import { THEME_ICONS } from '../ui/icons.js';
+import { DEFAULT_STRENGTH } from '../ui/cover-gradient.js';
 
 // Also the order the menu lists them in, so a press walks the menu top to
 // bottom - the two plain darks, then the one that carries a hue.
 const THEME_ORDER = ['dark', 'dark-adaptive', 'midnight'];
+
+// How strongly the adaptive theme tints, from off to loudest. Only that theme
+// reads it, so the row of buttons is only in the menu while it is the one in
+// force. The inline script in templates/index.html sets the attribute before
+// the first paint, the same way it does for the theme itself.
+const STRENGTH_KEYS = ['theme_strength_off', 'theme_strength_subtle',
+                       'theme_strength_standard', 'theme_strength_strong'];
+const ADAPTIVE_THEME = 'dark-adaptive';
 
 // What a first visit gets, and what an unreadable or unknown stored value falls
 // back to. The inline script in templates/index.html hardcodes the same one -
@@ -83,12 +92,41 @@ function persistTheme(theme) {
     } catch (e) { /* localStorage unavailable -> theme just won't persist */ }
 }
 
+/**
+ * The colour the phone paints its own bars in, back to the theme's own.
+ *
+ * The details dialog takes it over while it is open, so that the entry's cover
+ * reaches all the way to the edge of the screen (see media-dialog.js); this is
+ * what it hands the colour back to.
+ */
+export function restoreThemeColor() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    const theme = getCurrentTheme();
+    meta.setAttribute('content', THEME_META_COLORS[theme] || THEME_META_COLORS[DEFAULT_THEME]);
+}
+
 function applyTheme(theme) {
     if (!THEME_ORDER.includes(theme)) theme = DEFAULT_THEME;
     document.documentElement.setAttribute('data-theme', theme);
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', THEME_META_COLORS[theme] || THEME_META_COLORS[DEFAULT_THEME]);
+    restoreThemeColor();
     updateThemeToggleLabel();
+    updateThemeMenuSelection();
+}
+
+function getCurrentStrength() {
+    const raw = parseInt(document.documentElement.getAttribute('data-cover-strength'), 10);
+    return Number.isInteger(raw) && raw >= 0 && raw < STRENGTH_KEYS.length ? raw : DEFAULT_STRENGTH;
+}
+
+function setStrength(level) {
+    try {
+        localStorage.setItem('dovi_cover_strength', String(level));
+    } catch (e) { /* localStorage unavailable -> the level just won't persist */ }
+    // Every cover on screen is repainted from here: ui/cover-gradient.js
+    // watches the attribute, because how far a cover may be taken is decided
+    // when it is painted rather than when it is read.
+    document.documentElement.setAttribute('data-cover-strength', String(level));
     updateThemeMenuSelection();
 }
 
@@ -132,7 +170,47 @@ function renderThemeMenu() {
         });
         menu.appendChild(li);
     });
+    menu.appendChild(renderStrengthRow());
     updateThemeMenuSelection();
+}
+
+/**
+ * How strongly the adaptive theme tints, as a row of four under the themes.
+ *
+ * It stays in the menu rather than becoming a setting of its own: it is a
+ * property of one theme, and this is where that theme is picked. Picking a
+ * level does not close the menu - the point is to see the difference on the
+ * table behind it and try the next one.
+ */
+function renderStrengthRow() {
+    const row = document.createElement('li');
+    row.className = 'theme-strength';
+    row.id = 'themeStrengthRow';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', t('theme_strength_label'));
+
+    const label = document.createElement('span');
+    label.className = 'theme-strength-label';
+    label.textContent = t('theme_strength_label');
+    row.appendChild(label);
+
+    const options = document.createElement('div');
+    options.className = 'theme-strength-options';
+    STRENGTH_KEYS.forEach((key, level) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'theme-strength-option';
+        button.setAttribute('data-strength', String(level));
+        button.setAttribute('aria-pressed', 'false');
+        button.textContent = t(key);
+        button.addEventListener('click', () => {
+            setStrength(level);
+            resetAutoCloseTimer();
+        });
+        options.appendChild(button);
+    });
+    row.appendChild(options);
+    return row;
 }
 
 function updateThemeMenuSelection() {
@@ -143,6 +221,17 @@ function updateThemeMenuSelection() {
         const selected = li.getAttribute('data-value') === current;
         li.classList.toggle('selected', selected);
         li.setAttribute('aria-checked', selected ? 'true' : 'false');
+    });
+
+    // Nothing to dose on a theme that paints no covers, so the row is only
+    // there for the one that does.
+    const row = document.getElementById('themeStrengthRow');
+    if (!row) return;
+    row.hidden = current !== ADAPTIVE_THEME;
+    const strength = getCurrentStrength();
+    row.querySelectorAll('.theme-strength-option').forEach(button => {
+        const active = Number(button.getAttribute('data-strength')) === strength;
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
 }
 
@@ -290,10 +379,17 @@ function setupThemeToggle() {
 
 export function initTheme() {
     let saved = null;
+    let strength = null;
     try {
         saved = localStorage.getItem('dovi_theme');
-    } catch (e) { /* localStorage unavailable -> keep default */ }
+        strength = parseInt(localStorage.getItem('dovi_cover_strength'), 10);
+    } catch (e) { /* localStorage unavailable -> keep defaults */ }
     saved = migrateTheme(saved);
+    // The inline script in the template has already set both; this is what
+    // makes them agree with the code that owns them from here on.
+    document.documentElement.setAttribute('data-cover-strength',
+        String(Number.isInteger(strength) && strength >= 0 && strength < STRENGTH_KEYS.length
+            ? strength : DEFAULT_STRENGTH));
     applyTheme(THEME_ORDER.includes(saved) ? saved : DEFAULT_THEME);
     setupThemeToggle();
 }

@@ -198,6 +198,61 @@ header {
     display: block;
     animation: dropdownIn 0.15s ease;
 }
+
+/* ---------- How strongly the adaptive theme tints ---------- */
+
+/* Under the themes in the same menu, and only while the theme it belongs to is
+   the one in force (see updateThemeMenuSelection in core/theme.js). */
+.theme-strength {
+    list-style: none;
+    margin: 6px 2px 0;
+    padding: 8px 4px 2px;
+    border-top: 1px solid var(--border);
+}
+
+.theme-strength-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.theme-strength-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+}
+
+.theme-strength-option {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.theme-strength-option:hover {
+    background: var(--surface-3);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+.theme-strength-option[aria-pressed="true"] {
+    background: var(--accent-tint);
+    border-color: var(--accent-line);
+    color: var(--accent-soft);
+}
+
 /* ============================================================
    Control Panels
    ============================================================ */

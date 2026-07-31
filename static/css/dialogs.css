@@ -479,6 +479,12 @@
     right: 8px;
 }
 
+/* The source colours below are written as var(--rating-*) / var(--link-*) with
+   the brand's own value as the fallback. Every theme but the adaptive one stops
+   at that fallback; the adaptive one sets the properties on the dialog to the
+   same hue measured against the surface the entry's cover produced, so a red
+   source on a red cover stays readable without a second hard-coded colour
+   (see liftAgainst in ui/cover-gradient.js). */
 /* Row of external ratings directly under the cover */
 /* Flex, not a fixed column grid: without a ratings key only the TMDb rating
    remains, and the surviving tiles should share the full width instead of
@@ -542,29 +548,29 @@
 }
 
 .dialog-rating-imdb :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #f5c518;
+    color: var(--rating-imdb, #f5c518);
 }
 
 .dialog-rating-tmdb :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #67d3f5;
+    color: var(--rating-tmdb, #67d3f5);
 }
 
 .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #fa7a68;
+    color: var(--rating-rt, #fa7a68);
 }
 
 /* The audience score keeps Rotten Tomatoes' popcorn yellow, so the two RT
    tiles read as one source without looking identical. */
 .dialog-rating-rt-audience :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #f7c94b;
+    color: var(--rating-rt-audience, #f7c94b);
 }
 
 .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #ed3833;
+    color: var(--rating-trakt, #ed3833);
 }
 
 .dialog-rating-metacritic :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #7ed957;
+    color: var(--rating-metacritic, #7ed957);
 }
 
 .dialog-info {
@@ -735,7 +741,7 @@
 
 .dialog-link.imdb {
     border-color: rgba(245, 197, 24, 0.4);
-    color: #f5c518;
+    color: var(--link-imdb, #f5c518);
 }
 
 .dialog-link.imdb:hover {
@@ -744,7 +750,7 @@
 
 .dialog-link.tmdb {
     border-color: rgba(1, 180, 228, 0.4);
-    color: #67d3f5;
+    color: var(--link-tmdb, #67d3f5);
 }
 
 .dialog-link.tmdb:hover {
@@ -753,7 +759,7 @@
 
 .dialog-link.youtube {
     border-color: rgba(255, 64, 64, 0.4);
-    color: #ff7b7b;
+    color: var(--link-youtube, #ff7b7b);
 }
 
 .dialog-link.youtube:hover {

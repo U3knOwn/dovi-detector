@@ -112,6 +112,14 @@
 
     /* ---------- Table becomes cards ---------- */
 
+    /* The light in an adaptive row comes from the cover (see rowGradient in
+       ui/cover-gradient.js), which here is centred at the top of a card
+       instead of sitting in the first of four columns. */
+    :root[data-theme="dark-adaptive"] {
+        --cover-anchor: 50%;
+        --cover-anchor-y: 26%;
+    }
+
     table {
         border-spacing: 0 12px;
     }
