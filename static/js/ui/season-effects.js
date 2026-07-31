@@ -2,26 +2,19 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 /**
- * What falls through the page while the adaptive theme wears a season, and what
- * crosses it every now and then.
+ * What falls through the page while a season is picked: snow at Christmas,
+ * pumpkins and bats at Halloween.
  *
- * Two layers, because the two things want different tools. The snow, the
- * pumpkins and the bats are dozens of small shapes that move every frame, which
- * is one canvas and one loop. Santa's sleigh and the witch are one large drawing
- * that crosses the screen twice a minute, which is one element and one CSS
- * animation the compositor can run on its own - see the flight in
- * theme-adaptive.css and the drawings in ui/icons.js.
+ * Dozens of small shapes that move every frame, which is one canvas and one
+ * loop - drawn here rather than loaded, so there is no request and no image to
+ * scale. Where the canvas sits is in chrome.css.
  *
- * Neither exists unless the theme paints covers and a season is picked, and
- * neither runs while the tab is in the background or while the visitor has
- * asked for reduced motion: this is decoration, and decoration is the first
- * thing that should get out of the way.
+ * A season belongs to no theme: the adaptive one also leans its covers towards
+ * it (see ui/cover-gradient.js), but the layer below falls on every theme. It
+ * does not run while the tab is in the background or while the visitor has
+ * asked for reduced motion, though - this is decoration, and decoration is the
+ * first thing that should get out of the way.
  */
-
-import { SEASON_FLYERS } from './icons.js';
-
-// The one theme the seasons belong to - the same test ui/cover-gradient.js makes.
-const ADAPTIVE_THEME = 'dark-adaptive';
 
 // How many particles the air holds, per million square pixels of viewport, and
 // the ceiling for a very large window. A 1440x900 desktop lands at around 60.
@@ -31,12 +24,6 @@ const MAX_PARTICLES = 110;
 // A frame longer than this is a tab coming back or a stalled main thread; the
 // particles would jump a screen further rather than carry on where they were.
 const MAX_FRAME = 0.05;
-
-// How long a flight takes, and how long the gap between two of them is. Long
-// enough that it stays an event rather than traffic.
-const FLIGHT_SECONDS = 13;
-const FIRST_FLIGHT_MS = 14000;
-const FLIGHT_GAP_MS = [55000, 105000];
 
 const SEASONS = {
     christmas: {
@@ -181,12 +168,10 @@ function drawBat(ctx, particle) {
 
 let canvas = null;
 let context = null;
-let flyer = null;
 let particles = [];
 let season = null;
 let frame = 0;
 let lastTime = 0;
-let flightTimer = null;
 let viewport = { width: 0, height: 0 };
 
 const reducedMotion = window.matchMedia
@@ -194,9 +179,7 @@ const reducedMotion = window.matchMedia
     : { matches: false, addEventListener: () => {} };
 
 function currentSeasonName() {
-    const root = document.documentElement;
-    if (root.getAttribute('data-theme') !== ADAPTIVE_THEME) return null;
-    const name = root.getAttribute('data-cover-season');
+    const name = document.documentElement.getAttribute('data-cover-season');
     return SEASONS[name] ? name : null;
 }
 
@@ -254,28 +237,6 @@ function step(time) {
 }
 
 /* ============================================================
-   What crosses
-   ============================================================ */
-
-function flyOnce(name) {
-    if (!flyer || flyer.classList.contains('flying')) return;
-    flyer.innerHTML = SEASON_FLYERS[name];
-    // Where it crosses and how long it takes is decided per flight, so two of
-    // them are never the same line at the same speed.
-    flyer.style.setProperty('--flight-top', `${random(6, 46)}vh`);
-    flyer.style.setProperty('--flight-seconds', `${(FLIGHT_SECONDS * random(0.85, 1.2)).toFixed(1)}s`);
-    flyer.classList.add('flying');
-}
-
-function scheduleFlight(name, delay) {
-    clearTimeout(flightTimer);
-    flightTimer = setTimeout(() => {
-        flyOnce(name);
-        scheduleFlight(name, random(FLIGHT_GAP_MS[0], FLIGHT_GAP_MS[1]));
-    }, delay);
-}
-
-/* ============================================================
    Starting and stopping
    ============================================================ */
 
@@ -288,13 +249,6 @@ function start(name) {
         canvas.setAttribute('aria-hidden', 'true');
         context = canvas.getContext('2d');
         document.body.appendChild(canvas);
-
-        flyer = document.createElement('div');
-        flyer.className = 'season-flyer';
-        flyer.setAttribute('aria-hidden', 'true');
-        flyer.addEventListener('animationend', () => flyer.classList.remove('flying'));
-        document.body.appendChild(flyer);
-
         window.addEventListener('resize', onResize);
     }
 
@@ -303,19 +257,15 @@ function start(name) {
     fill(false);
     lastTime = performance.now();
     if (!frame) frame = requestAnimationFrame(step);
-    scheduleFlight(name, FIRST_FLIGHT_MS);
 }
 
 function stop() {
     cancelAnimationFrame(frame);
     frame = 0;
-    clearTimeout(flightTimer);
-    flightTimer = null;
     particles = [];
     if (context) context.clearRect(0, 0, viewport.width, viewport.height);
     if (canvas) canvas.remove();
-    if (flyer) flyer.remove();
-    canvas = context = flyer = null;
+    canvas = context = null;
     window.removeEventListener('resize', onResize);
 }
 
@@ -345,30 +295,27 @@ function sync() {
  * Watch what is being decorated for, and put the decoration up or take it down.
  *
  * Called once from main.js. Everything after that is the page telling it: the
- * theme or the season changing on the root element, the tab going away, and the
- * visitor's motion preference changing under it.
+ * season changing on the root element, the tab going away, and the visitor's
+ * motion preference changing under it.
  */
 export function initSeasonEffects() {
     sync();
 
     if (typeof MutationObserver === 'function') {
         new MutationObserver(sync).observe(document.documentElement, {
-            attributes: true, attributeFilter: ['data-theme', 'data-cover-season']
+            attributes: true, attributeFilter: ['data-cover-season']
         });
     }
 
-    // A background tab still runs its timers, and the flight would be waiting
-    // half-crossed when the visitor comes back; the loop is stopped outright.
+    // A background tab still gets its frames throttled rather than stopped, so
+    // the loop is ended outright and picked up where it left off.
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             cancelAnimationFrame(frame);
             frame = 0;
-            clearTimeout(flightTimer);
-            flightTimer = null;
         } else if (canvas) {
             lastTime = performance.now();
             frame = requestAnimationFrame(step);
-            scheduleFlight(canvas.dataset.season, FIRST_FLIGHT_MS);
         }
     });
 

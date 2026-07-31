@@ -203,11 +203,12 @@ header {
     animation: dropdownIn 0.15s ease;
 }
 
-/* ---------- The adaptive theme's own settings ---------- */
+/* ---------- The two settings under the themes ---------- */
 
-/* Under the themes in the same menu - how strongly that theme tints, and which
-   season it is dressed for - and only while the theme they belong to is the one
-   in force (see updateThemeMenuSelection in core/theme.js). */
+/* How strongly the adaptive theme tints, which only that theme has and which is
+   therefore only listed while it is the one in force, and which season the page
+   is dressed for, which every theme offers (see updateThemeMenuSelection in
+   core/theme.js). */
 .theme-menu-group {
     list-style: none;
     margin: 6px 2px 0;
@@ -216,8 +217,10 @@ header {
 }
 
 /* The rule above the first group separates it from the themes; a second group
-   follows on directly, with only its own label between them. */
-.theme-menu-group + .theme-menu-group {
+   follows on directly, with only its own label between them. Only while the
+   first one is actually there, though - on a theme that offers no strength the
+   season is the first group and needs the rule itself. */
+.theme-menu-group:not([hidden]) + .theme-menu-group {
     margin-top: 2px;
     padding-top: 4px;
     border-top: 0;

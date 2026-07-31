@@ -24,9 +24,11 @@ const THEME_ORDER = ['dark', 'dark-adaptive', 'midnight'];
 const STRENGTH_KEYS = ['theme_strength_off', 'theme_strength_subtle',
                        'theme_strength_standard', 'theme_strength_strong'];
 
-// A costume the same theme can wear for a few weeks in the year, listed under
-// the strength because it is the same kind of choice: not another theme, but
-// how this one paints. ui/cover-gradient.js owns what each of them means.
+// A costume the whole page can wear for a few weeks in the year: snow or
+// pumpkins falling through it (ui/season-effects.js) and, on the theme that
+// paints covers, a lean in the colours it paints them with
+// (ui/cover-gradient.js). Listed under the strength because it is the same kind
+// of choice - not another theme, but how the page looks while one is on.
 const SEASON_KEYS = {
     none: 'theme_season_off',
     halloween: 'theme_season_halloween',
@@ -255,11 +257,12 @@ function updateThemeMenuSelection() {
         li.setAttribute('aria-checked', selected ? 'true' : 'false');
     });
 
-    // Nothing to dose and nothing to dress up on a theme that paints no covers,
-    // so both rows are only there for the one that does.
-    const adaptive = current === ADAPTIVE_THEME;
-    markGroup('themeStrengthRow', adaptive, String(getCurrentStrength()));
-    markGroup('themeSeasonRow', adaptive, getCurrentSeason());
+    // There is nothing to dose on a theme that paints no covers, so the
+    // strength is only offered by the one that does. A season is not a property
+    // of any theme - it is snow on the page and, where a theme paints covers,
+    // a lean in their colours - so it is offered by all of them.
+    markGroup('themeStrengthRow', current === ADAPTIVE_THEME, String(getCurrentStrength()));
+    markGroup('themeSeasonRow', true, getCurrentSeason());
 }
 
 function markGroup(id, visible, value) {
