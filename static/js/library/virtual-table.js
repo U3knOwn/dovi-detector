@@ -207,6 +207,96 @@ export function setupMediaVirtualScroll() {
     });
 }
 
+/* -------------------------------
+   Scroll anchoring
+
+   A pixel position means nothing on its own here: the table is rebuilt from
+   scratch on every load, and until a row has been on screen its height is only
+   estimated - so the same offset can land on a different entry than it did
+   before. What is stable is which entry sat at the top edge and how far into it
+   the view was cut, and that is what these two turn a scroll position into and
+   back.
+   ------------------------------- */
+
+// The table body, but only while it is actually laid out - a hidden one has
+// every row at position zero, which would anchor to the first entry no matter
+// where the page is scrolled to.
+function getLaidOutMediaBody() {
+    const table = document.getElementById('mediaTable');
+    if (!table || table.hidden) return null;
+    const tbody = getMediaBody();
+    if (!tbody || tbody.style.display === 'none') return null;
+    return tbody;
+}
+
+// The entry at the top edge of the viewport, or null while the table is above
+// it (the page header is still in view) or empty.
+export function getMediaScrollAnchor() {
+    const tbody = getLaidOutMediaBody();
+    if (!tbody || mediaVisible.length === 0) return null;
+
+    const rowsTop = tbody.getBoundingClientRect().top + window.scrollY;
+    const viewTop = window.scrollY - rowsTop;
+    if (viewTop <= 0) return null;
+
+    let offset = 0;
+    for (let i = 0; i < mediaVisible.length; i++) {
+        const pitch = mediaRowPitch(mediaVisible[i]);
+        if (offset + pitch > viewTop) {
+            const path = mediaVisible[i].path;
+            return path ? { path: path, offset: Math.round(viewTop - offset) } : null;
+        }
+        offset += pitch;
+    }
+    return null;
+}
+
+function findRenderedRow(path) {
+    const tbody = getMediaBody();
+    if (!tbody) return null;
+    return Array.from(tbody.children)
+        .find(row => row.mediaItem && row.mediaItem.path === path) || null;
+}
+
+/**
+ * Put the anchored entry back at the top edge.
+ *
+ * The first jump works off the same estimates the spacers are built from, so it
+ * lands on the right entry even when those estimates are off. The row is then
+ * really in the DOM and can say where it actually is, which is what the second
+ * step corrects against.
+ *
+ * Returns false when the entry is gone (deleted, or filtered away), so the
+ * caller can leave the page where it is instead of scrolling somewhere
+ * arbitrary.
+ */
+export function scrollMediaToAnchor(anchor) {
+    if (!anchor || !anchor.path) return false;
+
+    const tbody = getLaidOutMediaBody();
+    if (!tbody) return false;
+
+    const index = mediaVisible.findIndex(item => item.path === anchor.path);
+    if (index < 0) return false;
+
+    const offset = anchor.offset || 0;
+    const rowsTop = tbody.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, Math.round(rowsTop + mediaOffsetOf(index) + offset)));
+    renderMediaWindow(true);
+
+    const row = findRenderedRow(anchor.path);
+    if (row) {
+        // Where the row wants to be: `offset` pixels above the top edge.
+        const drift = row.getBoundingClientRect().top + offset;
+        if (Math.abs(drift) > 1) {
+            window.scrollBy(0, drift);
+            renderMediaWindow(true);
+        }
+    }
+
+    return true;
+}
+
 // Where the rendered window currently sits - read by the console helper in
 // main.js and handy when tuning the overscan.
 export function getMediaWindow() {
