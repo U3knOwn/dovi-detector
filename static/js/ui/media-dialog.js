@@ -12,6 +12,7 @@ import { getMediaBody } from '../library/virtual-table.js';
 import { refreshFileList } from './file-dialog.js';
 import { requestDelete, requestRescan } from '../core/api.js';
 import { applyCoverGradient } from './cover-gradient.js';
+import { dialogClosed, dialogOpened } from './dialog-history.js';
 
 let currentDialogFilePath = '';
 
@@ -452,6 +453,9 @@ export function showMediaDialog(item) {
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 
+    // So the back gesture closes the dialog instead of leaving the page
+    dialogOpened('media', closeMediaDialog);
+
     // Always open at the top. The panel keeps whatever it was scrolled to when
     // it was last closed, so without this an entry opened after a long one is
     // shown from the middle. It has to happen after .active - an element that
@@ -486,6 +490,20 @@ export function setupMediaTableInteraction() {
     });
 }
 
+/**
+ * Reload once the dialog's history entry has been taken back off the stack.
+ *
+ * Closing the dialog asks the browser to drop that entry, which it does on its
+ * own schedule - reloading into the middle of it would leave the fresh page
+ * with a leftover step whose only effect is to load it a second time. The timer
+ * is the fallback for a browser that never reports the pop.
+ */
+function reloadAfterDialogClose() {
+    const reload = () => location.reload();
+    window.addEventListener('popstate', reload, { once: true });
+    setTimeout(reload, 250);
+}
+
 export async function rescanCurrentEntry() {
     if (!currentDialogFilePath) return;
 
@@ -503,7 +521,7 @@ export async function rescanCurrentEntry() {
             // The row is server-rendered, so a reload is how the app already
             // picks up scan results elsewhere
             closeMediaDialog();
-            location.reload();
+            reloadAfterDialogClose();
             return;
         }
         alert(t('rescan_entry_error') + ': ' + (data.error || ''));
@@ -542,8 +560,11 @@ export function closeMediaDialog(event) {
     }
 
     const overlay = document.getElementById('mediaDialogOverlay');
+    if (!overlay || !overlay.classList.contains('active')) return;
+
     overlay.classList.remove('active');
     document.body.style.overflow = '';
+    dialogClosed('media');
 }
 
 // Swipe gesture handling for mobile
