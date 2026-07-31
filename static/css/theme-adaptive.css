@@ -334,3 +334,76 @@
    for Trakt and Rotten Tomatoes, and the second fixed value --text-faint was
    given - both of them calibrated against a surface that no longer holds still,
    now that the scrim follows the entry and the strength can be turned up. */
+
+/* ============================================================
+   Seasons
+   ------------------------------------------------------------
+   What falls through the page and what crosses it while the
+   theme is dressed for a season. Both layers are put up and
+   taken down by ui/season-effects.js, which is also where the
+   particles are drawn; here is only where they sit and how the
+   one that crosses travels.
+   ============================================================ */
+
+/* Over the table, under everything that has to be read or clicked: the header
+   sits at 100, the theme menu at 200, both dialogs at 1000 and the scroll
+   button above all of them. Snow in front of a poster is the point; snow in
+   front of a dialog is in the way. */
+.season-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.season-flyer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    width: min(52vw, 380px);
+    pointer-events: none;
+    opacity: 0;
+    will-change: transform, opacity;
+}
+
+.season-flyer svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
+}
+
+/* One crossing, left to right, with the height and the duration set per flight
+   (see flyOnce). It rises a little in the middle rather than travelling a
+   ruled line, and fades in and out at the edges so it never pops. */
+.season-flyer.flying {
+    animation: seasonFlight var(--flight-seconds, 13s) linear;
+}
+
+@keyframes seasonFlight {
+    0% {
+        opacity: 0;
+        transform: translate3d(-40vw, var(--flight-top, 20vh), 0) rotate(-3deg);
+    }
+    10% { opacity: 1; }
+    50% {
+        transform: translate3d(38vw, calc(var(--flight-top, 20vh) - 6vh), 0) rotate(1.5deg);
+    }
+    90% { opacity: 1; }
+    100% {
+        opacity: 0;
+        transform: translate3d(118vw, var(--flight-top, 20vh), 0) rotate(-2deg);
+    }
+}
+
+/* Nothing moves for a visitor who has asked for that - and since the whole
+   layer is motion, nothing is put up at all (see sync in season-effects.js).
+   This is the belt to that braces: a layer already up when the preference
+   changes cannot be left mid-flight. */
+@media (prefers-reduced-motion: reduce) {
+    .season-layer,
+    .season-flyer {
+        display: none;
+    }
+}

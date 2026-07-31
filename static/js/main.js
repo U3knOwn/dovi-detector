@@ -37,6 +37,7 @@ import {
     showMediaDialog, toggleDialogPlot
 } from './ui/media-dialog.js';
 import { setupScrollButton } from './ui/scroll-button.js';
+import { initSeasonEffects } from './ui/season-effects.js';
 
 // Loaded for their side effects: they wire up the collapsible header, the
 // control bar and the scroll button on their own.
@@ -45,6 +46,10 @@ import './ui/layout.js';
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme (labels are refreshed once translations are loaded)
     initTheme();
+
+    // Snow, pumpkins and the odd sleigh - but only if the theme is dressed for
+    // a season. Started after the theme, since that is what it reads.
+    initSeasonEffects();
 
     // Take the scroll position off the browser before it can put the page back
     // at the top - the table it would need does not exist yet at that point.
