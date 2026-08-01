@@ -59,6 +59,52 @@
     background-attachment: scroll, fixed, fixed;
 }
 
+/* The footer is where the table stops but the library does not: the last entry
+   carries on into it, in the same colours its row is painted with, so the page
+   ends on the entry it ended on rather than on a strip of grey underneath it.
+   It is given a row's own surface, outline and radius here, because that is what
+   it is now - the last row's shadow, with the small print in it.
+
+   Only when there is an entry to take it from. The attribute is set by
+   applyCoverGradient and removed again with the colours (see
+   ui/page-background.js), so an empty library, a last entry with no poster, the
+   strength turned off and every other theme all leave the plain footer alone -
+   there is nothing to key this off other than the cover itself. */
+:root[data-theme="dark-adaptive"] .site-footer[data-cover] {
+    background-color: var(--surface);
+    background-image:
+        linear-gradient(var(--cover-scrim), var(--cover-scrim)),
+        var(--cover-gradient, none);
+    background-repeat: no-repeat;
+    background-clip: padding-box;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-top: 12px;
+}
+
+/* The header sits over the table rather than beside it, so what is behind it is
+   whichever rows are passing under it at that moment - and the blur already in
+   the plain theme is what turns them into a surface rather than a picture. All
+   that is missing there is that the glass is nearly opaque, so almost nothing of
+   the row underneath reaches it.
+
+   Thinned, it takes the colour of what it is over: the first entry while the
+   page is at the top, and whatever is scrolling past after that. The saturation
+   goes up with it, so what comes through reads as this entry's colour rather
+   than as a grey with a hint in it - and the panel stays dark enough for the
+   title on it, since every row it can sit over is darker than the text by far.
+
+   Off, it is the plain theme's glass again, like everything else here. */
+:root[data-theme="dark-adaptive"]:not([data-cover-strength="0"]) {
+    --header-bg: rgba(15, 18, 26, 0.55);
+}
+
+:root[data-theme="dark-adaptive"]:not([data-cover-strength="0"]) header {
+    backdrop-filter: blur(16px) saturate(1.9);
+    -webkit-backdrop-filter: blur(16px) saturate(1.9);
+}
+
 /* The dialog is one box and rounds itself, so it paints the cover on its own
    background: the scrim over the cover's colours, those over the surface
    colour underneath. A background is anchored to the padding box, so it stays

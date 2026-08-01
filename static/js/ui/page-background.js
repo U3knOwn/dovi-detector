@@ -30,7 +30,7 @@
  */
 
 import {
-    PAGE_RAIL_PROP, cachedPalette, onCoverColors, pageTint, paintsPage
+    PAGE_RAIL_PROP, applyCoverGradient, cachedPalette, onCoverColors, pageTint, paintsPage
 } from './cover-gradient.js';
 
 // How much of a row's height keeps that row's colour flat, as a share of the
@@ -86,11 +86,11 @@ function invalidate() {
  * Standing in for it with a neutral colour would be the page inventing the very
  * thing the theme refuses to invent for a row.
  */
-function railBands() {
+function railBands(rows) {
     const top = window.scrollY;
     const bands = [];
 
-    document.querySelectorAll('#mediaTable tbody tr[data-cover]').forEach(row => {
+    rows.forEach(row => {
         const palette = cachedPalette(row.dataset.cover);
         if (!palette) return;
 
@@ -140,6 +140,34 @@ function clear() {
     document.documentElement.style.removeProperty(PAGE_RAIL_PROP);
 }
 
+/**
+ * The footer, wearing the entry the table ends on.
+ *
+ * The rail already carries that entry's colour past the last row and down to
+ * the bottom of the document, so the page under the footer is right without
+ * anything being done about it - but the footer itself sat on top of that as a
+ * strip of nothing. Given the last entry's cover it becomes what it is standing
+ * in for: one more row, with the small print in it instead of a film.
+ *
+ * The last *rendered* row is the last entry whenever the footer can be seen at
+ * all - the table only leaves rows out at the far end of a long library, and the
+ * far end is exactly where the footer is. Higher up the page the two can differ,
+ * and nobody is looking at the footer then.
+ *
+ * Painted only when the entry changes. Giving an element a cover is one of the
+ * things that asks for a rebuild here, so painting on every pass would be a loop
+ * that never stops turning.
+ */
+function dressFooter(last) {
+    const footer = document.querySelector('.site-footer');
+    if (!footer) return;
+
+    const cover = last ? last.dataset.cover : null;
+    if ((footer.dataset.cover || null) === (cover || null)) return;
+
+    applyCoverGradient(footer, cover, last && last.querySelector('img.poster-img'), 'footer');
+}
+
 function build() {
     frame = null;
 
@@ -147,12 +175,16 @@ function build() {
     // than a walk over the rows.
     if (!paintsPage()) {
         clear();
+        dressFooter(null);
         return;
     }
     if (!dirty) return;
     dirty = false;
 
-    const rail = railGradient(railBands());
+    const rows = document.querySelectorAll('#mediaTable tbody tr[data-cover]');
+    dressFooter(rows[rows.length - 1] || null);
+
+    const rail = railGradient(railBands(rows));
     if (!rail) {
         clear();
         return;

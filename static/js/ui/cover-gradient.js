@@ -178,11 +178,12 @@ const BRAND_COLORS = {
     '--link-youtube': [255, 123, 123]
 };
 
-// What each of the two tinted areas is: which token it is painted over, how its
+// What each of the tinted areas is: which token it is painted over, how its
 // gradient is laid out, and whether the entry's own source colours appear in it.
 const VARIANTS = {
     row: { surface: '--surface', gradient: rowGradient, brands: false },
-    dialog: { surface: '--surface-2', gradient: dialogGradient, brands: true }
+    dialog: { surface: '--surface-2', gradient: dialogGradient, brands: true },
+    footer: { surface: '--surface', gradient: footerGradient, brands: false }
 };
 
 /* ============================================================
@@ -588,6 +589,27 @@ function rowGradient(colors) {
         `radial-gradient(ellipse 60% 120% at 92% 18%, ${rgbaText(tr, 0.5)} 0%, ${rgbaText(deepen(tr, 0.42), 0)} 76%)`,
         `radial-gradient(ellipse 60% 120% at 78% 96%, ${rgbaText(br, 0.45)} 0%, ${rgbaText(deepen(br, 0.48), 0)} 76%)`,
         `linear-gradient(100deg, ${rgbaText(mid, 0.3)} 0%, ${rgbaText(mid, 0.14)} 42%, ${rgbaText(br, 0.2)} 100%)`
+    ].join(', ');
+}
+
+/**
+ * The footer's gradient: the last entry, carried on past the end of the table.
+ *
+ * The footer is the shape of a row and none of its content - as wide, a third
+ * as tall, with nothing in it but three lines of small print. So it is laid out
+ * like a row and hung off the same anchor: the pool sits where the poster of the
+ * row above it sits, and the strip carries on in the same colour rather than
+ * starting a composition of its own. What it is showing is not a new entry, it
+ * is the last one, still going.
+ */
+function footerGradient(colors) {
+    const [tl, tr, , br, mid] = colors;
+    const anchor = 'var(--cover-anchor, 22%)';
+
+    return [
+        `radial-gradient(ellipse 58% 260% at ${anchor} 34%, ${rgbText(mid)} 0%, ${rgbaText(mid, 0.5)} 38%, ${rgbaText(deepen(mid, 0.5), 0)} 80%)`,
+        `radial-gradient(ellipse 52% 220% at 90% 66%, ${rgbaText(tr, 0.45)} 0%, ${rgbaText(deepen(tr, 0.42), 0)} 78%)`,
+        `linear-gradient(100deg, ${rgbaText(tl, 0.28)} 0%, ${rgbaText(mid, 0.14)} 45%, ${rgbaText(br, 0.22)} 100%)`
     ].join(', ');
 }
 
