@@ -238,8 +238,18 @@
     opacity: 1;
 }
 
-:root[data-theme="dark-adaptive"] .poster-container:hover .poster-title {
+:root[data-theme="dark-adaptive"] .poster-title {
     color: rgb(var(--cover-accent-rgb));
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:hover .poster-title {
+    color: #fff;
+    color: color-mix(in srgb, rgb(var(--cover-accent-rgb)) 50%, white);
+}
+
+:root[data-theme="dark-adaptive"] .poster-container:hover .poster-title {
+    color: #fff;
+    color: color-mix(in srgb, rgb(var(--cover-accent-rgb)) 50%, white);
 }
 
 :root[data-theme="dark-adaptive"] .poster-container:hover .poster-img {
