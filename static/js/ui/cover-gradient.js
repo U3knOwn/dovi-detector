@@ -87,10 +87,14 @@ const HOVER_TEXT_RATIO = 8.5;
 // measuring rather than by choosing.
 const MARK_RATIO = 6;
 
-// The accent an entry's marks take: the cover's hue at a fixed lightness, so a
-// row lights up by the same amount whatever it is showing.
+// The accent an entry's marks take: the dominant colour of the cover at a fixed
+// lightness, so the cover's main visual field determines the row's identity.
 const ACCENT_LIGHTNESS = 0.82;
-const ACCENT_CHROMA = 0.115;
+// Badges sit directly on a dark row, where a low-chroma accent gets washed
+// into grey. Keep the lightness for readability, but let the cover colour keep
+// more of its saturation.
+const ACCENT_CHROMA = 0.16;
+const MIN_ACCENT_CHROMA = 0.035;
 
 // How strong the tint is, as picked in the theme menu. Subtle takes the
 // colours halfway back to the plain dark surface; strong lifts them instead
@@ -313,7 +317,66 @@ function coverPalette(pixels, width, height) {
             Math.abs(had[2] - candidate.rgb[2]) >= MIN_DISTANCE));
         picked.push((distinct || ranked[0]).rgb);
     }
+    // Keep the dominant colour separate from the five regional stops. The
+    // latter intentionally favour local contrast for the gradient; the accent
+    // should instead represent the colour occupying most of the cover.
+    const dominant = dominantColor(pixels, width, height);
+    if (dominant) picked.dominant = dominant;
     return picked;
+}
+
+/**
+ * Find the cover's dominant colour across the complete sample.
+ *
+ * The score is still led by area, but gives near-black and near-white pixels
+ * a small penalty. Those tones are common in borders, shadows and highlights
+ * and make poor accents, while a large coloured field remains the clear winner.
+ */
+function dominantColor(pixels, width, height) {
+    const buckets = new Map();
+    const shift = 8 - BUCKET_BITS;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            if (pixels[i + 3] < 128) continue;
+
+            const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+            const key = ((r >> shift) << (BUCKET_BITS * 2)) |
+                        ((g >> shift) << BUCKET_BITS) |
+                        (b >> shift);
+            const bucket = buckets.get(key);
+            if (bucket) {
+                bucket.r += r;
+                bucket.g += g;
+                bucket.b += b;
+                bucket.n++;
+            } else {
+                buckets.set(key, { r, g, b, n: 1 });
+            }
+        }
+    }
+
+    let best = null;
+    buckets.forEach(bucket => {
+        const r = bucket.r / bucket.n;
+        const g = bucket.g / bucket.n;
+        const b = bucket.b / bucket.n;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max === 0 ? 0 : (max - min) / max;
+        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        const edgePenalty = luma < 0.05 ? 0.45 : luma > 0.94 ? 0.65 : 1;
+        const score = bucket.n * (0.82 + saturation * 0.18) * edgePenalty;
+        if (!best || score > best.score) best = { bucket, score };
+    });
+
+    if (!best) return null;
+    return [
+        Math.round(best.bucket.r / best.bucket.n),
+        Math.round(best.bucket.g / best.bucket.n),
+        Math.round(best.bucket.b / best.bucket.n)
+    ];
 }
 
 function sampleSize(img) {
@@ -453,19 +516,24 @@ function liftAgainst(rgb, surface, ratio) {
  * itself. So only the hue is taken from the cover and it is given the theme's
  * own lightness.
  *
- * The hue comes from the most colourful of the picked colours rather than the
- * most prominent: the one a poster is mostly made of is often a near-grey, and
- * a grey has no hue to lend.
+ * The hue comes from the most frequent colour in the complete cover sample.
+ * A small, vivid title should not beat the large colour field behind it.
  */
 function accentColor(palette, season) {
-    let best = palette[0];
-    let bestChroma = -1;
+    let best = palette.dominant || palette[0];
+    let [, bestChroma] = rgbToOklch(best);
 
-    for (const rgb of palette) {
-        const [, chroma] = rgbToOklch(rgb);
-        if (chroma > bestChroma) {
-            bestChroma = chroma;
-            best = rgb;
+    // A large black, white or grey area must not hide a clearly coloured part
+    // of the cover. This is common with posters that have a dark background
+    // and a yellow/orange title or subject: use the most chromatic regional
+    // colour when the global winner cannot provide a useful hue.
+    if (bestChroma < MIN_ACCENT_CHROMA) {
+        for (const rgb of palette) {
+            const [, chroma] = rgbToOklch(rgb);
+            if (chroma > bestChroma) {
+                best = rgb;
+                bestChroma = chroma;
+            }
         }
     }
 

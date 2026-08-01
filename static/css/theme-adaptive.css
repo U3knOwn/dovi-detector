@@ -205,8 +205,9 @@
    title and its ring do - the fixed hues in table.css are the other themes'
    only, since here every mark already answers to the entry in front of it. */
 :root[data-theme="dark-adaptive"] :is(.hdr-badge, .el-badge, .resolution-badge, .audio-badge) {
-	border-color: rgba(var(--cover-accent-rgb), 0.6);
-    color: rgba(var(--cover-accent-rgb), 0.7);
+    border-color: rgba(var(--cover-accent-rgb), 0.70);
+    color: rgba(var(--cover-accent-rgb), 0.88);
+    background: rgba(var(--cover-accent-rgb), 0.02);
 }
 
 /* The cover lights the row it sits in, rather than only being lit: a very
