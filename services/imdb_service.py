@@ -35,10 +35,20 @@ _BROWSER_HEADERS = {
 }
 
 # IMDb's own GraphQL API - the source the Top 250 chart page itself renders
-# from. It answers plain server-side requests, whereas www.imdb.com/chart/top
-# hands out a JavaScript challenge (HTTP 202, empty body) to anything that does
-# not look like a real browser, so the chart page is only a fallback here.
+# from. It answers server-side requests, whereas www.imdb.com/chart/top hands
+# out a JavaScript challenge (HTTP 202, empty body) to anything that does not
+# look like a real browser, so the chart page is only a fallback here.
+#
+# The API sits behind a WAF that answers 403 to anything it does not recognise
+# as the IMDb web client - notably a browser User-Agent on its own is rejected,
+# so these client headers are what the request actually needs.
 IMDB_GRAPHQL_URL = 'https://api.graphql.imdb.com/'
+IMDB_GRAPHQL_HEADERS = {
+    'Content-Type': 'application/json',
+    'x-imdb-client-name': 'imdb-web-next',
+    'x-imdb-user-country': 'US',
+    'x-imdb-user-language': 'en-US',
+}
 IMDB_TOP250_QUERY = (
     'query{titleChartRankings(first:250,input:{rankingsChartType:TOP_250})'
     '{edges{node{item{id}}}}}'
@@ -121,7 +131,7 @@ def _fetch_top250_graphql():
         response = requests.post(
             IMDB_GRAPHQL_URL,
             json={'query': IMDB_TOP250_QUERY},
-            headers={'Content-Type': 'application/json'},
+            headers=IMDB_GRAPHQL_HEADERS,
             timeout=20)
         if response.status_code != 200:
             print(f"  [IMDb] Top 250 GraphQL request failed: HTTP {response.status_code}")
