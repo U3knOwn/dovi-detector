@@ -92,6 +92,41 @@ const MARK_RATIO = 6;
 const ACCENT_LIGHTNESS = 0.82;
 const ACCENT_CHROMA = 0.115;
 
+// What the page's own glows are made of. The colour is the same idea as the
+// accent - the hue is the covers', the lightness and the chroma are the
+// theme's - so the page leans the way the library does without one poster
+// being able to shout.
+const GLOW_LIGHTNESS = 0.55;
+const GLOW_CHROMA = 0.15;
+
+// Below this much chroma a mix has no direction left to speak of, and its hue
+// is whatever is left over after the colours cancelled - which swings wildly
+// for a few pixels of scroll. The colour is faded out towards neutral instead
+// of being allowed to flicker.
+const GLOW_HUE_FLOOR = 0.03;
+
+// The most of a glow that may be laid on, before the ceiling below has its say.
+const GLOW_ALPHA_MAX = 0.34;
+
+// Which of the mixed stops each glow takes, and how much of the solved
+// strength it gets: the two at the top of the page carry the cover's top
+// corners, the one along the bottom edge its middle. The shares are what keeps
+// them from adding up to a brighter page where two of them overlap.
+const GLOW_STOPS = [0, 1, 4];
+const GLOW_SHARES = [0.9, 0.6, 0.75];
+
+// How bright the page behind the table may get, as the token it must not pass:
+// the surface a row is painted over. A page that climbs past it stops reading
+// as the thing behind the rows and starts competing with them. It is a measured
+// ceiling rather than a chosen one - the dark theme's own fixed glow sits just
+// under it, so the adaptive page is allowed exactly as much light as the plain
+// one already takes.
+const GLOW_CEILING = '--surface-2';
+
+// The properties the page background is handed over as, in the order the glows
+// are painted (see theme-adaptive.css).
+export const PAGE_GLOW_PROPS = ['--page-glow-1', '--page-glow-2', '--page-glow-3'];
+
 // How strong the tint is, as picked in the theme menu. Off paints no cover at
 // all and leaves the plain dark surface - only the accent still follows the
 // entry. Subtle takes the colours halfway back to that surface; strong lifts
@@ -544,6 +579,142 @@ function rowGradient(colors) {
 }
 
 /* ============================================================
+   The page behind them
+   ------------------------------------------------------------
+   A row and the dialog each show one entry, so each takes one
+   cover. The page shows whatever is scrolled in front of it,
+   which is several at once and a different several a moment
+   later - so its colour is not one entry's but the mix of what
+   is on screen, and it moves as that changes.
+
+   Who is on screen and how much they count for is the caller's
+   business (see ui/page-background.js); what a mix of covers
+   looks like as light behind the page is this module's.
+   ============================================================ */
+
+/**
+ * Several covers as one set of colours, weighted by how much of the screen each
+ * is holding.
+ *
+ * Mixed in OKLab and stop by stop, so the covers keep their own layout in the
+ * mix - the top corners of five posters average into the top corners of the
+ * page. Averaging the a and b axes is also what makes a library of
+ * disagreeing posters honest: two opposite hues cancel towards neutral instead
+ * of picking a winner, and a run of covers that agree comes out saying so.
+ *
+ * Lightness is mixed with them and then thrown away by glowColor, which has its
+ * own. It is carried along because a stop is one colour, not two numbers and a
+ * spare.
+ */
+export function mixCovers(entries) {
+    let total = 0;
+    entries.forEach(entry => {
+        if (entry.palette && entry.weight > 0) total += entry.weight;
+    });
+    if (!(total > 0)) return null;
+
+    const stops = [];
+    for (let stop = 0; stop < STOP_LIGHTNESS.length; stop++) {
+        const mixed = [0, 0, 0];
+        entries.forEach(({ palette, weight }) => {
+            if (!palette || !(weight > 0)) return;
+            const lab = rgbToOklab(palette[Math.min(stop, palette.length - 1)]);
+            const share = weight / total;
+            for (let axis = 0; axis < 3; axis++) mixed[axis] += lab[axis] * share;
+        });
+        stops.push(mixed);
+    }
+    return stops;
+}
+
+/**
+ * One mixed stop as the light it is painted with.
+ *
+ * Only the hue survives the trip. A glow is not a surface showing a poster, it
+ * is the room the page is lit in, and it has to be the same amount of light
+ * whatever is on screen - so the lightness and the chroma are the theme's
+ * fixed ones, the way an accent's are.
+ *
+ * What the mix does decide, besides the hue, is whether there is one at all:
+ * a mix that cancelled out has no direction left, so its chroma is faded down
+ * with it and the page goes quietly neutral rather than chasing the remainder.
+ */
+function glowColor([, a, b], level, season) {
+    const chroma = Math.hypot(a, b);
+    const hue = (Math.atan2(b, a) * 180 / Math.PI + 360) % 360;
+    const lightness = GLOW_LIGHTNESS + level.lightness;
+
+    if (chroma < GREY_CHROMA) {
+        // Nothing to take a hue from. A season lends one; without one the page
+        // stays the grey the covers agreed on.
+        return season
+            ? oklchToRgb(lightness, season.chroma * 0.7, season.hues[0])
+            : oklchToRgb(lightness, 0, 0);
+    }
+
+    const [leaned, floor] = towardSeason(hue, GLOW_CHROMA, season);
+    const settled = Math.min(1, chroma / GLOW_HUE_FLOOR);
+    return oklchToRgb(lightness, floor * level.chroma * settled, leaned);
+}
+
+/**
+ * How much of a glow the page can take before it stops being a background.
+ *
+ * The same shape of answer as the scrim over a row, from the other side: there
+ * the surface is held down until the text on it can be read, here the page is
+ * held down until it is still darker than the rows in front of it. Solved per
+ * colour, because a blue at a given lightness is far darker than a yellow at
+ * the same one - fixing the alpha instead would make the page flare every time
+ * a warm poster scrolled past.
+ */
+function solveGlow(rgb, base, ceiling) {
+    const brightnessAt = alpha => relativeLuminance(composite(rgb, base, alpha));
+    if (brightnessAt(GLOW_ALPHA_MAX) <= ceiling) return GLOW_ALPHA_MAX;
+
+    let low = 0, high = GLOW_ALPHA_MAX;
+    for (let i = 0; i < 16; i++) {
+        const mid = (low + high) / 2;
+        if (brightnessAt(mid) <= ceiling) low = mid; else high = mid;
+    }
+    return low;
+}
+
+/**
+ * Whether the page is one of the surfaces the covers reach right now.
+ *
+ * Asked before anything is measured, not only before it is painted: working out
+ * who is on screen means a walk over the rendered rows and a rect from each of
+ * them, once a frame while the page is moving, and on a theme that paints no
+ * covers all of it would be for nothing.
+ */
+export function paintsPage() {
+    return themeReadsCover() && Boolean(STRENGTH_LEVELS[coverStrength()]);
+}
+
+/**
+ * A mix of covers as the page's three glows, or null when there is no page to
+ * paint: another theme, or the tint turned off - both of which leave the plain
+ * theme's own fixed glows in place, since the properties simply stop being set
+ * and the stylesheet falls back to them.
+ */
+export function pageGlow(stops) {
+    if (!stops || !paintsPage()) return null;
+
+    const level = STRENGTH_LEVELS[coverStrength()];
+    const season = SEASONS[coverSeason()];
+    const base = themeColor('--bg', [10, 12, 18]);
+    const ceiling = relativeLuminance(themeColor(GLOW_CEILING, [23, 27, 38]));
+
+    const values = {};
+    GLOW_STOPS.forEach((stop, glow) => {
+        const rgb = glowColor(stops[Math.min(stop, stops.length - 1)], level, season);
+        const alpha = solveGlow(rgb, base, ceiling) * GLOW_SHARES[glow] * level.mix;
+        values[PAGE_GLOW_PROPS[glow]] = rgbaText(rgb, alpha.toFixed(3));
+    });
+    return values;
+}
+
+/* ============================================================
    What the theme in force allows
    ============================================================ */
 
@@ -667,10 +838,39 @@ function paint(element, palette, variant, key) {
     } finally {
         // The dialog's surface decides the colour the phone's own status bar
         // takes while it is open, and only the dialog listens (see
-        // media-dialog.js) - a row repaints on every scroll frame and has
-        // nothing to tell anyone.
+        // media-dialog.js).
         if (variant === 'dialog') element.dispatchEvent(new CustomEvent('cover-painted'));
+        else notifyCoverColors();
     }
+}
+
+// What the page behind the table is listening for. Every reason its colour
+// could have changed passes through paint(): a row built, a poster that has
+// finished decoding, a theme or a strength that sent every row through here
+// again. So this is the one place that has to say so, rather than each of them
+// separately - and the listener only marks itself dirty and waits for the next
+// frame, so being told thirty times while a window of rows is rebuilt costs
+// nothing.
+const coverListeners = new Set();
+
+export function onCoverColors(listener) {
+    coverListeners.add(listener);
+}
+
+function notifyCoverColors() {
+    coverListeners.forEach(listener => listener());
+}
+
+/**
+ * The colours already read for ``posterUrl``, or null when there is nothing to
+ * paint for it and undefined when it has not been read yet.
+ *
+ * Only what is known: this never starts a read, because the caller is the page
+ * background, and the covers it mixes are the ones the table has on screen -
+ * every one of them is already being read by the row that is showing it.
+ */
+export function cachedPalette(posterUrl) {
+    return palettes.get(posterUrl);
 }
 
 /**

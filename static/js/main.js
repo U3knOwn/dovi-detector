@@ -36,6 +36,7 @@ import {
     closeMediaDialog, deleteCurrentEntry, rescanCurrentEntry, setupMediaTableInteraction,
     showMediaDialog, toggleDialogPlot
 } from './ui/media-dialog.js';
+import { setupPageBackground } from './ui/page-background.js';
 import { setupScrollButton } from './ui/scroll-button.js';
 import { initSeasonEffects } from './ui/season-effects.js';
 
@@ -81,6 +82,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // scroll position and react to a viewport change.
         setupMediaVirtualScroll();
         setupMediaTableInteraction();
+
+        // The page behind the table takes its colour from the entries scrolled
+        // in front of it, on the theme that paints covers. Started after the
+        // virtual scroll, since the rows it mixes are the ones that renders.
+        setupPageBackground();
 
         // Render the library that was requested above, in the stored sort order.
         // Only now does the page have its full height back, so this is the
