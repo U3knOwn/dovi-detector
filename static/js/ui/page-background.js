@@ -33,6 +33,18 @@ import {
     PAGE_RAIL_PROP, cachedPalette, onCoverColors, pageTint, paintsPage
 } from './cover-gradient.js';
 
+// How much of a row's height keeps that row's colour flat, as a share of the
+// row. What is left over is where the fade happens.
+//
+// At 1 an entry owns its whole box and the two colours have the 12px of
+// border-spacing to meet in, which is a hard line. At 0 there is nothing but
+// fade: one stop in the middle of each row, and the page is a stream that only
+// passes through an entry's colour at its centre. In between, an entry holds
+// its middle and lets go towards its neighbours - near enough to still read as
+// this entry's page, soft enough that scrolling does not step from colour to
+// colour.
+const BAND_CORE = 0.4;
+
 // Stop positions are rounded to whole pixels. What that buys is not the rounding
 // itself but the comparison below it: a rail that has not really changed comes
 // out as the same string and is not written again, which is what keeps scrolling
@@ -88,7 +100,12 @@ function railBands() {
         const rect = row.getBoundingClientRect();
         if (rect.height <= 0) return;
 
-        bands.push({ color, top: round(rect.top + top), bottom: round(rect.bottom + top) });
+        // The flat middle of the row, which is all the rail states outright -
+        // everything between one band and the next is the fade from one to the
+        // other, and how much of the row that leaves is BAND_CORE's answer.
+        const middle = (rect.top + rect.bottom) / 2 + top;
+        const core = rect.height * BAND_CORE / 2;
+        bands.push({ color, top: round(middle - core), bottom: round(middle + core) });
     });
 
     return bands;
@@ -97,18 +114,22 @@ function railBands() {
 /**
  * The bands as one gradient down the document.
  *
- * Each entry holds its own box flat - two stops in the same colour, at the top
- * and the bottom of its row - so the colour of a row and the page beside it line
- * up exactly, and the fade happens in the seam between two entries rather than
- * across the entry itself. Above the first band and below the last there are no
- * stops at all, which is a gradient's own way of saying "and on in that colour".
+ * Each entry contributes the two stops that hold its colour flat across the
+ * middle of its row; everything between one band and the next is the browser
+ * fading from the one to the other. Above the first band and below the last
+ * there are no stops at all, which is a gradient's own way of saying "and on in
+ * that colour".
+ *
+ * A band whose core rounds away to nothing is one stop rather than two - the
+ * same thing said once instead of twice.
  */
 function railGradient(bands) {
     if (!bands.length) return null;
 
     const stops = [];
     bands.forEach(({ color, top, bottom }) => {
-        stops.push(`${color} ${top}px`, `${color} ${bottom}px`);
+        stops.push(`${color} ${top}px`);
+        if (bottom > top) stops.push(`${color} ${bottom}px`);
     });
     return `linear-gradient(180deg, ${stops.join(', ')})`;
 }
