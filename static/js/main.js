@@ -44,7 +44,25 @@ import { initSeasonEffects } from './ui/season-effects.js';
 // control bar and the scroll button on their own.
 import './ui/layout.js';
 
+// Posters are added and replaced while the virtual table is scrolling, so the
+// protection lives on the document instead of being attached to every image.
+// It is limited to .container, which is the start page; dialog images live
+// outside it and retain their normal context menu and drag behaviour.
+function preventImageCopy(event) {
+    const image = event.target instanceof Element && event.target.closest('img');
+    if (image && image.closest('.container')) {
+        event.preventDefault();
+    }
+}
+
+function setupImageProtection() {
+    document.addEventListener('contextmenu', preventImageCopy);
+    document.addEventListener('dragstart', preventImageCopy);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    setupImageProtection();
+
     // Initialize theme (labels are refreshed once translations are loaded)
     initTheme();
 

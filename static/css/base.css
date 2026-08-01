@@ -50,6 +50,17 @@ body {
     -webkit-user-select: none;
 }
 
+/* Images on the start page are presentation-only. Keep them from becoming
+   draggable selections or opening the iOS copy/save callout; dialogs live
+   outside .container and deliberately keep normal image interactions. The
+   delegated handlers in main.js also suppress the desktop context menu. */
+.container img {
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
 ::selection {
     background: rgba(99, 102, 241, 0.35);
     color: #fff;
