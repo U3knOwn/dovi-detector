@@ -11,10 +11,10 @@
 
 :root {
     --bg: #0a0c12;
-    --surface: #12151d;
-    --surface-2: #171b26;
+    --surface: #151823C7;
+    --surface-2: #151823;
     --surface-3: #1d2230;
-    --control-bg: #0d1017;
+    --control-bg: #161b27;
     --border: rgba(255, 255, 255, 0.07);
     --border-strong: rgba(255, 255, 255, 0.14);
     --text: #e8ecf4;
@@ -42,7 +42,7 @@
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.5);
     --glow: 0 0 0 1px rgba(99, 102, 241, 0.4), 0 8px 24px rgba(99, 102, 241, 0.25);
-    --header-bg: rgba(15, 18, 26, 0.78);
+    --header-bg: rgba(21, 24, 35, 0.78);
     --overlay-bg: rgba(5, 7, 11, 0.72);
     /* Laid over --overlay-bg behind the details dialog, where a theme wants the
        blur there to read as frosted glass rather than as the page turned down.
@@ -64,10 +64,10 @@
 /* Deeper and more saturated blue than the default dark theme. */
 :root[data-theme="midnight"] {
     --bg: #04060c;
-    --surface: #0a0d17;
-    --surface-2: #0e1220;
+    --surface: #0d121ecc;
+    --surface-2: #0d121e;
     --surface-3: #131829;
-    --control-bg: #070a12;
+    --control-bg: #121827;
     --border: rgba(147, 197, 253, 0.09);
     --border-strong: rgba(147, 197, 253, 0.16);
     --text: #e4eaf7;
@@ -87,7 +87,7 @@
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
     --glow: 0 0 0 1px rgba(59, 130, 246, 0.4), 0 8px 24px rgba(59, 130, 246, 0.28);
-    --header-bg: rgba(8, 11, 19, 0.8);
+    --header-bg: rgba(13, 18, 30, 0.8);
     --overlay-bg: rgba(2, 3, 6, 0.78);
     --overlay-veil: rgba(59, 130, 246, 0.09);
     --scroll-toggle-bg: rgba(14, 18, 32, 0.88);
