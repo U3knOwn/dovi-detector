@@ -364,7 +364,7 @@
        on a phone in landscape the dialog is far wider than the cover. */
     --dialog-cover-width: 460px;
     background: var(--surface-2);
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--border);
     border-radius: 22px;
     max-width: 520px;
     width: 90%;
@@ -609,7 +609,7 @@
 }
 
 .dialog-label {
-    color: var(--text-faint);
+    color: var(--accent-soft);
     text-transform: uppercase;
     font-size: 0.72rem;
     letter-spacing: 0.12em;
@@ -665,7 +665,7 @@
     border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: transparent;
-    color: var(--text-muted);
+    color: var(--accent-soft);
     font-family: inherit;
     font-size: 0.78rem;
     font-weight: 600;
@@ -727,7 +727,7 @@
     height: 40px;
     border-radius: var(--radius-pill);
     background: transparent;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.88rem;
@@ -792,7 +792,7 @@
     font-size: 0.92rem;
     cursor: pointer;
     background: transparent;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 

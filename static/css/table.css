@@ -24,7 +24,7 @@ thead th {
     text-transform: uppercase;
     font-size: 0.72rem;
     letter-spacing: 0.12em;
-    color: var(--text-faint);
+    color: var(--text);
 }
 
 tbody tr td {
@@ -102,7 +102,7 @@ tbody tr:hover td {
     font-size: 0.84rem;
     letter-spacing: 0.01em;
     background: transparent;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     white-space: nowrap;
     text-align: center;
     line-height: 1.35;

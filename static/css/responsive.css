@@ -146,6 +146,10 @@
         box-shadow: var(--shadow-sm);
     }
 
+    :root[data-theme="dark-adaptive"] tr {
+        border: none;
+    }
+
     tbody tr td,
     tbody tr td:first-child,
     tbody tr td:last-child {

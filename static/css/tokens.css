@@ -15,8 +15,8 @@
     --surface-2: #151823;
     --surface-3: #1d2230;
     --control-bg: #161b27;
-    --border: rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.14);
+    --border: rgba(160, 175, 238, 0.12);
+    --border-strong: rgba(160, 175, 238, 0.38);
     --text: #e8ecf4;
     --text-muted: #98a2b8;
     --text-faint: #626c80;
@@ -68,8 +68,8 @@
     --surface-2: #0d121e;
     --surface-3: #131829;
     --control-bg: #121827;
-    --border: rgba(147, 197, 253, 0.09);
-    --border-strong: rgba(147, 197, 253, 0.16);
+    --border: rgba(147, 197, 253, 0.12);
+    --border-strong: rgba(147, 197, 253, 0.38);
     --text: #e4eaf7;
     --text-muted: #8b96b5;
     --text-faint: #545f7d;
