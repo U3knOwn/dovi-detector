@@ -3,7 +3,83 @@
  * Licensed under the MIT License. See LICENSE file in the project root for full license information.
  */
 
-/* The two dialogs: file selection and entry details. */
+/* The dialogs: file selection, entry details, and the confirmation prompt. */
+
+/* ============================================================
+   Confirmation / message dialog
+
+   Sits above the other two: it is what they ask their questions with, so it
+   has to be able to open on top of an already open dialog.
+   ============================================================ */
+
+.confirm-dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+}
+
+.confirm-dialog-overlay.active {
+    display: flex;
+}
+
+.confirm-dialog {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 22px;
+    max-width: 460px;
+    width: 100%;
+    padding: 28px 24px 22px;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
+    /* The message is worth being able to copy out of - the surrounding page
+       has selection switched off. */
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.confirm-dialog .dialog-title {
+    margin: 0 0 12px;
+}
+
+.confirm-dialog-message {
+    margin: 0 0 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    overflow-wrap: break-word;
+}
+
+.confirm-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.confirm-dialog-actions .file-dialog-btn {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+/* A confirmation that deletes something answers in the delete colour rather
+   than the accent, so the button says which of the two it is. */
+.confirm-dialog-actions .file-dialog-btn.primary.destructive {
+    background: var(--danger);
+    box-shadow: 0 4px 16px rgba(248, 113, 113, 0.35);
+}
+
+.confirm-dialog-actions .file-dialog-btn.primary.destructive:hover {
+    box-shadow: 0 6px 22px rgba(248, 113, 113, 0.45);
+}
 
 /* ============================================================
    File Selection Dialog

@@ -14,6 +14,7 @@ import { requestDelete, requestRescan } from '../core/api.js';
 import { applyCoverGradient } from './cover-gradient.js';
 import { restoreThemeColor } from '../core/theme.js';
 import { dialogClosed, dialogOpened } from './dialog-history.js';
+import { askConfirm, showNotice } from './confirm-dialog.js';
 
 let currentDialogFilePath = '';
 
@@ -528,6 +529,23 @@ export function setupMediaTableInteraction() {
 }
 
 /**
+ * Wire the dialog's two action buttons.
+ *
+ * They are bound here rather than from an onclick attribute in the template:
+ * an inline handler only reaches its function through a global, which makes the
+ * button depend on the whole bridge in main.js still being intact, and it is
+ * the first thing a content blocker strips. A listener is bound by the module
+ * that owns the button.
+ */
+export function setupMediaDialogActions() {
+    const rescan = document.getElementById('dialogRescanBtn');
+    const remove = document.getElementById('dialogDeleteBtn');
+
+    if (rescan) rescan.addEventListener('click', rescanCurrentEntry);
+    if (remove) remove.addEventListener('click', deleteCurrentEntry);
+}
+
+/**
  * Reload once the dialog's history entry has been taken back off the stack.
  *
  * Closing the dialog asks the browser to drop that entry, which it does on its
@@ -544,7 +562,8 @@ function reloadAfterDialogClose() {
 export async function rescanCurrentEntry() {
     if (!currentDialogFilePath) return;
 
-    if (!window.confirm(t('rescan_entry_confirm'))) return;
+    if (!await askConfirm(t('rescan_entry_confirm'),
+                          { acceptLabel: t('dialog_rescan_entry') })) return;
 
     const btn = document.getElementById('dialogRescanBtn');
     const label = btn ? btn.querySelector('span') : null;
@@ -561,9 +580,9 @@ export async function rescanCurrentEntry() {
             reloadAfterDialogClose();
             return;
         }
-        alert(t('rescan_entry_error') + ': ' + (data.error || ''));
+        showNotice(t('rescan_entry_error') + ': ' + (data.error || ''));
     } catch (e) {
-        alert(t('rescan_entry_error') + ': ' + e.message);
+        showNotice(t('rescan_entry_error') + ': ' + e.message);
     }
 
     if (btn) btn.disabled = false;
@@ -573,7 +592,8 @@ export async function rescanCurrentEntry() {
 export async function deleteCurrentEntry() {
     if (!currentDialogFilePath) return;
 
-    if (!window.confirm(t('delete_entry_confirm'))) return;
+    if (!await askConfirm(t('delete_entry_confirm'),
+                          { acceptLabel: t('dialog_delete_entry'), destructive: true })) return;
 
     try {
         const data = await requestDelete(currentDialogFilePath);
@@ -584,10 +604,10 @@ export async function deleteCurrentEntry() {
             currentDialogFilePath = '';
             refreshFileList();
         } else {
-            alert(t('delete_entry_error') + ': ' + (data.error || ''));
+            showNotice(t('delete_entry_error') + ': ' + (data.error || ''));
         }
     } catch (e) {
-        alert(t('delete_entry_error') + ': ' + e.message);
+        showNotice(t('delete_entry_error') + ': ' + e.message);
     }
 }
 

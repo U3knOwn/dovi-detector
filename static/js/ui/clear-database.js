@@ -7,6 +7,7 @@
 
 import { t } from '../core/i18n.js';
 import { requestClearDatabase } from '../core/api.js';
+import { askConfirm, showNotice } from './confirm-dialog.js';
 
 export function setupClearButton() {
     const btn = document.getElementById('clearDbButton');
@@ -19,7 +20,8 @@ export function setupClearButton() {
 
     btn.addEventListener('click', async () => {
 
-        const confirmed = window.confirm(t('clear_db_confirm'));
+        const confirmed = await askConfirm(t('clear_db_confirm'),
+                                          { acceptLabel: t('clear_db'), destructive: true });
         if (!confirmed) return;
 
         btn.disabled = true;
@@ -31,13 +33,13 @@ export function setupClearButton() {
             if (ok && data.success) {
                 window.location.reload();
             } else {
-                alert('Error during deletion: ' + (data.error || 'Unknown error'));
+                showNotice(t('clear_db_error') + ': ' + (data.error || t('unknown')));
                 btn.disabled = false;
                 label.textContent = originalText;
             }
 
         } catch (e) {
-            alert('Network error during deletion: ' + e);
+            showNotice(t('clear_db_error') + ': ' + e.message);
             btn.disabled = false;
             label.textContent = originalText;
         }

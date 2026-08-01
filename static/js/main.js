@@ -27,14 +27,15 @@ import {
     getMediaWindow, renderMediaWindow, setupMediaVirtualScroll
 } from './library/virtual-table.js';
 import { setupClearButton } from './ui/clear-database.js';
+import { setupConfirmDialog } from './ui/confirm-dialog.js';
 import { initCustomSelects } from './ui/custom-select.js';
 import {
     closeFileDialog, debouncedRenderFileDialogList, deselectAllFiles,
     openFileDialog, renderFileDialogList, scanSelectedFiles, selectAllFiles, selectedPaths
 } from './ui/file-dialog.js';
 import {
-    closeMediaDialog, deleteCurrentEntry, rescanCurrentEntry, setupMediaTableInteraction,
-    showMediaDialog, toggleDialogPlot
+    closeMediaDialog, deleteCurrentEntry, rescanCurrentEntry, setupMediaDialogActions,
+    setupMediaTableInteraction, showMediaDialog, toggleDialogPlot
 } from './ui/media-dialog.js';
 import { setupScrollButton } from './ui/scroll-button.js';
 import { initSeasonEffects } from './ui/season-effects.js';
@@ -46,6 +47,10 @@ import './ui/layout.js';
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme (labels are refreshed once translations are loaded)
     initTheme();
+
+    // The confirmation dialog everything else asks its questions with. Wired
+    // before anything can ask one; its labels come from the translations.
+    setupConfirmDialog();
 
     // Snow, pumpkins and the odd sleigh - but only if the theme is dressed for
     // a season. Started after the theme, since that is what it reads.
@@ -81,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // scroll position and react to a viewport change.
         setupMediaVirtualScroll();
         setupMediaTableInteraction();
+        setupMediaDialogActions();
 
         // Render the library that was requested above, in the stored sort order.
         // Only now does the page have its full height back, so this is the
@@ -150,10 +156,8 @@ const inlineHandlers = {
     clearSearch,
     closeFileDialog,
     closeMediaDialog,
-    deleteCurrentEntry,
     deselectAllFiles,
     openFileDialog,
-    rescanCurrentEntry,
     scanSelectedFiles,
     selectAllFiles,
     toggleDialogPlot,
@@ -166,6 +170,9 @@ window.uvs = {
     ...inlineHandlers,
     applyMediaFilter,
     applySort,
+    // Bound to their buttons by setupMediaDialogActions, not from the template.
+    deleteCurrentEntry,
+    rescanCurrentEntry,
     fetchScanStatus,
     getMediaWindow,
     loadMediaLibrary,
