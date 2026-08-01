@@ -34,27 +34,29 @@
 
 /* The page itself is the third thing the covers reach, after a row and the
    dialog - and the only one that is not showing an entry. It is behind all of
-   them at once, so it is lit by the mix of whatever is scrolled in front of it
-   and changes as that does (see ui/page-background.js).
+   them at once, so it does not take one entry's colours: it takes the whole run
+   of them, each where the entry it belongs to is on screen, as one gradient down
+   the viewport (see ui/page-background.js).
 
-   The two glows the plain dark theme hangs above the top edge keep their places;
-   only their colour is the library's now. A third is added along the bottom,
-   because those two are anchored to the viewport - the background does not
-   scroll - and without it the lower half of a tall screen is flat --bg however
-   colourful the entries in it are, which is exactly where the eye is once the
-   header has been scrolled past.
+   The rail is laid over the two glows the plain dark theme hangs above the top
+   edge rather than instead of them: it is opaque wherever there is a library to
+   build it from, and where there is not - a page with nothing on it yet, the
+   strength turned off, every other theme - the property is simply not set, the
+   layer falls back to `none`, and the plain dark page shows through untouched.
 
-   Each falls back to what the theme would have painted anyway, so a page with
-   nothing on it yet, a strength turned off and every other theme are the plain
-   dark page untouched - nothing has to be undone, the properties simply stop
-   being set. The bottom glow's fallback is nothing at all: it is this theme's
-   own addition, and there is no fixed colour it should be when there are no
-   covers to give it one. */
+   The rail is the one layer here that scrolls. The theme's glows stay fixed to
+   the viewport, the way base.css hangs them; the rail is measured against the
+   document, because it belongs to the entries and not to the screen - its stops
+   are the rows' own positions on the page. That is also what makes it cost
+   nothing: pinned to the document it does not change while the page moves, so
+   the browser scrolls it along with everything else instead of the gradient
+   having to be rebuilt and the whole viewport repainted once a frame. */
 :root[data-theme="dark-adaptive"] body {
     background-image:
-        radial-gradient(1100px 500px at 15% -10%, var(--page-glow-1, var(--bg-glow-1)), transparent 60%),
-        radial-gradient(900px 450px at 90% -15%, var(--page-glow-2, var(--bg-glow-2)), transparent 60%),
-        radial-gradient(1300px 720px at 50% 112%, var(--page-glow-3, transparent), transparent 62%);
+        var(--page-rail, none),
+        radial-gradient(1100px 500px at 15% -10%, var(--bg-glow-1), transparent 60%),
+        radial-gradient(900px 450px at 90% -15%, var(--bg-glow-2), transparent 60%);
+    background-attachment: scroll, fixed, fixed;
 }
 
 /* The dialog is one box and rounds itself, so it paints the cover on its own

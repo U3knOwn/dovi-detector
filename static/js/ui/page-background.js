@@ -2,84 +2,55 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 /**
- * The page behind the library, in the colours of what is scrolled in front of
- * it.
+ * The page behind the library, as the run of entries laid out down it.
  *
  * The dark adaptive theme paints a row and the details dialog with the colours
- * of one entry's cover. Those two know which entry they are showing; the page
- * does not - it is behind all of them at once, and behind a different handful
- * a moment later. So its colour is not an entry's but the mix of everything on
- * screen, weighted by how much of the screen each entry is holding, and it
- * follows the scroll because that mix does.
+ * of one entry's cover. The page is behind all of them at once, so it does not
+ * pick one - it lays them out. Every entry holds the stretch of page its own row
+ * covers, in its own colour, and the page between two of them fades from the one
+ * to the other. Scrolling then moves through the colours the same way it moves
+ * through the list, because they are pinned to the same thing.
  *
- * Three things are kept apart here:
+ * Pinned to the *document*, and that is the whole trick. A rail measured against
+ * the screen would have to be rebuilt on every scroll frame, and rewriting a
+ * screenful of gradient that often halves the frame rate - it was the one thing
+ * that made this expensive. Measured against the document it does not change
+ * while the page moves at all: the browser scrolls the background with everything
+ * else, for nothing, and the rail is only rebuilt when the rows themselves change
+ * (see setupPageBackground).
  *
- *   who counts, and for how much  - the rendered rows, weighted by the share of
- *                                   the viewport they cover and by how near the
- *                                   middle of it they sit (see visibleEntries).
- *   what that mix looks like      - not this module's business: the covers are
- *                                   mixed and turned into light by
- *                                   ui/cover-gradient.js, which owns every
- *                                   colour the theme paints.
- *   how it gets there             - eased rather than set, so the page drifts
- *                                   between colours instead of cutting between
- *                                   them (see tick).
+ * The page is also not as hidden as it looks. The 20px the body is padded by is
+ * the least of it: the table sets 12px of border-spacing between every pair of
+ * rows, so the rail shows through the whole length of the list as the seam
+ * between one entry and the next, in the blend of the two colours that meet
+ * there.
+ *
+ * Nothing here decides what a colour is - ui/cover-gradient.js owns every colour
+ * the theme paints. This owns where they go.
  */
 
 import {
-    PAGE_GLOW_PROPS, cachedPalette, mixCovers, onCoverColors, pageGlow, paintsPage
+    PAGE_RAIL_PROP, cachedPalette, onCoverColors, pageTint, paintsPage
 } from './cover-gradient.js';
 
-// How sharply a row's say in the mix falls off with its distance from the
-// middle of the screen. It counts for nothing at either edge and for all it
-// has in the middle, which settles two things at once.
-//
-// A row leaving the screen would otherwise drag the page's colour with it on
-// the way out, so the mix would change fastest exactly where nobody is looking.
-// And an even mix of everything on screen is a mix of three or four posters
-// that mostly disagree, which in OKLab is a grey - the page would go quietly
-// neutral on a colourful library and stay there. Weighted towards the middle it
-// is mostly the colour of what is being looked at, with its neighbours leaning
-// on it, and the drift from one to the next happens while both are in the
-// middle of the screen rather than at its edges.
-const CENTRE_FALLOFF = 2;
+// Stop positions are rounded to whole pixels. What that buys is not the rounding
+// itself but the comparison below it: a rail that has not really changed comes
+// out as the same string and is not written again, which is what keeps scrolling
+// free.
+const round = value => Math.round(value);
 
-// How much of the way to the wanted colour the page moves per frame. Low
-// enough that a flick of the wheel reads as a drift rather than a flash, high
-// enough that the page has arrived by the time the scroll has.
-const SETTLE = 0.11;
+// The rail on the page now, so a rebuild that changed nothing is not written
+// again - which, once the rendered rows hold still, is every rebuild.
+let written = null;
 
-// Close enough to the wanted colour to call it arrived, in OKLab units - about
-// a thousandth of the axis, which is far below anything a glow at this alpha
-// could show.
-const EPSILON = 0.0015;
-
-// The least time between two writes. The easing is worked out every frame,
-// which is a handful of arithmetic, but each write repaints a screenful of
-// gradient - and a colour drifting over a third of a second has nothing to say
-// sixty times a second.
-const WRITE_MS = 60;
-
-// The mix the page is easing towards, and the one it is showing. Both are the
-// stops as OKLab triples, which is what mixCovers deals in and what may be
-// interpolated without the hue swinging through colours that were never in it.
-let target = null;
-let current = null;
-
-// Set whenever something that decides the mix has moved: the page, the window,
-// or the rows themselves. The frame that follows is what reads the DOM, so a
-// scroll that fires several times before it does is still one measurement.
+// Set whenever something that decides the rail may have moved. The frame that
+// follows is what reads the DOM, so several of them before it lands are still
+// one measurement.
 let dirty = true;
 let frame = null;
-let lastWrite = 0;
-
-// What is on the page now, so a write that would change nothing is skipped -
-// which is what stops the last few frames of an ease, where the colour is
-// already rounded to the same channels, from repainting for nothing.
-let written = {};
 
 function schedule() {
-    if (frame === null) frame = requestAnimationFrame(tick);
+    if (frame === null) frame = requestAnimationFrame(build);
 }
 
 function invalidate() {
@@ -88,119 +59,105 @@ function invalidate() {
 }
 
 /**
- * Every entry on screen, with how much of the page's colour it may claim.
+ * Every entry the rail runs through, as its colour and the stretch of document
+ * its row covers.
+ *
+ * Only the rows that are actually in the table, which on a long library is the
+ * window around the viewport rather than all of it (see library/virtual-table.js)
+ * - so the rail is built for the part of the document that can be seen, and the
+ * colours at either end simply run on into the part that cannot. When the window
+ * moves, the rows are built again, and building a row is one of the things that
+ * asks for a rebuild here.
  *
  * An entry whose cover has not been read yet - and one that has no cover at
- * all - simply does not appear: it has no colour to contribute, and standing in
- * for it with a neutral one would be the page inventing the very thing the
- * theme refuses to invent for a row. The rows around it carry the mix until it
- * arrives, at which point paint() says so and the mix is taken again.
+ * all - does not appear, and the rail fades straight across the gap it leaves.
+ * Standing in for it with a neutral colour would be the page inventing the very
+ * thing the theme refuses to invent for a row.
  */
-function visibleEntries() {
-    const height = window.innerHeight || 0;
-    if (height <= 0) return [];
-
-    const middle = height / 2;
-    const entries = [];
+function railBands() {
+    const top = window.scrollY;
+    const bands = [];
 
     document.querySelectorAll('#mediaTable tbody tr[data-cover]').forEach(row => {
         const palette = cachedPalette(row.dataset.cover);
         if (!palette) return;
 
+        const color = pageTint(palette, row.dataset.cover);
+        if (!color) return;
+
         const rect = row.getBoundingClientRect();
-        const top = Math.max(rect.top, 0);
-        const bottom = Math.min(rect.bottom, height);
-        if (bottom <= top) return;
+        if (rect.height <= 0) return;
 
-        const distance = Math.abs((top + bottom) / 2 - middle) / middle;
-        const bias = (1 - Math.min(1, distance)) ** CENTRE_FALLOFF;
-        entries.push({ palette, weight: ((bottom - top) / height) * bias });
+        bands.push({ color, top: round(rect.top + top), bottom: round(rect.bottom + top) });
     });
 
-    return entries;
-}
-
-function clear() {
-    current = null;
-    if (!Object.keys(written).length) return;
-    written = {};
-    PAGE_GLOW_PROPS.forEach(property =>
-        document.documentElement.style.removeProperty(property));
-}
-
-function write(now) {
-    const values = pageGlow(current);
-    if (!values) {
-        clear();
-        return;
-    }
-
-    lastWrite = now;
-    Object.entries(values).forEach(([property, value]) => {
-        if (written[property] === value) return;
-        written[property] = value;
-        document.documentElement.style.setProperty(property, value);
-    });
-}
-
-function tick(now) {
-    frame = null;
-
-    // Asked first, so a theme that paints no covers costs a comparison per
-    // scroll frame rather than a walk over the rows.
-    if (!paintsPage()) {
-        target = null;
-        clear();
-        return;
-    }
-
-    if (dirty) {
-        dirty = false;
-        target = mixCovers(visibleEntries());
-    }
-
-    if (!target) {
-        clear();
-        return;
-    }
-
-    // Nothing to ease from on the first mix - and nothing anyone saw either, so
-    // the page arrives already wearing it rather than sliding into it from the
-    // theme's own colour.
-    if (!current) {
-        current = target.map(stop => stop.slice());
-        write(now);
-        return;
-    }
-
-    let settled = true;
-    for (let stop = 0; stop < current.length; stop++) {
-        for (let axis = 0; axis < 3; axis++) {
-            const goal = target[stop][axis];
-            const eased = current[stop][axis] + (goal - current[stop][axis]) * SETTLE;
-            if (Math.abs(goal - eased) <= EPSILON) {
-                current[stop][axis] = goal;
-            } else {
-                current[stop][axis] = eased;
-                settled = false;
-            }
-        }
-    }
-
-    // The last frame of an ease is written whatever the clock says: it is the
-    // one that lands on the colour, and holding it back would leave the page a
-    // shade off with nothing scheduled to correct it.
-    if (settled || now - lastWrite >= WRITE_MS) write(now);
-    if (!settled) schedule();
+    return bands;
 }
 
 /**
- * Start following the page.
+ * The bands as one gradient down the document.
  *
- * Every reason the mix could change is one of three: the page moved, the window
- * changed shape, or the rows did - which covers a poster that has finished
- * decoding, a filter, a sort, and the theme or the strength being switched,
- * since all of them send the rows through paint() again (see onCoverColors).
+ * Each entry holds its own box flat - two stops in the same colour, at the top
+ * and the bottom of its row - so the colour of a row and the page beside it line
+ * up exactly, and the fade happens in the seam between two entries rather than
+ * across the entry itself. Above the first band and below the last there are no
+ * stops at all, which is a gradient's own way of saying "and on in that colour".
+ */
+function railGradient(bands) {
+    if (!bands.length) return null;
+
+    const stops = [];
+    bands.forEach(({ color, top, bottom }) => {
+        stops.push(`${color} ${top}px`, `${color} ${bottom}px`);
+    });
+    return `linear-gradient(180deg, ${stops.join(', ')})`;
+}
+
+function clear() {
+    if (written === null) return;
+    written = null;
+    document.documentElement.style.removeProperty(PAGE_RAIL_PROP);
+}
+
+function build() {
+    frame = null;
+
+    // Asked first, so a theme that paints no covers costs a comparison rather
+    // than a walk over the rows.
+    if (!paintsPage()) {
+        clear();
+        return;
+    }
+    if (!dirty) return;
+    dirty = false;
+
+    const rail = railGradient(railBands());
+    if (!rail) {
+        clear();
+        return;
+    }
+    // The rail is the same one for as long as the rendered rows are, which is
+    // what makes scrolling cost nothing: the string is rebuilt, compared, and
+    // dropped, and the page is never repainted.
+    if (rail === written) return;
+
+    written = rail;
+    document.documentElement.style.setProperty(PAGE_RAIL_PROP, rail);
+}
+
+/**
+ * Start following the library.
+ *
+ * The rail is pinned to the document, so scrolling does not change it - but the
+ * rows it is built from are rebuilt as the page moves (the table only keeps the
+ * ones near the viewport), and every rebuild goes through paint(), which is what
+ * onCoverColors reports. That one hook covers the rest as well: a poster that has
+ * finished decoding, a filter, a sort, the theme or the strength being switched.
+ *
+ * Scroll and resize are listened to anyway, as the answer to everything that
+ * moves a row without rebuilding it - the header collapsing, a row growing a
+ * line, the window changing shape. They are close to free: the rail that comes
+ * out is the same string, and an unchanged string is never written.
  */
 export function setupPageBackground() {
     window.addEventListener('scroll', invalidate, { passive: true });

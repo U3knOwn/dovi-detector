@@ -92,40 +92,41 @@ const MARK_RATIO = 6;
 const ACCENT_LIGHTNESS = 0.82;
 const ACCENT_CHROMA = 0.115;
 
-// What the page's own glows are made of. The colour is the same idea as the
-// accent - the hue is the covers', the lightness and the chroma are the
-// theme's - so the page leans the way the library does without one poster
-// being able to shout.
-const GLOW_LIGHTNESS = 0.55;
-const GLOW_CHROMA = 0.15;
+// How far below a row the page is painted, as a step in OKLab's lightness off
+// the surface a row sits on - measured against the theme rather than chosen, so
+// a theme with a darker surface gets a darker page with it.
+//
+// It is a small step on purpose. The page is not trying to be dark, it is
+// trying to be behind: an entry with no cover keeps the plain --surface, and
+// this is what still tells that row from the page around it. What separates
+// the two on every other entry is far more than a step - a tinted row is
+// painted at 0.29 to 0.40, this is under 0.17.
+const PAGE_DROP = 0.015;
 
-// Below this much chroma a mix has no direction left to speak of, and its hue
-// is whatever is left over after the colours cancelled - which swings wildly
-// for a few pixels of scroll. The colour is faded out towards neutral instead
-// of being allowed to flicker.
-const GLOW_HUE_FLOOR = 0.03;
+// The least of that step that has to survive the strength being turned up:
+// "strong" lifts a row and the page alike, and without a floor here the page
+// would climb past the surface a coverless row is painted on and swallow it.
+const PAGE_GAP = 0.012;
 
-// The most of a glow that may be laid on, before the ceiling below has its say.
-const GLOW_ALPHA_MAX = 0.34;
+// Which of the five colours read from a cover the page takes: the middle of the
+// poster, which is the same one the pool over the cover in a row is drawn from.
+// The page under a row is then that row's own colour, one step further back.
+const PAGE_STOP = 4;
 
-// Which of the mixed stops each glow takes, and how much of the solved
-// strength it gets: the two at the top of the page carry the cover's top
-// corners, the one along the bottom edge its middle. The shares are what keeps
-// them from adding up to a brighter page where two of them overlap.
-const GLOW_STOPS = [0, 1, 4];
-const GLOW_SHARES = [0.9, 0.6, 0.75];
+// The most colour the page may carry. It is a ceiling and not a target: a
+// poster with less keeps less, which is what stops a shelf of muted artwork
+// being painted as though it were not.
+const PAGE_CHROMA = 0.045;
 
-// How bright the page behind the table may get, as the token it must not pass:
-// the surface a row is painted over. A page that climbs past it stops reading
-// as the thing behind the rows and starts competing with them. It is a measured
-// ceiling rather than a chosen one - the dark theme's own fixed glow sits just
-// under it, so the adaptive page is allowed exactly as much light as the plain
-// one already takes.
-const GLOW_CEILING = '--surface-2';
+// And how much of what sRGB can hold at that lightness may be used. A dark
+// colour runs out of gamut quickly, and a colour painted at the limit has a
+// channel sitting at zero - which is what turns a tint into a block of neon.
+// Kept off the limit, the page stays a tinted dark rather than a colour.
+const PAGE_HEADROOM = 0.7;
 
-// The properties the page background is handed over as, in the order the glows
-// are painted (see theme-adaptive.css).
-export const PAGE_GLOW_PROPS = ['--page-glow-1', '--page-glow-2', '--page-glow-3'];
+// The one property the page background is handed over as - the whole rail, in
+// one string (see ui/page-background.js and theme-adaptive.css).
+export const PAGE_RAIL_PROP = '--page-rail';
 
 // How strong the tint is, as picked in the theme menu. Off paints no cover at
 // all and leaves the plain dark surface - only the accent still follows the
@@ -245,6 +246,27 @@ function rgbToOklch(rgb) {
 const inGamut = channels => channels.every(c => c >= -0.001 && c <= 1.001);
 
 /**
+ * How much of ``chroma`` sRGB can actually hold at that lightness and hue.
+ *
+ * Handed back rather than only used, because how close a colour sits to that
+ * limit is itself worth knowing: a colour painted at the limit has a channel at
+ * zero, which is what a dark tint looks like when it has been asked for more
+ * colour than there is room for (see pageColor).
+ */
+function fitChroma(lightness, chroma, hue) {
+    const rad = hue * Math.PI / 180;
+    const at = c => oklabToLinearRgb([lightness, c * Math.cos(rad), c * Math.sin(rad)]);
+    if (inGamut(at(chroma))) return chroma;
+
+    let low = 0, high = chroma;
+    for (let i = 0; i < 16; i++) {
+        const mid = (low + high) / 2;
+        if (inGamut(at(mid))) low = mid; else high = mid;
+    }
+    return low;
+}
+
+/**
  * An OKLCh colour as sRGB, with the chroma pulled in until it fits.
  *
  * Lightness and hue are what the caller asked for and are never touched -
@@ -254,16 +276,7 @@ const inGamut = channels => channels.every(c => c >= -0.001 && c <= 1.001);
 function oklchToRgb(lightness, chroma, hue) {
     const rad = hue * Math.PI / 180;
     const at = c => oklabToLinearRgb([lightness, c * Math.cos(rad), c * Math.sin(rad)]);
-
-    let fits = chroma;
-    if (!inGamut(at(chroma))) {
-        let low = 0, high = chroma;
-        for (let i = 0; i < 16; i++) {
-            const mid = (low + high) / 2;
-            if (inGamut(at(mid))) low = mid; else high = mid;
-        }
-        fits = low;
-    }
+    const fits = fitChroma(lightness, chroma, hue);
     return at(fits).map(linearToSrgb);
 }
 
@@ -582,137 +595,103 @@ function rowGradient(colors) {
    The page behind them
    ------------------------------------------------------------
    A row and the dialog each show one entry, so each takes one
-   cover. The page shows whatever is scrolled in front of it,
-   which is several at once and a different several a moment
-   later - so its colour is not one entry's but the mix of what
-   is on screen, and it moves as that changes.
+   cover. The page is behind all of them at once - so it does not
+   take a colour, it takes the whole run of them, each one where
+   the entry it belongs to happens to be on screen.
 
-   Who is on screen and how much they count for is the caller's
-   business (see ui/page-background.js); what a mix of covers
-   looks like as light behind the page is this module's.
+   What one entry looks like as page is this module's business.
+   Where it sits, and what that adds up to, is the caller's (see
+   ui/page-background.js).
    ============================================================ */
-
-/**
- * Several covers as one set of colours, weighted by how much of the screen each
- * is holding.
- *
- * Mixed in OKLab and stop by stop, so the covers keep their own layout in the
- * mix - the top corners of five posters average into the top corners of the
- * page. Averaging the a and b axes is also what makes a library of
- * disagreeing posters honest: two opposite hues cancel towards neutral instead
- * of picking a winner, and a run of covers that agree comes out saying so.
- *
- * Lightness is mixed with them and then thrown away by glowColor, which has its
- * own. It is carried along because a stop is one colour, not two numbers and a
- * spare.
- */
-export function mixCovers(entries) {
-    let total = 0;
-    entries.forEach(entry => {
-        if (entry.palette && entry.weight > 0) total += entry.weight;
-    });
-    if (!(total > 0)) return null;
-
-    const stops = [];
-    for (let stop = 0; stop < STOP_LIGHTNESS.length; stop++) {
-        const mixed = [0, 0, 0];
-        entries.forEach(({ palette, weight }) => {
-            if (!palette || !(weight > 0)) return;
-            const lab = rgbToOklab(palette[Math.min(stop, palette.length - 1)]);
-            const share = weight / total;
-            for (let axis = 0; axis < 3; axis++) mixed[axis] += lab[axis] * share;
-        });
-        stops.push(mixed);
-    }
-    return stops;
-}
-
-/**
- * One mixed stop as the light it is painted with.
- *
- * Only the hue survives the trip. A glow is not a surface showing a poster, it
- * is the room the page is lit in, and it has to be the same amount of light
- * whatever is on screen - so the lightness and the chroma are the theme's
- * fixed ones, the way an accent's are.
- *
- * What the mix does decide, besides the hue, is whether there is one at all:
- * a mix that cancelled out has no direction left, so its chroma is faded down
- * with it and the page goes quietly neutral rather than chasing the remainder.
- */
-function glowColor([, a, b], level, season) {
-    const chroma = Math.hypot(a, b);
-    const hue = (Math.atan2(b, a) * 180 / Math.PI + 360) % 360;
-    const lightness = GLOW_LIGHTNESS + level.lightness;
-
-    if (chroma < GREY_CHROMA) {
-        // Nothing to take a hue from. A season lends one; without one the page
-        // stays the grey the covers agreed on.
-        return season
-            ? oklchToRgb(lightness, season.chroma * 0.7, season.hues[0])
-            : oklchToRgb(lightness, 0, 0);
-    }
-
-    const [leaned, floor] = towardSeason(hue, GLOW_CHROMA, season);
-    const settled = Math.min(1, chroma / GLOW_HUE_FLOOR);
-    return oklchToRgb(lightness, floor * level.chroma * settled, leaned);
-}
-
-/**
- * How much of a glow the page can take before it stops being a background.
- *
- * The same shape of answer as the scrim over a row, from the other side: there
- * the surface is held down until the text on it can be read, here the page is
- * held down until it is still darker than the rows in front of it. Solved per
- * colour, because a blue at a given lightness is far darker than a yellow at
- * the same one - fixing the alpha instead would make the page flare every time
- * a warm poster scrolled past.
- */
-function solveGlow(rgb, base, ceiling) {
-    const brightnessAt = alpha => relativeLuminance(composite(rgb, base, alpha));
-    if (brightnessAt(GLOW_ALPHA_MAX) <= ceiling) return GLOW_ALPHA_MAX;
-
-    let low = 0, high = GLOW_ALPHA_MAX;
-    for (let i = 0; i < 16; i++) {
-        const mid = (low + high) / 2;
-        if (brightnessAt(mid) <= ceiling) low = mid; else high = mid;
-    }
-    return low;
-}
 
 /**
  * Whether the page is one of the surfaces the covers reach right now.
  *
- * Asked before anything is measured, not only before it is painted: working out
- * who is on screen means a walk over the rendered rows and a rect from each of
- * them, once a frame while the page is moving, and on a theme that paints no
- * covers all of it would be for nothing.
+ * Asked before anything is measured, not only before it is painted: laying the
+ * rail out means a walk over the rendered rows and a rect from each of them,
+ * once a frame while the page is moving, and on a theme that paints no covers
+ * all of it would be for nothing.
  */
 export function paintsPage() {
     return themeReadsCover() && Boolean(STRENGTH_LEVELS[coverStrength()]);
 }
 
 /**
- * A mix of covers as the page's three glows, or null when there is no page to
- * paint: another theme, or the tint turned off - both of which leave the plain
- * theme's own fixed glows in place, since the properties simply stop being set
- * and the stylesheet falls back to them.
+ * How light the page may be painted, as the theme's own surface less a step.
+ *
+ * Measured rather than fixed, so this follows a theme that carries a darker
+ * surface instead of having to be restated for it - and clamped, so that
+ * turning the strength up lifts the page without ever letting it reach the
+ * surface a coverless row is painted on.
  */
-export function pageGlow(stops) {
-    if (!stops || !paintsPage()) return null;
-
-    const level = STRENGTH_LEVELS[coverStrength()];
-    const season = SEASONS[coverSeason()];
-    const base = themeColor('--bg', [10, 12, 18]);
-    const ceiling = relativeLuminance(themeColor(GLOW_CEILING, [23, 27, 38]));
-
-    const values = {};
-    GLOW_STOPS.forEach((stop, glow) => {
-        const rgb = glowColor(stops[Math.min(stop, stops.length - 1)], level, season);
-        const alpha = solveGlow(rgb, base, ceiling) * GLOW_SHARES[glow] * level.mix;
-        values[PAGE_GLOW_PROPS[glow]] = rgbaText(rgb, alpha.toFixed(3));
-    });
-    return values;
+function pageLightness(level) {
+    const surface = rgbToOklch(themeColor('--surface', [18, 21, 29]))[0];
+    return Math.min(surface - PAGE_DROP + level.lightness, surface - PAGE_GAP);
 }
+
+/**
+ * One cover colour at the lightness the page is painted at.
+ *
+ * This is tintColor's job, but not tintColor's answer, and the difference is
+ * the gamut. A row is painted at 0.29 and up, where there is room for the
+ * chroma that function takes a colour back up to; down here there is not, and
+ * every colour asked for that much simply landed on the edge of what sRGB can
+ * do at this lightness - one channel at zero, another wide open. A page of
+ * navy and maroon blocks, from a shelf of ordinary posters.
+ *
+ * So the page keeps the cover's own chroma and only puts a ceiling on it. What
+ * comes out is quiet where the poster is quiet, and never further out than a
+ * background has any business being.
+ */
+function pageColor(rgb, level, season) {
+    const [, chroma, hue] = rgbToOklch(rgb);
+    const lightness = pageLightness(level);
+
+    if (chroma < GREY_CHROMA) {
+        // A black and white poster. A season lends it a hue; without one the
+        // page stays as grey as the artwork is.
+        return season
+            ? oklchToRgb(lightness, Math.min(season.chroma, PAGE_CHROMA) * 0.7, season.hues[0])
+            : oklchToRgb(lightness, 0, 0);
+    }
+
+    const [leaned] = towardSeason(hue, chroma, season);
+    const room = fitChroma(lightness, PAGE_CHROMA, leaned) * PAGE_HEADROOM;
+    return oklchToRgb(lightness, Math.min(chroma * level.chroma, PAGE_CHROMA, room), leaned);
+}
+
+/**
+ * One entry as the piece of page behind it.
+ *
+ * The same colour its row is painted with, taken from the middle of the poster
+ * and set a step further back - so the page under an entry reads as that entry's
+ * own shadow rather than as a second, unrelated tint. Everything that decides
+ * how far a cover may be taken applies here too: the strength mixes it back
+ * towards the plain page, the season leans its hue, and a black and white
+ * poster stays grey.
+ *
+ * Worked out once per cover and kept, because the rail is rebuilt as the page
+ * moves and the answer only changes when the theme's own settings do.
+ */
+export function pageTint(palette, key) {
+    const level = STRENGTH_LEVELS[coverStrength()];
+    if (!palette || !level) return null;
+
+    const season = coverSeason();
+    const cacheKey = key && `${key}|page|${coverStrength()}|${season}`;
+    if (cacheKey && pageTints.has(cacheKey)) return pageTints.get(cacheKey);
+
+    const base = themeColor('--bg', [10, 12, 18]);
+    const rgb = palette[Math.min(PAGE_STOP, palette.length - 1)];
+    const tinted = pageColor(rgb, level, SEASONS[season]);
+    const value = rgbText(level.mix < 1 ? composite(tinted, base, level.mix) : tinted);
+
+    if (cacheKey) pageTints.set(cacheKey, value);
+    return value;
+}
+
+// Cleared with the rest of what the theme decided, in repaintCovers.
+const pageTints = new Map();
 
 /* ============================================================
    What the theme in force allows
@@ -1057,6 +1036,7 @@ const COVER_IMAGE = 'img.poster-img, img.dialog-poster-img';
 export function repaintCovers() {
     tokenCache = { theme: null, values: new Map() };
     derived.clear();
+    pageTints.clear();
     document.querySelectorAll(`[data-${COVER_ATTR}]`).forEach(element => {
         applyCoverGradient(element, element.dataset[COVER_ATTR],
                            element.querySelector(COVER_IMAGE),
