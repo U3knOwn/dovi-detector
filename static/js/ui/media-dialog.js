@@ -12,9 +12,37 @@ import { getMediaBody } from '../library/virtual-table.js';
 import { refreshFileList } from './file-dialog.js';
 import { requestDelete, requestRescan } from '../core/api.js';
 import { applyCoverGradient } from './cover-gradient.js';
+import { restoreThemeColor } from '../core/theme.js';
 import { dialogClosed, dialogOpened } from './dialog-history.js';
 
 let currentDialogFilePath = '';
+
+/**
+ * Let the phone's own bars take the colour of the entry that is open.
+ *
+ * The adaptive theme paints the panel with the cover's colours and stops at the
+ * edge of the panel; the browser paints the notch and the navigation bar in
+ * whatever `theme-color` says, which is a fixed near-black. While a dialog is
+ * open there is one obvious colour for them - the surface the panel itself
+ * ended up with, which ui/cover-gradient.js leaves behind as
+ * ``--cover-surface-rgb``. Themes that paint no cover set nothing, so nothing
+ * here changes for them either.
+ *
+ * Called again whenever the overlay is repainted: the colours of a poster that
+ * is still loading arrive after the dialog is already on screen.
+ */
+function syncDialogThemeColor() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const overlay = document.getElementById('mediaDialogOverlay');
+    if (!meta || !overlay) return;
+
+    const surface = overlay.style.getPropertyValue('--cover-surface-rgb').trim();
+    if (!overlay.classList.contains('active') || !surface) {
+        restoreThemeColor();
+        return;
+    }
+    meta.setAttribute('content', `rgb(${surface})`);
+}
 
 function updateHdrMetadataRows(hdrFormat, hdrMetadata) {
     // HDR10 mastering display and content light apply to every HDR10 base
@@ -266,7 +294,7 @@ export function showMediaDialog(item) {
         // which tints its own veil with the accent - can read them too. The
         // colours come from the poster the dialog is showing, which is the same
         // image the table has already loaded.
-        applyCoverGradient(overlay, posterUrl, dialogPosterImg);
+        applyCoverGradient(overlay, posterUrl, dialogPosterImg, 'dialog');
 
         // Set filename if available
         if (dialogFilenameItem && dialogFilename && filename && filename.trim() !== '') {
@@ -277,7 +305,7 @@ export function showMediaDialog(item) {
         }
     } else {
         dialogPoster.style.display = 'none';
-        applyCoverGradient(overlay, '');
+        applyCoverGradient(overlay, '', null, 'dialog');
         // Without a poster the dialog title already is the filename, so the
         // separate row stays hidden - and must be reset, otherwise it would
         // keep showing the previously opened entry's filename.
@@ -452,6 +480,7 @@ export function showMediaDialog(item) {
     // Show dialog
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
+    syncDialogThemeColor();
 
     // So the back gesture closes the dialog instead of leaving the page
     dialogOpened('media', closeMediaDialog);
@@ -477,6 +506,14 @@ export function showMediaDialog(item) {
         setupSwipeToClose();
     }
 }
+
+// The overlay says when it has been painted, which is not only when a dialog
+// is opened: a poster that was still loading arrives a moment later, and a
+// theme or strength switch repaints everything on screen.
+document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('mediaDialogOverlay');
+    if (overlay) overlay.addEventListener('cover-painted', syncDialogThemeColor);
+});
 
 // Opening an entry is handled on the table body, so the thousands of rows a
 // library can have never each carry their own listener - and rows that scroll
@@ -565,6 +602,8 @@ export function closeMediaDialog(event) {
     overlay.classList.remove('active');
     document.body.style.overflow = '';
     dialogClosed('media');
+    // After .active has gone, so the colour goes back to the theme's own.
+    syncDialogThemeColor();
 }
 
 // Swipe gesture handling for mobile

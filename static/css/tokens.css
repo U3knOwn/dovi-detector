@@ -106,6 +106,13 @@
    meant to look exactly as they do there. */
 :root[data-theme="dark-adaptive"] {
     /* Laid over the cover's colours where they back a row or the dialog, so
-       the text on top keeps its contrast whatever the artwork looks like. */
-    --cover-scrim: rgba(11, 13, 20, 0.74);
+       the text on top keeps its contrast whatever the artwork looks like.
+
+       How much of it there is belongs to the entry, not to the theme: the
+       amount is solved per cover against the contrast its text needs and
+       arrives on the element itself (see solveScrim in ui/cover-gradient.js).
+       What is left here is the value for an entry that has no cover at all -
+       nothing to hold down, so nothing is laid over it and the plain dark
+       surface shows through untouched. */
+    --cover-scrim: rgba(11, 13, 20, 0);
 }

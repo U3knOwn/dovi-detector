@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE file in the project root for full license information.
  */
 
-/* The scroll button and the footer. */
+/* The scroll button, the footer and the seasonal layer over the page. */
 
 /* ============================================================
    Scroll Toggle Button
@@ -97,4 +97,37 @@
 
 #clearDbButton:hover {
     color: var(--danger);
+}
+/* ============================================================
+   Seasons
+   ------------------------------------------------------------
+   What falls through the page while a season is picked. The
+   layer is put up and taken down by ui/season-effects.js, which
+   is also where the snow, the pumpkins and the bats are drawn;
+   here is only where it sits.
+
+   It belongs to no theme - a season is picked in the theme menu
+   but is not part of any one theme, so this is not in
+   theme-adaptive.css with the rest of that theme's own rules.
+   ============================================================ */
+
+/* Over the table, under everything that has to be read or clicked: the header
+   sits at 100, the theme menu at 200, both dialogs at 1000 and the scroll
+   button above all of them. Snow in front of a poster is the point; snow in
+   front of a dialog is in the way. */
+.season-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Nothing moves for a visitor who has asked for that - and since the whole
+   layer is motion, nothing is put up at all (see sync in season-effects.js).
+   This is the belt to that braces: a layer already up when the preference
+   changes cannot be left falling. */
+@media (prefers-reduced-motion: reduce) {
+    .season-layer {
+        display: none;
+    }
 }

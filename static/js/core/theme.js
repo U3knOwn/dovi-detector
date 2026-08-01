@@ -11,10 +11,30 @@
 
 import { onLanguageChange, t } from './i18n.js';
 import { THEME_ICONS } from '../ui/icons.js';
+import { DEFAULT_SEASON, DEFAULT_STRENGTH, SEASON_ORDER } from '../ui/cover-gradient.js';
 
 // Also the order the menu lists them in, so a press walks the menu top to
 // bottom - the two plain darks, then the one that carries a hue.
 const THEME_ORDER = ['dark', 'dark-adaptive', 'midnight'];
+
+// How strongly the adaptive theme tints, from off to loudest. Only that theme
+// reads it, so the row of buttons is only in the menu while it is the one in
+// force. The inline script in templates/index.html sets the attribute before
+// the first paint, the same way it does for the theme itself.
+const STRENGTH_KEYS = ['theme_strength_off', 'theme_strength_subtle',
+                       'theme_strength_standard', 'theme_strength_strong'];
+
+// A costume the whole page can wear for a few weeks in the year: snow or
+// pumpkins falling through it (ui/season-effects.js) and, on the theme that
+// paints covers, a lean in the colours it paints them with
+// (ui/cover-gradient.js). Listed under the strength because it is the same kind
+// of choice - not another theme, but how the page looks while one is on.
+const SEASON_KEYS = {
+    none: 'theme_season_off',
+    halloween: 'theme_season_halloween',
+    christmas: 'theme_season_christmas'
+};
+const ADAPTIVE_THEME = 'dark-adaptive';
 
 // What a first visit gets, and what an unreadable or unknown stored value falls
 // back to. The inline script in templates/index.html hardcodes the same one -
@@ -83,12 +103,50 @@ function persistTheme(theme) {
     } catch (e) { /* localStorage unavailable -> theme just won't persist */ }
 }
 
+/**
+ * The colour the phone paints its own bars in, back to the theme's own.
+ *
+ * The details dialog takes it over while it is open, so that the entry's cover
+ * reaches all the way to the edge of the screen (see media-dialog.js); this is
+ * what it hands the colour back to.
+ */
+export function restoreThemeColor() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    const theme = getCurrentTheme();
+    meta.setAttribute('content', THEME_META_COLORS[theme] || THEME_META_COLORS[DEFAULT_THEME]);
+}
+
 function applyTheme(theme) {
     if (!THEME_ORDER.includes(theme)) theme = DEFAULT_THEME;
     document.documentElement.setAttribute('data-theme', theme);
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', THEME_META_COLORS[theme] || THEME_META_COLORS[DEFAULT_THEME]);
+    restoreThemeColor();
     updateThemeToggleLabel();
+    updateThemeMenuSelection();
+}
+
+function getCurrentStrength() {
+    const raw = parseInt(document.documentElement.getAttribute('data-cover-strength'), 10);
+    return Number.isInteger(raw) && raw >= 0 && raw < STRENGTH_KEYS.length ? raw : DEFAULT_STRENGTH;
+}
+
+function getCurrentSeason() {
+    const name = document.documentElement.getAttribute('data-cover-season');
+    return SEASON_KEYS[name] ? name : DEFAULT_SEASON;
+}
+
+/**
+ * Store one of the adaptive theme's own settings and put it on the page.
+ *
+ * Every cover on screen is repainted from here: ui/cover-gradient.js watches
+ * both attributes, because what a cover is painted as is decided when it is
+ * painted rather than when it is read.
+ */
+function setCoverSetting(storageKey, attribute, value) {
+    try {
+        localStorage.setItem(storageKey, String(value));
+    } catch (e) { /* localStorage unavailable -> the choice just won't persist */ }
+    document.documentElement.setAttribute(attribute, String(value));
     updateThemeMenuSelection();
 }
 
@@ -132,7 +190,61 @@ function renderThemeMenu() {
         });
         menu.appendChild(li);
     });
+    menu.appendChild(renderStrengthGroup());
+    menu.appendChild(renderSeasonGroup());
     updateThemeMenuSelection();
+}
+
+/**
+ * One of the adaptive theme's own settings, as a labelled row of buttons under
+ * the themes.
+ *
+ * They stay in this menu rather than becoming settings of their own: each is a
+ * property of one theme, and this is where that theme is picked. Choosing does
+ * not close the menu - the point is to see the difference on the table behind
+ * it and try the next one.
+ */
+function renderMenuGroup(id, labelKey, entries, choose) {
+    const row = document.createElement('li');
+    row.className = 'theme-menu-group';
+    row.id = id;
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', t(labelKey));
+
+    const label = document.createElement('span');
+    label.className = 'theme-menu-group-label';
+    label.textContent = t(labelKey);
+    row.appendChild(label);
+
+    const options = document.createElement('div');
+    options.className = 'theme-menu-options';
+    entries.forEach(([value, key]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'theme-menu-option';
+        button.setAttribute('data-value', String(value));
+        button.setAttribute('aria-pressed', 'false');
+        button.textContent = t(key);
+        button.addEventListener('click', () => {
+            choose(value);
+            resetAutoCloseTimer();
+        });
+        options.appendChild(button);
+    });
+    row.appendChild(options);
+    return row;
+}
+
+function renderStrengthGroup() {
+    return renderMenuGroup('themeStrengthRow', 'theme_strength_label',
+        STRENGTH_KEYS.map((key, level) => [level, key]),
+        level => setCoverSetting('dovi_cover_strength', 'data-cover-strength', level));
+}
+
+function renderSeasonGroup() {
+    return renderMenuGroup('themeSeasonRow', 'theme_season_label',
+        SEASON_ORDER.map(name => [name, SEASON_KEYS[name]]),
+        name => setCoverSetting('dovi_cover_season', 'data-cover-season', name));
 }
 
 function updateThemeMenuSelection() {
@@ -143,6 +255,23 @@ function updateThemeMenuSelection() {
         const selected = li.getAttribute('data-value') === current;
         li.classList.toggle('selected', selected);
         li.setAttribute('aria-checked', selected ? 'true' : 'false');
+    });
+
+    // There is nothing to dose on a theme that paints no covers, so the
+    // strength is only offered by the one that does. A season is not a property
+    // of any theme - it is snow on the page and, where a theme paints covers,
+    // a lean in their colours - so it is offered by all of them.
+    markGroup('themeStrengthRow', current === ADAPTIVE_THEME, String(getCurrentStrength()));
+    markGroup('themeSeasonRow', true, getCurrentSeason());
+}
+
+function markGroup(id, visible, value) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.hidden = !visible;
+    row.querySelectorAll('.theme-menu-option').forEach(button => {
+        button.setAttribute('aria-pressed',
+            button.getAttribute('data-value') === value ? 'true' : 'false');
     });
 }
 
@@ -290,10 +419,21 @@ function setupThemeToggle() {
 
 export function initTheme() {
     let saved = null;
+    let strength = null;
+    let season = null;
     try {
         saved = localStorage.getItem('dovi_theme');
-    } catch (e) { /* localStorage unavailable -> keep default */ }
+        strength = parseInt(localStorage.getItem('dovi_cover_strength'), 10);
+        season = localStorage.getItem('dovi_cover_season');
+    } catch (e) { /* localStorage unavailable -> keep defaults */ }
     saved = migrateTheme(saved);
+    // The inline script in the template has already set all three; this is what
+    // makes them agree with the code that owns them from here on.
+    document.documentElement.setAttribute('data-cover-strength',
+        String(Number.isInteger(strength) && strength >= 0 && strength < STRENGTH_KEYS.length
+            ? strength : DEFAULT_STRENGTH));
+    document.documentElement.setAttribute('data-cover-season',
+        SEASON_ORDER.includes(season) ? season : DEFAULT_SEASON);
     applyTheme(THEME_ORDER.includes(saved) ? saved : DEFAULT_THEME);
     setupThemeToggle();
 }

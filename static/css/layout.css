@@ -185,6 +185,10 @@ header {
     position: fixed;
     width: max-content;
     min-width: 160px;
+    /* The menu is a handful of choices rather than a list, so it is shown whole:
+       .custom-select-menu caps itself at 320px for the language list, which cut
+       the last season off the bottom of this one. */
+    max-height: min(70vh, 520px);
     /* theme.js sets top and left against the toggle; right has to go, or the
        inherited one would stretch the menu across to it. */
     right: auto;
@@ -198,6 +202,79 @@ header {
     display: block;
     animation: dropdownIn 0.15s ease;
 }
+
+/* ---------- The two settings under the themes ---------- */
+
+/* How strongly the adaptive theme tints, which only that theme has and which is
+   therefore only listed while it is the one in force, and which season the page
+   is dressed for, which every theme offers (see updateThemeMenuSelection in
+   core/theme.js). */
+.theme-menu-group {
+    list-style: none;
+    margin: 6px 2px 0;
+    padding: 8px 4px 2px;
+    border-top: 1px solid var(--border);
+}
+
+/* The rule above the first group separates it from the themes; a second group
+   follows on directly, with only its own label between them. Only while the
+   first one is actually there, though - on a theme that offers no strength the
+   season is the first group and needs the rule itself. */
+.theme-menu-group:not([hidden]) + .theme-menu-group {
+    margin-top: 2px;
+    padding-top: 4px;
+    border-top: 0;
+}
+
+.theme-menu-group-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.theme-menu-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+}
+
+/* Three options leave a hole in a two-column grid, so the odd one out takes
+   the whole row rather than half of it. */
+.theme-menu-option:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
+.theme-menu-option {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.theme-menu-option:hover {
+    background: var(--surface-3);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+.theme-menu-option[aria-pressed="true"] {
+    background: var(--accent-tint);
+    border-color: var(--accent-line);
+    color: var(--accent-soft);
+}
+
 /* ============================================================
    Control Panels
    ============================================================ */

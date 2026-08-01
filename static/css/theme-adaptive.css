@@ -12,13 +12,25 @@
    details dialog take their colour from the entry's own cover.
    Nothing else changes - the header, the controls, the file
    dialog and the rest inherit the dark theme untouched, so every
-   rule below is scoped to one of those two.
+   rule below is scoped to one of those two, or to a mark that
+   belongs to the entry in front of it.
 
    media-dialog.js and the table hand the cover over as
-   --cover-gradient (see ui/cover-gradient.js). Without one - an
-   entry scanned with no TMDB key - there is nothing to paint and
-   the plain dark surface shows through.
+   --cover-gradient, together with the scrim that keeps the text
+   on it readable and the accent its marks take (see
+   ui/cover-gradient.js). Without one - an entry scanned with no
+   TMDB key - there is nothing to paint and the plain dark
+   surface shows through.
    ============================================================ */
+
+/* Where the poster sits in a row, as the middle of its column: the light in a
+   row comes from the cover rather than from the row's corners, and only the
+   layout knows where that is. The stacked phone layout puts the cover at the
+   top of a card instead, and moves both (see responsive.css). */
+:root[data-theme="dark-adaptive"] {
+    --cover-anchor: 22%;
+    --cover-anchor-y: 46%;
+}
 
 /* The dialog is one box and rounds itself, so it paints the cover on its own
    background: the scrim over the cover's colours, those over the surface
@@ -75,8 +87,8 @@
     background-color: transparent;
 }
 
-/* The cell the layer hangs off must not be positioned itself, or it becomes the
-   containing block and the layer collapses onto the one column. It is static
+/* The cell the layers hang off must not be positioned itself, or it becomes the
+   containing block and they collapse onto the one column. It is static
    anyway in the table layout; this is for the stacked phone one, where
    responsive.css positions every cell so it can place its label in front of it.
    The first cell is the one cell there that has no label. */
@@ -84,11 +96,22 @@
     position: static;
 }
 
+/* Both layers cover the row exactly; only their order and what they carry
+   differ. The one below is the row as it sits, the one above is the same row
+   with the scrim eased off, faded in while the pointer is on it. */
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::before,
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::after {
     content: '';
     position: absolute;
     inset: 0;
-    z-index: -1;
+    border-radius: var(--radius-lg);
+    background-color: var(--surface);
+    background-repeat: no-repeat;
+    background-clip: padding-box;
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::after {
+    z-index: -2;
     /* The row's outline is drawn here rather than by the cells, so that one
        element paints both it and the cover behind it. Two elements cannot be
        made to agree along a curve: the cells' line and this layer's edge are
@@ -97,26 +120,45 @@
        seam inside it. Clipped to the padding box, the cover now stops exactly
        where this element's own border starts. */
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background-clip: padding-box;
     /* Painted top-down: the scrim over the cover's colours, those over the
        surface the row would have had anyway - which is all that is left of it
        for an entry scanned without a TMDB key, since there is no cover to
        paint. Nothing lifts the row off the page on top of that: a white wash
        sat here and turned every row a shade of grey, whatever it was showing.
-       The row is told apart by its outline and by the cover under it. */
-    background-color: var(--surface);
+       The row is told apart by its outline and by the cover under it.
+
+       How much scrim is the entry's own answer, solved against the contrast
+       its text needs rather than fixed for every poster (see solveScrim), so
+       nothing here has to correct for the colours afterwards - the saturation
+       filter this layer used to carry is gone with it. */
     background-image:
         linear-gradient(var(--cover-scrim), var(--cover-scrim)),
         var(--cover-gradient, none);
-    background-repeat: no-repeat;
-    /* What the cells used to take from the row with a backdrop filter. The
-       scrim is a grey and comes through untouched; only the cover's own
-       colours are carried, which is all the filter was ever there for. */
-    filter: saturate(1.5);
 }
 
-/* The cells have to let that layer through, so they give up the dark theme's
+/* The answer to the pointer. It is the whole surface again rather than a wash
+   over it, so the row it fades into is a row that could have been painted that
+   way from the start - the scrim is the one the entry was solved for with the
+   pointer on it, and the text keeps its distance either way. Only an opacity is
+   animated, which the compositor can do on its own.
+
+   Its border is transparent and its background stops at the padding edge, so
+   the outline the layer below draws stays the row's one line. */
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::before {
+    z-index: -1;
+    border: 1px solid transparent;
+    background-image:
+        linear-gradient(var(--cover-scrim-hover, var(--cover-scrim)), var(--cover-scrim-hover, var(--cover-scrim))),
+        var(--cover-gradient, none);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover td:first-child::before {
+    opacity: 1;
+}
+
+/* The cells have to let those layers through, so they give up the dark theme's
    opaque surface. A tinted one would drag the cover's colour back towards the
    same slate whatever the poster was.
 
@@ -152,6 +194,58 @@
     --cover-accent-rgb: 148, 163, 184;
 }
 
+/* The one mark in the interface that never belonged to the entry it was drawn
+   around: the focus ring stays indigo on a row that is otherwise entirely the
+   poster's. */
+:root[data-theme="dark-adaptive"] {
+    --ring: rgba(var(--cover-accent-rgb), 0.5);
+}
+
+/* The cover lights the row it sits in, rather than only being lit: a very
+   quiet halo in the entry's own colour, which pulls in while the pointer is on
+   the row. The wrapper opens a stacking context of its own so the halo lands
+   between the row's tint and the poster - a negative z-index alone would put
+   it behind the tint, which is painted by the same cell. */
+:root[data-theme="dark-adaptive"] .poster-img-wrapper {
+    z-index: 0;
+}
+
+:root[data-theme="dark-adaptive"] .poster-img-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -22px;
+    z-index: -1;
+    border-radius: 20px;
+    background: radial-gradient(58% 66% at 50% 50%,
+        rgba(var(--cover-accent-rgb), 0.30) 0%,
+        rgba(var(--cover-accent-rgb), 0.11) 52%,
+        rgba(var(--cover-accent-rgb), 0) 78%);
+    opacity: 0.75;
+    transition: opacity 0.18s ease;
+    pointer-events: none;
+}
+
+:root[data-theme="dark-adaptive"] tbody tr:hover .poster-img-wrapper::before {
+    opacity: 1;
+}
+
+/* Switched off, the theme is the plain dark one again - so the halo rests as
+   well, and is only what the pointer lights up, and the layer that would have
+   carried the tint lifts the row the way the plain dark theme's own cells do.
+   What is left of the adaptive theme at that point is the accent: every mark
+   still takes the entry's colour instead of the fixed indigo. */
+:root[data-theme="dark-adaptive"][data-cover-strength="0"] tbody tr:not(.media-spacer) td:first-child::before {
+    background-color: var(--surface-2);
+}
+
+:root[data-theme="dark-adaptive"][data-cover-strength="0"] .poster-img-wrapper::before {
+    opacity: 0;
+}
+
+:root[data-theme="dark-adaptive"][data-cover-strength="0"] tbody tr:hover .poster-img-wrapper::before {
+    opacity: 1;
+}
+
 :root[data-theme="dark-adaptive"] .poster-container:hover .poster-title {
     color: rgb(var(--cover-accent-rgb));
 }
@@ -162,17 +256,39 @@
         0 8px 24px rgba(var(--cover-accent-rgb), 0.25);
 }
 
+/* An entry with no cover at all is the one place the theme would otherwise
+   invent a colour: the placeholder card is a fixed violet-blue, which on a
+   table of poster colours reads as an entry that has one. Neutral slate says
+   what is true - there is nothing to take a colour from. */
+:root[data-theme="dark-adaptive"] .poster-placeholder {
+    background:
+        radial-gradient(130% 140% at 88% 8%, rgba(148, 163, 184, 0.10), transparent 55%),
+        linear-gradient(135deg, var(--surface-3) 0%, var(--surface-2) 100%);
+    color: var(--text-faint);
+}
+
 /* What in the dialog takes the same accent: its title, its field labels, the
-   button that unfolds the plot and the one that closes it.
+   button that unfolds the plot, the one that closes it and the one that scans
+   the entry again.
 
    All of them are the panel's own furniture rather than the entry's own words -
    the slogan, the plot, the filename and the field values stay the plain text
    colour - so the colour lands on what is there to be scanned past, not on what
-   is being read. Without a cover they fall back to the slate above, which for
-   the labels is a shade off the --text-faint they would otherwise have had. */
+   is being read. The source links are left out on purpose: their colour is the
+   source's, not the panel's (see the brand colours further down). Without a
+   cover they fall back to the slate above. */
 :root[data-theme="dark-adaptive"] :is(.dialog-title, .dialog-label,
-        .dialog-plot-toggle, .dialog-close) {
+        .dialog-plot-toggle, .dialog-close, .dialog-rescan-btn) {
     color: rgb(var(--cover-accent-rgb));
+}
+
+:root[data-theme="dark-adaptive"] .dialog-rescan-btn {
+    border-color: rgba(var(--cover-accent-rgb), 0.4);
+}
+
+:root[data-theme="dark-adaptive"] .dialog-rescan-btn:hover:not(:disabled) {
+    border-color: rgba(var(--cover-accent-rgb), 0.75);
+    box-shadow: 0 6px 18px rgba(var(--cover-accent-rgb), 0.15);
 }
 
 /* The button keeps its colour under the pointer and answers with its outline
@@ -207,25 +323,14 @@
     border: 2px solid rgba(var(--cover-accent-rgb), 0.1);
 }
 
-/* The quietest text in the two tinted areas, a step further from the surface
-   than the dark theme sets it. Theirs sits on one known colour; this sits on
-   whatever the entry's cover happens to be, and the quietest text is what runs
-   out of margin first - the dialog's field labels measured 3.3:1 against a warm
-   cover at the inherited value. Scoped to the tinted areas, so the column
-   headers above the table keep the dark theme's own. */
-:root[data-theme="dark-adaptive"] tbody tr,
-:root[data-theme="dark-adaptive"] .media-dialog {
-    --text-faint: #8b95ab;
-}
+/* The marks that are a source's rather than the theme's - the rating logos and
+   the links - keep their brand hue and are measured against the surface the
+   entry's cover produced, so a red source on a red cover climbs until it can be
+   read (see liftAgainst in ui/cover-gradient.js). Nothing is listed here: the
+   colours arrive as --rating-* and --link-* on the dialog, and dialogs.css
+   falls back to the brand's own value on every other theme.
 
-/* The rating marks are the sources' own colours, picked against one fixed
-   surface. Here the panel carries the entry's cover, so a red mark can land on
-   a red cover: the Trakt score measured 2.8:1 against a warm one. These two
-   take a step away from it. */
-:root[data-theme="dark-adaptive"] .dialog-rating-trakt :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #ff938c;
-}
-
-:root[data-theme="dark-adaptive"] .dialog-rating-rt :is(.dialog-rating-value, .dialog-rating-logo) {
-    color: #fda092;
-}
+   This replaces the two hand-picked replacement colours that used to sit here
+   for Trakt and Rotten Tomatoes, and the second fixed value --text-faint was
+   given - both of them calibrated against a surface that no longer holds still,
+   now that the scrim follows the entry and the strength can be turned up. */
