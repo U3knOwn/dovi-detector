@@ -46,6 +46,8 @@ body {
     line-height: 1.5;
     font-feature-settings: 'ss01' on, 'cv05' on;
     -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 ::selection {

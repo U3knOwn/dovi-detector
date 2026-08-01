@@ -377,6 +377,13 @@
     animation: slideIn 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
     scrollbar-width: none;
     -ms-overflow-style: none;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.media-dialog * {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .media-dialog::-webkit-scrollbar {
