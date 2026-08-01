@@ -53,10 +53,12 @@ const REGIONS = [
     [0.25, 0.25, 0.75, 0.75]
 ];
 
-// A table row follows the upper 60% of the cover: this is the visual field
-// around the artwork and subject, before the title treatment that commonly
-// occupies the lower third. The dialog still uses the complete cover.
-const ROW_SAMPLE_FRAME = [0, 0, 1, 0.6];
+// A table row follows most of the cover, while leaving out the bottom strip
+// where title treatments commonly sit. Keeping four fifths instead of only the
+// upper half lets the lower gradient fields represent the image's foreground
+// rather than sampling the same middle band as the fields above them. The
+// dialog still uses the complete cover.
+const ROW_SAMPLE_FRAME = [0, 0, 1, 0.8];
 
 // What each stop's lightness is set to, as OKLab's L. Staggered, so the
 // gradient keeps some depth instead of reading as one flat wash - and low
@@ -109,9 +111,9 @@ const ACCENT_FAMILY_SPAN = 36;
 // lift and chroma gain, so it remains restrained while preserving the order of
 // the three settings.
 const STRENGTH_LEVELS = [
-    { mix: 0.2, lightness: 0, chroma: 1 },
-    { mix: 0.35, lightness: 0, chroma: 1 },
-    { mix: 0.55, lightness: 0.015, chroma: 1.1 }
+    { mix: 0.5, lightness: 0, chroma: 1 },
+    { mix: 1, lightness: 0, chroma: 1 },
+    { mix: 1.5, lightness: 0.065, chroma: 1.55 }
 ];
 export const DEFAULT_STRENGTH = 1;
 
@@ -694,32 +696,36 @@ function dialogGradient(colors) {
 /**
  * A row's gradient, hung off the cover rather than off the row's corners.
  *
- * A row is some 1400 px wide and 300 px high with the poster at its left end,
- * so pools in its four corners put the brightest part of the surface where
- * there is nothing to light: the colour read as wallpaper behind the row rather
- * than as something the artwork was doing. Here the strongest pool sits over
- * the cover itself and the rest of the row is what it falls off into, with the
- * poster's top and bottom halves opening above and below it.
+ * A row is much wider than its poster, so pools in the row's own corners put
+ * the brightest colour where there is no artwork to support it. All five
+ * sources below stay inside the poster footprint instead. Their long, quiet
+ * tails merge into one another and a final directional wash fades all the way
+ * back to the surface at the metadata edge, without leaving isolated pools
+ * behind the last columns.
  *
  * Where the cover sits is the layout's business, not this module's:
- * ``--cover-anchor`` is the middle of the poster column, and the stacked phone
- * layout - where the poster is centred in a card - moves it to the middle
- * (see responsive.css).
+ * ``--cover-anchor`` is the middle of the poster column. The stacked phone
+ * layout moves it to the middle of the card and turns the final fade downwards
+ * to follow the layout (see responsive.css).
  */
 function rowGradient(colors) {
     const [tl, tr, bl, br, mid] = colors;
-    const anchor = 'var(--cover-anchor, 22%)';
-    const anchorY = 'var(--cover-anchor-y, 46%)';
-    const above = `calc(${anchor} - 6%)`;
-    const below = `calc(${anchor} + 5%)`;
+    const anchor = 'var(--cover-anchor, 15%)';
+    const anchorY = 'var(--cover-anchor-y, 58%)';
+    const spreadX = 'var(--cover-spread-x, 6%)';
+    const spreadY = 'var(--cover-spread-y, 17%)';
+    const left = `calc(${anchor} - ${spreadX})`;
+    const right = `calc(${anchor} + ${spreadX})`;
+    const top = `calc(${anchorY} - ${spreadY})`;
+    const bottom = `calc(${anchorY} + ${spreadY})`;
 
     return [
-        `radial-gradient(ellipse 62% 130% at ${anchor} ${anchorY}, ${rgbText(mid)} 0%, ${rgbaText(mid, 0.55)} 34%, ${rgbaText(deepen(mid, 0.5), 0)} 78%)`,
-        `radial-gradient(ellipse 44% 90% at ${above} 4%, ${rgbaText(tl, 0.85)} 0%, ${rgbaText(deepen(tl, 0.4), 0)} 70%)`,
-        `radial-gradient(ellipse 44% 90% at ${below} 100%, ${rgbaText(bl, 0.8)} 0%, ${rgbaText(deepen(bl, 0.45), 0)} 70%)`,
-        `radial-gradient(ellipse 60% 120% at 92% 18%, ${rgbaText(tr, 0.5)} 0%, ${rgbaText(deepen(tr, 0.42), 0)} 76%)`,
-        `radial-gradient(ellipse 60% 120% at 78% 96%, ${rgbaText(br, 0.45)} 0%, ${rgbaText(deepen(br, 0.48), 0)} 76%)`,
-        `linear-gradient(100deg, ${rgbaText(mid, 0.3)} 0%, ${rgbaText(mid, 0.14)} 42%, ${rgbaText(br, 0.2)} 100%)`
+        `radial-gradient(ellipse 50% 96% at ${left} ${top}, ${rgbaText(tl, 0.82)} 0%, ${rgbaText(tl, 0.28)} 24%, ${rgbaText(deepen(tl, 0.4), 0)} 74%)`,
+        `radial-gradient(ellipse 64% 108% at ${right} ${top}, ${rgbaText(tr, 0.68)} 0%, ${rgbaText(tr, 0.24)} 24%, ${rgbaText(deepen(tr, 0.42), 0)} 78%)`,
+        `radial-gradient(ellipse 50% 96% at ${left} ${bottom}, ${rgbaText(bl, 0.76)} 0%, ${rgbaText(bl, 0.26)} 24%, ${rgbaText(deepen(bl, 0.45), 0)} 74%)`,
+        `radial-gradient(ellipse 64% 108% at ${right} ${bottom}, ${rgbaText(br, 0.62)} 0%, ${rgbaText(br, 0.22)} 24%, ${rgbaText(deepen(br, 0.48), 0)} 78%)`,
+        `radial-gradient(ellipse 62% 124% at ${anchor} ${anchorY}, ${rgbText(mid)} 0%, ${rgbaText(mid, 0.48)} 30%, ${rgbaText(deepen(mid, 0.5), 0)} 78%)`,
+        `linear-gradient(var(--cover-fade-angle, 90deg), ${rgbaText(mid, 0.22)} 0%, ${rgbaText(mid, 0.11)} 42%, ${rgbaText(br, 0.04)} 72%, ${rgbaText(br, 0)} 100%)`
     ].join(', ');
 }
 

@@ -114,10 +114,14 @@
 
     /* The light in an adaptive row comes from the cover (see rowGradient in
        ui/cover-gradient.js), which here is centred at the top of a card
-       instead of sitting in the first of four columns. */
+       instead of sitting in the first of four columns. Its final wash follows
+       the stacked content down the card instead of running left to right. */
     :root[data-theme="dark-adaptive"] {
         --cover-anchor: 50%;
-        --cover-anchor-y: 26%;
+        --cover-anchor-y: 36%;
+        --cover-spread-x: min(23%, 140px);
+        --cover-spread-y: 12%;
+        --cover-fade-angle: 180deg;
     }
 
     table {

@@ -28,8 +28,11 @@
    layout knows where that is. The stacked phone layout puts the cover at the
    top of a card instead, and moves both (see responsive.css). */
 :root[data-theme="dark-adaptive"] {
-    --cover-anchor: 22%;
-    --cover-anchor-y: 46%;
+    --cover-anchor: 15%;
+    --cover-anchor-y: 58%;
+    --cover-spread-x: 6%;
+    --cover-spread-y: 17%;
+    --cover-fade-angle: 90deg;
 }
 
 /* The dialog is one box and rounds itself, so it paints the cover on its own
