@@ -85,7 +85,7 @@ option {
 
 .container {
     width: 100%;
-    max-width: 1460px;
+    max-width: 1300px;
     margin: 0 auto;
     flex: 1 0 auto;
     display: flex;

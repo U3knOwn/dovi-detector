@@ -53,6 +53,11 @@ const REGIONS = [
     [0.25, 0.25, 0.75, 0.75]
 ];
 
+// A table row follows the upper 60% of the cover: this is the visual field
+// around the artwork and subject, before the title treatment that commonly
+// occupies the lower third. The dialog still uses the complete cover.
+const ROW_SAMPLE_FRAME = [0, 0, 1, 0.6];
+
 // What each stop's lightness is set to, as OKLab's L. Staggered, so the
 // gradient keeps some depth instead of reading as one flat wash - and low
 // enough that the scrim below has little left to do on an ordinary poster.
@@ -87,23 +92,26 @@ const HOVER_TEXT_RATIO = 8.5;
 // measuring rather than by choosing.
 const MARK_RATIO = 6;
 
-// The accent an entry's marks take: the dominant colour of the cover at a fixed
-// lightness, so the cover's main visual field determines the row's identity.
-const ACCENT_LIGHTNESS = 0.82;
-// Badges sit directly on a dark row, where a low-chroma accent gets washed
-// into grey. Keep the lightness for readability, but let the cover colour keep
-// more of its saturation.
-const ACCENT_CHROMA = 0.16;
+// The accent an entry's marks take. Its source lightness is retained inside
+// this deliberately dark range, then lifted only when the actual surface needs
+// it for readable text. Chroma follows the cover too, within useful limits.
+const ACCENT_MIN_LIGHTNESS = 0.52;
+const ACCENT_MAX_LIGHTNESS = 0.64;
+const ACCENT_MIN_CHROMA = 0.065;
+const ACCENT_MAX_CHROMA = 0.16;
+const ACCENT_RATIO = 4.5;
 const MIN_ACCENT_CHROMA = 0.035;
+const ACCENT_FAMILY_SPAN = 36;
 
-// How strong the tint is, as picked in the theme menu. Subtle takes the
-// colours halfway back to the plain dark surface; strong lifts them instead
-// of thinning the scrim, so the contrast solved for below holds on every
-// level.
+// How strong the tint is, as picked in the theme menu. Even the strongest
+// setting keeps most of the page's plain dark surface: the cover is a quiet
+// cue for each entry, not a coloured wash behind it. Strong adds only a small
+// lift and chroma gain, so it remains restrained while preserving the order of
+// the three settings.
 const STRENGTH_LEVELS = [
-    { mix: 0.5, lightness: 0, chroma: 1 },
-    { mix: 1, lightness: 0, chroma: 1 },
-    { mix: 1, lightness: 0.045, chroma: 1.35 }
+    { mix: 0.2, lightness: 0, chroma: 1 },
+    { mix: 0.35, lightness: 0, chroma: 1 },
+    { mix: 0.55, lightness: 0.015, chroma: 1.1 }
 ];
 export const DEFAULT_STRENGTH = 1;
 
@@ -297,8 +305,22 @@ function rankRegion(pixels, width, height, [x0, y0, x1, y1]) {
     return ranked;
 }
 
+function regionWithin(frame, region) {
+    const [fx0, fy0, fx1, fy1] = frame;
+    const [x0, y0, x1, y1] = region;
+    const frameWidth = fx1 - fx0;
+    const frameHeight = fy1 - fy0;
+    return [
+        fx0 + x0 * frameWidth,
+        fy0 + y0 * frameHeight,
+        fx0 + x1 * frameWidth,
+        fy0 + y1 * frameHeight
+    ];
+}
+
 /**
- * One colour per region, in the order the stops are placed.
+ * One colour per region inside one part of the cover, in the order the stops
+ * are placed.
  *
  * A region whose strongest colour has already been taken by another one hands
  * over its runner-up instead: neighbouring parts of a poster are often the same
@@ -306,10 +328,10 @@ function rankRegion(pixels, width, height, [x0, y0, x1, y1]) {
  * region that has nothing else to offer keeps its colour anyway - a poster that
  * really is one colour should look like one.
  */
-function coverPalette(pixels, width, height) {
+function regionalPalette(pixels, width, height, frame = [0, 0, 1, 1]) {
     const picked = [];
     for (const region of REGIONS) {
-        const ranked = rankRegion(pixels, width, height, region);
+        const ranked = rankRegion(pixels, width, height, regionWithin(frame, region));
         if (!ranked.length) continue;
         const distinct = ranked.find(candidate => picked.every(had =>
             Math.abs(had[0] - candidate.rgb[0]) +
@@ -317,11 +339,21 @@ function coverPalette(pixels, width, height) {
             Math.abs(had[2] - candidate.rgb[2]) >= MIN_DISTANCE));
         picked.push((distinct || ranked[0]).rgb);
     }
+    return picked;
+}
+
+function coverPalette(pixels, width, height) {
+    const picked = regionalPalette(pixels, width, height);
+    const row = regionalPalette(pixels, width, height, ROW_SAMPLE_FRAME);
+    if (row.length >= 2) picked.row = row;
+
     // Keep the dominant colour separate from the five regional stops. The
     // latter intentionally favour local contrast for the gradient; the accent
-    // should instead represent the colour occupying most of the cover.
+    // should instead represent the best dark coloured field in the whole cover.
     const dominant = dominantColor(pixels, width, height);
     if (dominant) picked.dominant = dominant;
+    const accent = accentSourceColor(pixels, width, height);
+    if (accent) picked.accent = accent;
     return picked;
 }
 
@@ -377,6 +409,76 @@ function dominantColor(pixels, width, height) {
         Math.round(best.bucket.g / best.bucket.n),
         Math.round(best.bucket.b / best.bucket.n)
     ];
+}
+
+/**
+ * Find the cover colour that makes the most useful accent.
+ *
+ * Area still matters most, so a tiny bright logo cannot take over a poster.
+ * Unlike the gradient's dominant colour, however, neutral buckets are skipped
+ * when a coloured one exists and very bright buckets are penalised. This
+ * favours the cover's substantial, darker colour field over highlights, skies
+ * and white title treatment.
+ */
+function accentSourceColor(pixels, width, height) {
+    const buckets = new Map();
+    const shift = 8 - BUCKET_BITS;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            if (pixels[i + 3] < 128) continue;
+
+            const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+            const key = ((r >> shift) << (BUCKET_BITS * 2)) |
+                        ((g >> shift) << BUCKET_BITS) |
+                        (b >> shift);
+            const bucket = buckets.get(key);
+            if (bucket) {
+                bucket.r += r; bucket.g += g; bucket.b += b; bucket.n++;
+            } else {
+                buckets.set(key, { r, g, b, n: 1 });
+            }
+        }
+    }
+
+    const candidates = [];
+    buckets.forEach(bucket => {
+        const rgb = [bucket.r / bucket.n, bucket.g / bucket.n, bucket.b / bucket.n];
+        const [lightness, chroma, hue] = rgbToOklch(rgb);
+        if (chroma < MIN_ACCENT_CHROMA) return;
+
+        candidates.push({ rgb, n: bucket.n, lightness, chroma, hue });
+    });
+
+    let best = null;
+    for (const candidate of candidates) {
+        // Adjacent buckets often contain different shades of the same actual
+        // cover colour. Count that hue family together before judging how
+        // important it is, so quantisation cannot split a large field into a
+        // collection of apparently insignificant colours.
+        const familyArea = candidates.reduce((area, other) => {
+            const distance = Math.abs(((candidate.hue - other.hue + 540) % 360) - 180);
+            if (distance >= ACCENT_FAMILY_SPAN) return area;
+            return area + other.n * (1 - distance / ACCENT_FAMILY_SPAN);
+        }, 0);
+
+        // Keep true shadows out of the running, prefer the dark-to-mid range,
+        // and progressively discount bright fields rather than treating them
+        // as the cover's defining colour.
+        const shadowGuard = candidate.lightness < 0.18
+            ? 0.35 + candidate.lightness / 0.18 * 0.65
+            : 1;
+        const highlightPenalty = candidate.lightness <= 0.48
+            ? 1
+            : Math.max(0.25, 1 - (candidate.lightness - 0.48) * 1.7);
+        const chromaWeight = 0.72 + Math.min(candidate.chroma / ACCENT_MAX_CHROMA, 1) * 0.28;
+        const score = (familyArea + candidate.n * 0.35) *
+                      shadowGuard * highlightPenalty * chromaWeight;
+        if (!best || score > best.score) best = { rgb: candidate.rgb, score };
+    }
+
+    return best && best.rgb.map(Math.round);
 }
 
 function sampleSize(img) {
@@ -513,14 +615,16 @@ function liftAgainst(rgb, surface, ratio) {
  * for the text on it; a mark sits on that surface and has to stand off it, at
  * one predictable strength whatever the poster is - a dark cover would
  * otherwise light the row up in something barely distinguishable from the row
- * itself. So only the hue is taken from the cover and it is given the theme's
- * own lightness.
+ * itself. Its original lightness and chroma are kept inside a restrained range,
+ * then the result is measured against the actual painted surface. It is lifted
+ * only as far as that surface needs, rather than every cover being forced to
+ * the same bright accent.
  *
- * The hue comes from the most frequent colour in the complete cover sample.
- * A small, vivid title should not beat the large colour field behind it.
+ * The hue comes from the cover's most substantial useful dark colour field.
+ * Bright highlights and a small, vivid title do not beat it.
  */
-function accentColor(palette, season) {
-    let best = palette.dominant || palette[0];
+function accentColor(palette, season, surface) {
+    let best = palette.accent || palette.dominant || palette[0];
     let [, bestChroma] = rgbToOklch(best);
 
     // A large black, white or grey area must not hide a clearly coloured part
@@ -537,13 +641,23 @@ function accentColor(palette, season) {
         }
     }
 
+    const [sourceLightness, sourceChroma, sourceHue] = rgbToOklch(best);
+    const targetLightness = Math.max(ACCENT_MIN_LIGHTNESS,
+        Math.min(ACCENT_MAX_LIGHTNESS, sourceLightness + 0.08));
+
+    let accent;
     if (bestChroma < GREY_CHROMA) {
-        return season
-            ? oklchToRgb(ACCENT_LIGHTNESS, ACCENT_CHROMA, season.hues[0])
-            : oklchToRgb(ACCENT_LIGHTNESS, 0, 0);
+        accent = season
+            ? oklchToRgb(targetLightness, season.chroma, season.hues[0])
+            : oklchToRgb(targetLightness, 0, 0);
+    } else {
+        const targetChroma = Math.max(ACCENT_MIN_CHROMA,
+            Math.min(ACCENT_MAX_CHROMA, sourceChroma * 1.08));
+        const [hue, chroma] = towardSeason(sourceHue, targetChroma, season);
+        accent = oklchToRgb(targetLightness, Math.min(ACCENT_MAX_CHROMA, chroma), hue);
     }
-    const [hue] = towardSeason(rgbToOklch(best)[2], ACCENT_CHROMA, season);
-    return oklchToRgb(ACCENT_LIGHTNESS, ACCENT_CHROMA, hue);
+
+    return liftAgainst(accent, surface, ACCENT_RATIO);
 }
 
 /* ============================================================
@@ -764,13 +878,13 @@ function paintValues(palette, variant, key) {
 
 function deriveValues(palette, variant, level, season) {
     const values = {};
-    values['--cover-accent-rgb'] = accentColor(palette, season).join(', ');
 
     const spec = VARIANTS[variant] || VARIANTS.row;
     const base = themeColor(spec.surface, [18, 21, 29]);
     const text = themeColor('--text', [232, 236, 244]);
+    const surfacePalette = variant === 'row' && palette.row ? palette.row : palette;
 
-    const colors = palette.map((rgb, index) => {
+    const colors = surfacePalette.map((rgb, index) => {
         const tinted = tintColor(rgb, STOP_LIGHTNESS[index] + level.lightness, level.chroma, season);
         return level.mix < 1 ? composite(tinted, base, level.mix) : tinted;
     });
@@ -782,6 +896,7 @@ function deriveValues(palette, variant, level, season) {
     // which is what everything below is measured against.
     const surface = composite(SCRIM_RGB, brightest, scrim);
 
+    values['--cover-accent-rgb'] = accentColor(palette, season, surface).join(', ');
     values['--cover-gradient'] = spec.gradient(colors);
     values['--cover-scrim'] = rgbaText(SCRIM_RGB, scrim.toFixed(3));
     values['--cover-scrim-hover'] = rgbaText(SCRIM_RGB, hoverScrim.toFixed(3));
