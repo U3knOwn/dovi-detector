@@ -21,7 +21,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
         (function () {
             var themes = ['dark', 'dark-adaptive', 'midnight'];
             var theme = 'dark';
-            var strength = 2;
+            var strength = 1;
             var season = 'none';
             var seasons = ['none', 'halloween', 'christmas'];
             try {
@@ -34,7 +34,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                 if (themes.indexOf(saved) !== -1) theme = saved;
 
                 var level = parseInt(localStorage.getItem('dovi_cover_strength'), 10);
-                if (level >= 0 && level <= 3) strength = level;
+                if (level >= 0 && level <= 2) strength = level;
 
                 var saison = localStorage.getItem('dovi_cover_season');
                 if (seasons.indexOf(saison) !== -1) season = saison;

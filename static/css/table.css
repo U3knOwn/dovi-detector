@@ -108,176 +108,51 @@ tbody tr:hover td {
     line-height: 1.35;
 }
 
-/* ---------- HDR formats ---------- */
+/* ---------- HDR formats, resolutions and audio codecs ----------
+   One neutral treatment for every badge, whatever it names - a border and a
+   label pulled from the table's own surface tones rather than a colour per
+   format, so a row of badges reads as one calm strip instead of a rainbow. */
 
-.hdr-dolby-vision {
-    border-color: rgba(139, 92, 246, 0.4);
-    color: #c4b5fd;
-}
-
-.hdr-dolby-vision.el-fel {
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #6ee7b7;
-}
-
-.hdr-dolby-vision.el-mel {
-    border-color: rgba(245, 158, 11, 0.4);
-    color: #fcd34d;
-}
-
-.hdr-hdr10plus {
-    border-color: rgba(249, 115, 22, 0.4);
-    color: #fdba74;
-}
-
-.hdr-hdr10 {
-    border-color: rgba(14, 165, 233, 0.4);
-    color: #7dd3fc;
-}
-
-.hdr-hlg {
-    border-color: rgba(20, 184, 166, 0.4);
-    color: #5eead4;
-}
-
+.hdr-dolby-vision,
+.hdr-hdr10plus,
+.hdr-hdr10,
+.hdr-hlg,
 .hdr-sl-hdr,
 .hdr-sl-hdr1,
 .hdr-sl-hdr2,
-.hdr-sl-hdr3 {
-    border-color: rgba(236, 72, 153, 0.4);
-    color: #f9a8d4;
-}
-
-.hdr-hdr-vivid {
-    border-color: rgba(6, 182, 212, 0.4);
-    color: #67e8f9;
-}
-
-.hdr-sdr {
-    border-color: rgba(78, 216, 184, 0.3);
-    color: #4ed8b8;
-}
-
-.hdr-unknown {
-    border-color: rgba(148, 163, 184, 0.2);
-    color: var(--text-faint);
-}
-
-/* Standalone enhancement-layer badges */
-
-.el-fel {
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #6ee7b7;
-}
-
-.el-mel {
-    border-color: rgba(245, 158, 11, 0.4);
-    color: #fcd34d;
-}
-
-/* ---------- Resolutions ---------- */
-
-.resolution-8k-\(uhd\) {
-    border-color: rgba(217, 70, 239, 0.4);
-    color: #f0abfc;
-}
-
+.hdr-sl-hdr3,
+.hdr-hdr-vivid,
+.hdr-sdr,
+.hdr-unknown,
+.el-fel,
+.el-mel,
+.resolution-8k-\(uhd\),
 .resolution-4k-\(uhd\),
-.resolution-4k-dci {
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #fca5a5;
-}
-
-.resolution-1440p {
-    border-color: rgba(249, 115, 22, 0.4);
-    color: #fdba74;
-}
-
-.resolution-1080p-\(full-hd\) {
-    border-color: rgba(14, 165, 233, 0.4);
-    color: #7dd3fc;
-}
-
+.resolution-4k-dci,
+.resolution-1440p,
+.resolution-1080p-\(full-hd\),
 .resolution-720p-\(hd\),
-.resolution-768p {
-    border-color: rgba(20, 184, 166, 0.4);
-    color: #5eead4;
+.resolution-768p,
+.resolution-480p-\(sd\),
+.resolution-unknown,
+.audio-truehd-atmos,
+.audio-dtsx,
+.audio-truehd,
+.audio-dts-hd-ma,
+.audio-dts-hd-hra,
+.audio-ddplus-atmos,
+.audio-ddplus,
+.audio-dolby-digital,
+.audio-dts,
+.audio-aac,
+.audio-lossless,
+.audio-unknown {
+    border-color: var(--border-strong);
+    color: var(--text-muted);
 }
-
-.resolution-480p-\(sd\) {
-    border-color: rgba(148, 163, 184, 0.3);
-    color: #cbd5e1;
-}
-
-.resolution-unknown {
-    border-color: rgba(148, 163, 184, 0.2);
-    color: var(--text-faint);
-}
-
-/* ---------- Audio codecs ---------- */
 
 .audio-codec {
     color: var(--text);
-}
-
-.audio-truehd-atmos {
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #fca5a5;
-}
-
-.audio-dtsx {
-    border-color: rgba(249, 115, 22, 0.4);
-    color: #fdba74;
-}
-
-.audio-truehd {
-    border-color: rgba(244, 63, 94, 0.4);
-    color: #fda4af;
-}
-
-.audio-dts-hd-ma {
-    border-color: rgba(139, 92, 246, 0.4);
-    color: #c4b5fd;
-}
-
-.audio-dts-hd-hra {
-    border-color: rgba(168, 85, 247, 0.4);
-    color: #d8b4fe;
-}
-
-.audio-ddplus-atmos {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #a5b4fc;
-}
-
-.audio-ddplus {
-    border-color: rgba(14, 165, 233, 0.4);
-    color: #7dd3fc;
-}
-
-.audio-dolby-digital {
-    border-color: rgba(59, 130, 246, 0.4);
-    color: #93c5fd;
-}
-
-.audio-dts {
-    border-color: rgba(217, 70, 239, 0.4);
-    color: #f0abfc;
-}
-
-.audio-aac {
-    border-color: rgba(20, 184, 166, 0.4);
-    color: #5eead4;
-}
-
-.audio-lossless {
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #6ee7b7;
-}
-
-.audio-unknown {
-    border-color: rgba(148, 163, 184, 0.2);
-    color: var(--text-faint);
 }
 /* ============================================================
    Poster / Title Cell

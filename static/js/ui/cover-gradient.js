@@ -92,18 +92,16 @@ const MARK_RATIO = 6;
 const ACCENT_LIGHTNESS = 0.82;
 const ACCENT_CHROMA = 0.115;
 
-// How strong the tint is, as picked in the theme menu. Off paints no cover at
-// all and leaves the plain dark surface - only the accent still follows the
-// entry. Subtle takes the colours halfway back to that surface; strong lifts
-// them instead of thinning the scrim, so the contrast solved for below holds
-// on every level.
+// How strong the tint is, as picked in the theme menu. Subtle takes the
+// colours halfway back to the plain dark surface; strong lifts them instead
+// of thinning the scrim, so the contrast solved for below holds on every
+// level.
 const STRENGTH_LEVELS = [
-    null,
     { mix: 0.5, lightness: 0, chroma: 1 },
     { mix: 1, lightness: 0, chroma: 1 },
     { mix: 1, lightness: 0.045, chroma: 1.35 }
 ];
-export const DEFAULT_STRENGTH = 2;
+export const DEFAULT_STRENGTH = 1;
 
 // A costume for the table, for the few weeks in the year where one is wanted.
 //
@@ -471,7 +469,7 @@ function accentColor(palette, season) {
         }
     }
 
-    if (bestChroma < GREY_CHROMA * 3) {
+    if (bestChroma < GREY_CHROMA) {
         return season
             ? oklchToRgb(ACCENT_LIGHTNESS, ACCENT_CHROMA, season.hues[0])
             : oklchToRgb(ACCENT_LIGHTNESS, 0, 0);
@@ -698,11 +696,7 @@ function paintValues(palette, variant, key) {
 
 function deriveValues(palette, variant, level, season) {
     const values = {};
-    // The accent is what the entry is recognised by, so it survives even when
-    // the tint is switched off entirely - a season included, which is then the
-    // only thing left of it.
     values['--cover-accent-rgb'] = accentColor(palette, season).join(', ');
-    if (!level) return values;
 
     const spec = VARIANTS[variant] || VARIANTS.row;
     const base = themeColor(spec.surface, [18, 21, 29]);

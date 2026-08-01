@@ -17,12 +17,12 @@ import { DEFAULT_SEASON, DEFAULT_STRENGTH, SEASON_ORDER } from '../ui/cover-grad
 // bottom - the two plain darks, then the one that carries a hue.
 const THEME_ORDER = ['dark', 'dark-adaptive', 'midnight'];
 
-// How strongly the adaptive theme tints, from off to loudest. Only that theme
-// reads it, so the row of buttons is only in the menu while it is the one in
-// force. The inline script in templates/index.html sets the attribute before
-// the first paint, the same way it does for the theme itself.
-const STRENGTH_KEYS = ['theme_strength_off', 'theme_strength_subtle',
-                       'theme_strength_standard', 'theme_strength_strong'];
+// How strongly the adaptive theme tints, from subtle to loudest. Only that
+// theme reads it, so the row of buttons is only in the menu while it is the
+// one in force. The inline script in templates/index.html sets the attribute
+// before the first paint, the same way it does for the theme itself.
+const STRENGTH_KEYS = ['theme_strength_subtle', 'theme_strength_standard',
+                       'theme_strength_strong'];
 
 // A costume the whole page can wear for a few weeks in the year: snow or
 // pumpkins falling through it (ui/season-effects.js) and, on the theme that
