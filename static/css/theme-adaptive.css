@@ -177,7 +177,7 @@
 
 /* The layer answers the pointer with the line the cells used to brighten. */
 :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover td:first-child::after {
-    border-color: var(--border-strong);
+    border-color: rgba(var(--cover-accent-rgb), 0.7);
 }
 
 /* What a row lights up with under the pointer. The dark theme's ring and title
@@ -205,7 +205,7 @@
    title and its ring do - the fixed hues in table.css are the other themes'
    only, since here every mark already answers to the entry in front of it. */
 :root[data-theme="dark-adaptive"] :is(.hdr-badge, .el-badge, .resolution-badge, .audio-badge) {
-    border-color: rgba(var(--cover-accent-rgb), 0.70);
+    border-color: rgba(var(--cover-accent-rgb), 0.7);
     color: rgba(var(--cover-accent-rgb), 0.88);
     background: rgba(var(--cover-accent-rgb), 0.02);
 }
@@ -282,6 +282,10 @@
 :root[data-theme="dark-adaptive"] :is(.dialog-title, .dialog-label,
         .dialog-plot-toggle, .dialog-close, .dialog-rescan-btn) {
     color: rgb(var(--cover-accent-rgb));
+}
+
+:root[data-theme="dark-adaptive"] .dialog-plot-toggle {
+    border: 1px solid rgb(var(--cover-accent-rgb), 0.7);
 }
 
 :root[data-theme="dark-adaptive"] .dialog-rescan-btn {

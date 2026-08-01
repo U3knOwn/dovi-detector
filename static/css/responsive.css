@@ -150,6 +150,11 @@
         border: none;
     }
 
+    :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer) td:first-child::after,
+    :root[data-theme="dark-adaptive"] tbody tr:not(.media-spacer):hover td:first-child::after {
+        border-color: transparent;
+    }
+
     tbody tr td,
     tbody tr td:first-child,
     tbody tr td:last-child {
