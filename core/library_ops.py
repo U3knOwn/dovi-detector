@@ -15,7 +15,8 @@ import threading
 import config
 from core.events import deletion_event_queue
 from core.scan_state import (begin_scan, cancel_requested, end_scan,
-                             publish_scan_progress, report_scan_progress)
+                             publish_entry_updated, publish_scan_progress,
+                             report_scan_progress)
 from core.scanner import delete_cached_poster_for, scan_video_file_with_deps
 from services import database
 from services.video_scanner import (RESOLUTION_NAMES, bulk_scan_files,
@@ -28,7 +29,8 @@ LIBRARY_FIELDS = (
     'filename', 'path', 'hdr_format', 'hdr_detail', 'el_type', 'resolution',
     'resolution_class', 'video_codec', 'video_codec_profile', 'video_encoder',
     'audio_codec', 'duration', 'video_bitrate', 'audio_bitrate', 'file_size',
-    'mtime', 'dv_cm_version', 'hdr_metadata', 'tmdb_id', 'poster_url',
+    'mtime', 'updated_at', 'dv_cm_version', 'hdr_metadata', 'tmdb_id',
+    'poster_url',
     'tmdb_title', 'tmdb_year', 'tmdb_rating', 'tmdb_plot', 'tmdb_tagline',
     'tmdb_directors', 'tmdb_cast', 'tmdb_genres', 'imdb_id', 'imdb_rating',
     'rt_rating', 'rt_audience', 'trakt_rating', 'metacritic', 'imdb_top250',
@@ -47,7 +49,7 @@ LIBRARY_FILTERS = ('hdr_format', 'hdr_detail', 'el_type', 'dv_cm_version',
 # ``min_video_bitrate`` never hands back the files whose bitrate is unknown -
 # and ``max_imdb_top250=250`` means "in the chart" rather than "everything".
 RANGE_FILTERS = ('duration', 'file_size', 'video_bitrate', 'audio_bitrate',
-                 'mtime', 'tmdb_year', 'tmdb_rating', 'imdb_rating',
+                 'mtime', 'updated_at', 'tmdb_year', 'tmdb_rating', 'imdb_rating',
                  'rt_rating', 'rt_audience', 'trakt_rating', 'metacritic',
                  'imdb_top250')
 
@@ -329,6 +331,7 @@ SORT_KEYS = {
     'filename': lambda entry: _text(entry.get('filename')),
     'tmdb_title': lambda entry: _text(entry.get('tmdb_title')),
     'mtime': lambda entry: _as_float(entry.get('mtime')),
+    'updated_at': lambda entry: _as_float(entry.get('updated_at')),
     'file_size': lambda entry: _as_float(entry.get('file_size')),
     'duration': lambda entry: _as_float(entry.get('duration')),
     'tmdb_year': lambda entry: _as_float(entry.get('tmdb_year')),
@@ -380,6 +383,12 @@ def _as_entry(file_info):
     # caller that wants "everything still below 4K" should not have to know
     # which frame sizes that covers.
     entry['resolution_class'] = resolution_class(entry.get('resolution'))
+
+    # An entry from a database written before changes were stamped falls back
+    # to the file's own time, so ``updated_since`` still has something to
+    # compare and a first sync sees everything rather than nothing.
+    if not entry.get(database.UPDATED_AT_KEY):
+        entry[database.UPDATED_AT_KEY] = _as_float(file_info.get('mtime'))
 
     # Modification time for the "recently added" sort. Scanning records it,
     # so only entries from an older database still need a stat call here -
@@ -441,6 +450,22 @@ def sort_fields(sort):
         if field not in SORT_KEYS:
             raise ValueError(f'Unknown sort field: {field}')
     return fields or ['filename']
+
+
+def project(entries, fields):
+    """
+    Cut every entry down to the fields a caller asked for.
+
+    ``path`` is always kept: it identifies an entry, and a list a client cannot
+    act on is not worth sending. ``None`` means the full record.
+
+    A list view needs a dozen of the thirty-odd fields an entry carries, and on
+    a phone that is the difference between a megabyte and four.
+    """
+    if not fields:
+        return entries
+    wanted = ['path'] + [field for field in fields if field != 'path']
+    return [{field: entry.get(field) for field in wanted} for entry in entries]
 
 
 def query_entries(filters=None, ranges=None, search=None, sort='filename',
@@ -694,7 +719,11 @@ def scan_file(file_path):
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(file_path)
-    return scan_video_file_with_deps(file_path)
+
+    result = scan_video_file_with_deps(file_path)
+    if result and result.get('success'):
+        publish_entry_updated(file_path, result.get('file_info'))
+    return result
 
 
 def rescan_entry(file_path):
@@ -719,12 +748,14 @@ def rescan_entry(file_path):
 
     result = scan_video_file_with_deps(file_path)
     if result and result.get('success'):
+        publish_entry_updated(file_path, result.get('file_info'))
         return result.get('file_info')
 
     if old_info:
         with database.scan_lock:
             database.scanned_files[file_path] = old_info
             database.scanned_paths.add(file_path)
+            database.bump_revision()
             database.save_database(config.DB_FILE)
     return None
 
@@ -743,6 +774,7 @@ def delete_entry(file_path):
         delete_cached_poster_for(file_info)
         del database.scanned_files[file_path]
         database.scanned_paths.discard(file_path)
+        database.bump_revision()
         database.save_database(config.DB_FILE)
 
     _notify({'file_path': file_path})
@@ -760,6 +792,7 @@ def clear_library():
 
         database.scanned_files.clear()
         database.scanned_paths.clear()
+        database.bump_revision()
         database.save_database(config.DB_FILE)
 
     _notify({'cleared': True})

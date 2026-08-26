@@ -8,6 +8,7 @@ import os
 import threading
 
 from core.events import event_hub
+from services import database
 
 
 # Last published scan progress. Events only reach whoever is listening at that
@@ -98,3 +99,24 @@ def report_scan_progress(current, total, file_path, result):
         'status': 'scanning',
         'filename': os.path.basename(file_path)
     })
+
+    if result and result.get('success'):
+        publish_entry_updated(file_path, result.get('file_info'))
+
+
+def publish_entry_updated(file_path, file_info=None):
+    """
+    Tell listeners that one entry now reads differently.
+
+    Only the path and the stamp go over the wire, not the record: a client that
+    wants the new content asks for it with ``updated_since``, and a bulk scan
+    does not push a megabyte of entries at every phone that happens to be
+    listening.
+    """
+    try:
+        event_hub.publish('entry_updated', json.dumps({
+            'file_path': file_path,
+            'updated_at': (file_info or {}).get(database.UPDATED_AT_KEY),
+        }))
+    except Exception as e:
+        print(f"Error publishing entry update: {e}")

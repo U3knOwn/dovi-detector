@@ -7,14 +7,58 @@ import os
 import json
 import tempfile
 import threading
+import time
 
 # Global data storage
 scanned_files = {}
 scanned_paths = set()
+
+# When an entry was last written, as seconds since the epoch. Stamped on every
+# change - a scan, a rescan, a backfill filling in a poster or a rating - so a
+# client can ask for "everything since" instead of pulling the whole library
+# on every start. The file's own mtime cannot answer that: filling in a rating
+# never touches the file.
+UPDATED_AT_KEY = 'updated_at'
+
+# Bumped with every change to the library, so an unchanged one can be answered
+# with 304 rather than with megabytes. Seeded from the clock rather than from
+# zero: a restart must not hand out a revision a client already holds an ETag
+# for, or it would keep a stale library forever.
+_revision = int(time.time())
 # Reentrant so save_database() can take a consistent snapshot under the lock
 # even when a caller already holds it (e.g. the scanner, the watcher and
 # cleanup_database all save while mutating under this same lock).
 scan_lock = threading.RLock()
+
+
+def library_revision():
+    """The library's current revision, for a caller building an ETag."""
+    with scan_lock:
+        return _revision
+
+
+def bump_revision():
+    """
+    Note that the library changed without one entry being the reason - an
+    entry removed, the whole thing cleared.
+    """
+    global _revision
+    with scan_lock:
+        _revision += 1
+
+
+def mark_updated(file_info):
+    """
+    Stamp an entry as changed now, and note the change in the revision.
+
+    Every write to an entry goes through here, whatever wrote it, so
+    ``updated_since`` and the ETag stay true to what actually happened.
+    """
+    global _revision
+    with scan_lock:
+        file_info[UPDATED_AT_KEY] = time.time()
+        _revision += 1
+    return file_info
 
 
 def load_database(db_file):
@@ -26,6 +70,7 @@ def load_database(db_file):
                 data = json.load(f)
                 scanned_files = data.get('files', {})
                 scanned_paths = set(data.get('paths', []))
+                bump_revision()
                 print(f"Loaded {len(scanned_files)} files from database")
     except Exception as e:
         print(f"Error loading database: {e}")
@@ -102,6 +147,7 @@ def cleanup_database(db_file, delete_cached_poster_func):
 
                     del scanned_files[file_path]
                     scanned_paths.discard(file_path)
+                    bump_revision()
                     removed_count += 1
                     print(
                         f"✗ Removed from database (file not found): {file_path}")

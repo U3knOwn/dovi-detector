@@ -10,16 +10,18 @@ answers always carry ``success``, and a failure additionally carries ``error``
 and a machine-readable ``code`` - including the failures Flask itself produces,
 see the error handler at the bottom of this module.
 """
+import hashlib
 import os
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, Response, jsonify, request, send_file
 from werkzeug.exceptions import HTTPException
 
 from core import library_ops
 from core.api_access import apply_cors, authorization_error, error_response, preflight_response
-from core.posters import cached_poster_path
+from core.posters import POSTER_WIDTHS, cached_poster_path, poster_path_at_width
 from core.scan_state import request_cancel, scan_is_running, scan_state, scan_state_lock
 from core.sse import sse_response
+from services import database
 
 API_VERSION = 'v1'
 API_PREFIX = f'/api/{API_VERSION}'
@@ -106,8 +108,18 @@ def _range_args():
 
     Returns ``(ranges, None)`` or ``(None, error_response)``; a field with
     neither end named is left out entirely.
+
+    ``updated_since`` is spelled out rather than left as ``min_updated_at``:
+    it is the parameter a syncing client reaches for first, and it should read
+    like what it does.
     """
     ranges = {}
+
+    since, failure = _float_arg('updated_since')
+    if failure:
+        return None, failure
+    if since is not None:
+        ranges['updated_at'] = (since, None)
     for field in library_ops.RANGE_FILTERS:
         minimum, failure = _float_arg(f'min_{field}')
         if failure:
@@ -118,7 +130,9 @@ def _range_args():
             return None, failure
 
         if minimum is not None or maximum is not None:
-            ranges[field] = (minimum, maximum)
+            existing = ranges.get(field, (None, None))
+            ranges[field] = (minimum if minimum is not None else existing[0],
+                             maximum if maximum is not None else existing[1])
 
     return ranges, None
 
@@ -139,6 +153,43 @@ def _sort_arg():
             'invalid_parameter',
             f'"sort" must name one or more of: {options} (comma-separated).', 400)
     return raw, None
+
+
+def _library_etag():
+    """
+    The tag identifying this answer - the library's revision and the question
+    asked of it - as the bare hash, without the W/ and quotes a header wants.
+
+    Weak, because gzip may or may not have been applied to the same content -
+    a byte-for-byte promise is not one this can keep, and is not one a client
+    needs to decide whether to re-download.
+    """
+    query = sorted((key, value) for key, value in request.args.items(multi=True)
+                   if key.lower() != 'token')
+    fingerprint = f'{API_VERSION}|{database.library_revision()}|{query}'
+    return hashlib.sha1(fingerprint.encode()).hexdigest()[:20]
+
+
+def _fields_arg():
+    """
+    Read ``fields``, the subset of an entry a caller wants back.
+
+    Returns ``(fields_or_None, None)`` or ``(None, error_response)``; ``None``
+    means the whole record, as before.
+    """
+    raw = (request.args.get('fields') or '').strip()
+    if not raw:
+        return None, None
+
+    fields = [field.strip() for field in raw.split(',') if field.strip()]
+    unknown = [field for field in fields if field not in library_ops.LIBRARY_FIELDS]
+    if unknown:
+        options = ', '.join(library_ops.LIBRARY_FIELDS)
+        return None, error_response(
+            'invalid_parameter',
+            f'"fields" does not know {", ".join(unknown)}. Available: {options}.', 400)
+
+    return fields, None
 
 
 def _choice_arg(name, allowed, default):
@@ -167,7 +218,7 @@ def index():
             'GET /api/v1/library/stats': 'Counts per HDR format, resolution, video codec and audio codec',
             'GET /api/v1/entries?file_path=...': 'One entry by its path',
             'GET /api/v1/files': 'Video files in the media directory with their scan state',
-            'GET /api/v1/posters/<filename>': 'A cached poster image, as named by an entry\'s poster_url',
+            'GET /api/v1/posters/<filename>': 'A cached poster image, as named by an entry\'s poster_url; ?w= for a resized copy',
             'GET /api/v1/scan/status': 'Progress of the scan that is running',
             'GET /api/v1/events': 'Server-Sent Events: scan progress and deletions',
             'POST /api/v1/scan': 'Scan everything that is not in the library yet',
@@ -186,6 +237,9 @@ def index():
             'sort': sorted(library_ops.SORT_KEYS),
             'sort_combined': 'several fields, comma-separated, e.g. '
                              'sort=hdr_format,audio_codec',
+            'fields': list(library_ops.LIBRARY_FIELDS),
+            'sync': 'updated_since=<epoch seconds>, plus the ETag of a previous '
+                    'answer as If-None-Match',
             'order': ['asc', 'desc'],
             'page': ['limit', 'offset'],
         }
@@ -234,6 +288,22 @@ def library():
     if failure:
         return failure
 
+    fields, failure = _fields_arg()
+    if failure:
+        return failure
+
+    # A library that has not changed since the client's copy is worth a 304
+    # rather than megabytes - the whole reason a phone app can start instantly.
+    # The revision covers the data, the query string covers what was asked of
+    # it, so two different questions never share an answer.
+    etag = _library_etag()
+    # contains() compares strongly and would never match a W/ tag we sent
+    # ourselves, so the weak comparison is the one that applies here.
+    if request.if_none_match.contains_weak(etag):
+        response = Response(status=304)
+        response.headers['ETag'] = f'W/"{etag}"'
+        return response
+
     filters = {
         field: request.args[field]
         for field in library_ops.LIBRARY_FILTERS
@@ -249,14 +319,16 @@ def library():
         limit=limit,
         offset=offset)
 
-    return jsonify({
+    response = jsonify({
         'success': True,
         'count': len(entries),
         'total': total,
         'offset': offset,
         'limit': limit,
-        'files': entries
+        'files': library_ops.project(entries, fields)
     })
+    response.headers['ETag'] = f'W/"{etag}"'
+    return response
 
 
 @bp.route('/library/stats', methods=['GET', 'OPTIONS'])
@@ -289,6 +361,11 @@ def poster(filename):
     leave /api/v1 - or guess whether an unversioned path will stay where it is.
     An entry whose image could not be cached carries the remote URL instead, and
     that one is fetched from its own host.
+
+    ``?w=`` asks for a resized copy, which is what a phone showing a list of
+    covers wants rather than the full-size image. Only a handful of widths are
+    produced, so the cache stays bounded; the resized copy is made on first use
+    and kept. Without Pillow installed the original is served instead.
     """
     poster_path = cached_poster_path(filename)
     if poster_path is None:
@@ -300,7 +377,20 @@ def poster(filename):
     if not os.path.exists(poster_path):
         return error_response('poster_not_found', 'No such poster.', 404)
 
-    return send_file(poster_path, mimetype='image/jpeg')
+    width, failure = _int_arg('w')
+    if failure:
+        return failure
+    if width is not None and width not in POSTER_WIDTHS:
+        options = ', '.join(str(w) for w in POSTER_WIDTHS)
+        return error_response(
+            'invalid_parameter', f'"w" must be one of: {options}.', 400)
+
+    response = send_file(poster_path_at_width(filename, width) or poster_path,
+                         mimetype='image/jpeg')
+    # A cached poster never changes under its name - the scanner writes a new
+    # name instead - so a client may keep it for as long as it likes.
+    response.headers['Cache-Control'] = 'public, max-age=604800, immutable'
+    return response
 
 
 # ------------------------------------------------------------------- scanning

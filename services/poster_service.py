@@ -10,6 +10,9 @@ import tempfile
 from services.tmdb_service import is_valid_tmdb_url
 from services.fanart_service import is_valid_fanart_url
 
+from core.posters import delete_poster_thumbnails
+from services.database import mark_updated
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -30,6 +33,9 @@ def delete_cached_poster(file_info, poster_cache_dir):
                 print(f"✗ Removed cached poster: {poster_filename}")
             except Exception as e:
                 print(f"Error removing poster {poster_filename}: {e}")
+
+        # The resized copies belong to that file, so they go with it
+        delete_poster_thumbnails(poster_filename)
 
 
 def download_and_cache_poster(poster_url, cache_filename, poster_cache_dir):
@@ -126,6 +132,7 @@ def migrate_poster_urls_to_cache(scanned_files, scan_lock, save_database_func, p
                 cached_path = get_cached_backdrop_path(tmdb_id, poster_url, poster_cache_dir)
                 if cached_path and cached_path.startswith('/poster/'):
                     file_info['poster_url'] = cached_path
+                    mark_updated(file_info)
                     migrated_count += 1
 
         if migrated_count > 0:

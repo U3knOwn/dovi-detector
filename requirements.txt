@@ -2,3 +2,6 @@ Flask==3.1.2
 watchdog==6.0.0
 Werkzeug==3.1.4
 requests>=2.32.5
+# Optional, for the resized posters /api/v1/posters?w= hands out. Without it
+# the endpoint serves the full-size image, as it did before.
+Pillow>=11.0.0

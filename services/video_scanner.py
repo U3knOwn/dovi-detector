@@ -20,6 +20,7 @@ from utils.media_utils import (
     parse_mediainfo_int, parse_mediainfo_float
 )
 import config
+from services.database import mark_updated
 
 # Major version of the hdrprobe JSON schema this module reads (hdrprobe v1.0.0).
 # Schema 3.0 renamed and reshaped fields relative to 2.x, so a mismatch means
@@ -1303,6 +1304,7 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
     file_info.update(online)
 
     with scan_lock:
+        mark_updated(file_info)
         scanned_files[file_path] = file_info
         scanned_paths.add(file_path)
         if not defer_save:
@@ -1561,6 +1563,7 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
             if current is None:
                 continue  # entry was removed while we were fetching
             current.update(gained)
+            mark_updated(current)
         updated += 1
         print(f"[RETRY] Updated {file_info.get('filename')}: {', '.join(sorted(gained))}")
 
@@ -1626,6 +1629,7 @@ def backfill_video_codec(scanned_files, scan_lock, save_database_func, batch_siz
             current['video_codec'] = codec
             current['video_codec_profile'] = profile
             current['video_encoder'] = encoder
+            mark_updated(current)
 
         updated += 1
         pending += 1

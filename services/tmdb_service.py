@@ -12,6 +12,8 @@ from utils.regex_patterns import (
     BRACKET_PATTERN, SEPARATOR_PATTERN, WHITESPACE_PATTERN
 )
 
+from services.database import mark_updated
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -375,6 +377,7 @@ def backfill_tmdb_details(scanned_files, scan_lock, save_database_func,
             continue
         file_info['tmdb_genres'] = details.get('tmdb_genres') or []
         file_info['tmdb_tagline'] = details.get('tmdb_tagline') or ''
+        mark_updated(file_info)
         filled += 1
 
     if filled:
