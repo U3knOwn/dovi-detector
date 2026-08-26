@@ -48,7 +48,7 @@ port `2367`.
 | **Posters & ratings** | TMDB or Fanart.tv artwork, all ratings from MDBList - IMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic - with TMDB fallback and an IMDb Top 250 badge |
 | **Sorting & filtering** | Sort by resolution, video codec, HDR format, audio, bitrate, size, year, runtime - and separately by IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
 | **Title details** | Tagline above the plot, genres beside the directors, plot folded to five lines and expandable |
-| **API** | Token-protected `/api/v1` - read the library filtered/sorted/paged, drive scans, follow progress live |
+| **API** | Token-protected `/api/v1` - read the library filtered/searched/sorted/paged in every order the interface offers, with range filters on every number, drive scans, follow progress live |
 | **Docker-based** | One `docker-compose up -d` away |
 
 ---
@@ -406,15 +406,38 @@ handful:
 
 | Parameter | Meaning |
 |-----------|---------|
-| `hdr_format`, `el_type`, `resolution`, `resolution_class`, `video_codec`, `video_encoder`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`, `resolution_class=4K`, `video_codec=h.265`, `video_encoder=x265`) |
-| `search` | Substring of the file name or the TMDB title |
-| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `resolution`, `video_codec`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
-| | `resolution` and `video_codec` are the orders the web interface offers: `order=desc` puts the largest frame / the newest codec first, class before frame size and `H.266 > H.265 > AV1 > H.264 > VC-1 > VP9 > VP8 > MPEG-4 > MPEG-2 > MPEG-1` |
+| `hdr_format`, `hdr_detail`, `el_type`, `dv_cm_version`, `resolution`, `resolution_class`, `video_codec`, `video_encoder`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`, `resolution_class=4K`, `video_codec=h.265`, `video_encoder=x265`) |
+| `min_<field>`, `max_<field>` | Both ends inclusive, for `duration`, `file_size`, `video_bitrate`, `audio_bitrate`, `mtime`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` and `imdb_top250` |
+| `search` | Substring of what an entry is called and what it is: file name, TMDB title, HDR detail, resolution, video codec with its profile and encoder, audio codec |
+| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `resolution`, `video_codec`, `video_bitrate`, `audio_bitrate`, `hdr_format`, `audio_codec`, `dv_cm_version`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
 | `order` | `asc` (default) or `desc` |
 | `limit`, `offset` | The window to return; `total` always counts every match before it |
 
-An unknown `sort`, a non-numeric `limit` and the like are refused with
-`400 invalid_parameter` rather than quietly ignored.
+An unknown `sort`, a non-numeric `limit` or `min_…`, and the like are refused
+with `400 invalid_parameter` rather than quietly ignored.
+
+**Every order the web interface offers is available here, ranked the same way.**
+`sort` may name several fields separated by commas: it sorts by the first and
+settles ties with the next, which is how the interface's combined modes are put.
+`order=desc` is "best first" throughout - the largest frame, the newest codec,
+the richest HDR grade, the best audio track:
+
+| In the interface | Over the API |
+|------------------|--------------|
+| Auflösung | `sort=resolution&order=desc` - class before frame size |
+| Videocodec | `sort=video_codec&order=desc` - `H.266 > H.265 > AV1 > H.264 > VC-1 > VP9 > VP8 > MPEG-4 > MPEG-2 > MPEG-1` |
+| HDR-Typ | `sort=hdr_format&order=desc` - DV FEL > MEL > P8 > P5 > HDR10+ > SL-HDR > HDR Vivid > HDR10/HLG > SDR |
+| HDR-Typ + Tonspur | `sort=hdr_format,audio_codec&order=desc` |
+| HDR-Typ + Videobitrate | `sort=hdr_format,video_bitrate&order=desc` |
+| HDR-Typ + Audiobitrate | `sort=hdr_format,audio_bitrate&order=desc` |
+| Tonspur | `sort=audio_codec&order=desc` - TrueHD Atmos > DTS:X > TrueHD > DTS-HD MA > … , wider mixes first within a codec |
+| Tonspur + Audiobitrate | `sort=audio_codec,audio_bitrate&order=desc` |
+| CM Version | `sort=dv_cm_version&order=desc` |
+
+A ranged field an entry does not carry is dropped rather than read as zero, so
+`min_video_bitrate=60000` never returns the files whose bitrate could not be
+determined, and `max_imdb_top250=250` means "in the chart" rather than
+"everything".
 
 ### 7.6 Posters
 
@@ -512,6 +535,24 @@ curl -s -H "X-API-Token: $TOKEN" \
 # The library by codec, newest first - the same order the dashboard shows
 curl -s -H "X-API-Token: $TOKEN" "$API/library?sort=video_codec&order=desc" \
   | jq -r '.files[] | "\(.video_codec)\t\(.filename)"'
+
+# Every x265 encode, found by what the file says rather than by a filter
+curl -s -H "X-API-Token: $TOKEN" "$API/library?search=x265" | jq '.files[].filename'
+
+# The bandwidth hogs: over 60 Mb/s, biggest file first
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?min_video_bitrate=60000&sort=file_size&order=desc" \
+  | jq -r '.files[] | "\(.video_bitrate) kb/s\t\(.filename)"'
+
+# The Top 250 titles in the library, best rank first
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?max_imdb_top250=250&sort=imdb_rating&order=desc" \
+  | jq -r '.files[] | "#\(.imdb_top250)\t\(.filename)"'
+
+# What the dashboard's "HDR format + audio codec" mode shows
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?sort=hdr_format,audio_codec&order=desc" \
+  | jq -r '.files[] | "\(.hdr_detail)\t\(.audio_codec)"'
 
 # Every Dolby Vision FEL title - filtered by the server, not by jq
 curl -s -H "X-API-Token: $TOKEN" "$API/library?el_type=FEL" | jq '.files[].filename'

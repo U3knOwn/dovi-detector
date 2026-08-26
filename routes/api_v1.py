@@ -82,6 +82,65 @@ def _int_arg(name, default=None, minimum=0):
     return value, None
 
 
+def _float_arg(name):
+    """
+    Read a number from the query string, whole or not.
+
+    Returns ``(value, None)`` - None for an absent parameter - or
+    ``(None, error_response)``.
+    """
+    raw = request.args.get(name)
+    if raw is None or not raw.strip():
+        return None, None
+
+    try:
+        return float(raw), None
+    except ValueError:
+        return None, error_response(
+            'invalid_parameter', f'"{name}" must be a number.', 400)
+
+
+def _range_args():
+    """
+    The ``min_<field>`` / ``max_<field>`` pairs a request carries.
+
+    Returns ``(ranges, None)`` or ``(None, error_response)``; a field with
+    neither end named is left out entirely.
+    """
+    ranges = {}
+    for field in library_ops.RANGE_FILTERS:
+        minimum, failure = _float_arg(f'min_{field}')
+        if failure:
+            return None, failure
+
+        maximum, failure = _float_arg(f'max_{field}')
+        if failure:
+            return None, failure
+
+        if minimum is not None or maximum is not None:
+            ranges[field] = (minimum, maximum)
+
+    return ranges, None
+
+
+def _sort_arg():
+    """
+    Read ``sort``, which may name several fields separated by commas.
+
+    Returns ``(sort, None)`` or ``(None, error_response)`` naming the field
+    that does not exist and the ones that do.
+    """
+    raw = request.args.get('sort') or 'filename'
+    try:
+        library_ops.sort_fields(raw)
+    except ValueError:
+        options = ', '.join(sorted(library_ops.SORT_KEYS))
+        return None, error_response(
+            'invalid_parameter',
+            f'"sort" must name one or more of: {options} (comma-separated).', 400)
+    return raw, None
+
+
 def _choice_arg(name, allowed, default):
     """
     Read a query parameter that has to be one of ``allowed``.
@@ -121,8 +180,12 @@ def index():
         },
         'library_query': {
             'filter': list(library_ops.LIBRARY_FILTERS),
+            'range': [f'min_{field} / max_{field}'
+                      for field in library_ops.RANGE_FILTERS],
             'search': list(library_ops.SEARCH_FIELDS),
             'sort': sorted(library_ops.SORT_KEYS),
+            'sort_combined': 'several fields, comma-separated, e.g. '
+                             'sort=hdr_format,audio_codec',
             'order': ['asc', 'desc'],
             'page': ['limit', 'offset'],
         }
@@ -138,16 +201,18 @@ def library():
 
     Without parameters this is the whole library, as it always was. With them a
     caller can narrow it down server-side instead of downloading thousands of
-    entries to find the handful it wants: ``hdr_format``, ``el_type``,
-    ``resolution``, ``resolution_class``, ``video_codec``, ``video_encoder`` and
-    ``audio_codec`` filter, ``search`` matches the file name or the title,
-    ``sort``/``order`` order the result and ``limit``/``offset`` cut a window out
-    of it. ``total`` always counts the matches before that window, so a pager
-    knows how far it has to go.
+    entries to find the handful it wants: every field in
+    ``LIBRARY_FILTERS`` matches exactly, every field in
+    ``RANGE_FILTERS`` takes a ``min_``/``max_`` pair, ``search`` matches what an
+    entry is called and what it is, ``sort``/``order`` order the result and
+    ``limit``/``offset`` cut a window out of it. ``total`` always counts the
+    matches before that window, so a pager knows how far it has to go.
 
-    ``sort=resolution`` and ``sort=video_codec`` are the two orders the web
-    interface offers as well, so a consumer can ask for what it sees on screen:
-    ``order=desc`` is the largest frame / the newest codec first.
+    ``sort`` may name several fields separated by commas, sorting by the first
+    and settling ties with the next - which is how the interface's combined
+    modes are put, e.g. ``sort=hdr_format,audio_codec&order=desc`` for its
+    "HDR format + audio codec". Every order the interface offers is available
+    here, ranked the same way.
     """
     limit, failure = _int_arg('limit', minimum=1)
     if failure:
@@ -157,11 +222,15 @@ def library():
     if failure:
         return failure
 
-    sort, failure = _choice_arg('sort', library_ops.SORT_KEYS, 'filename')
+    sort, failure = _sort_arg()
     if failure:
         return failure
 
     order, failure = _choice_arg('order', ('asc', 'desc'), 'asc')
+    if failure:
+        return failure
+
+    ranges, failure = _range_args()
     if failure:
         return failure
 
@@ -173,6 +242,7 @@ def library():
 
     entries, total = library_ops.query_entries(
         filters=filters,
+        ranges=ranges,
         search=request.args.get('search'),
         sort=sort,
         order=order,
