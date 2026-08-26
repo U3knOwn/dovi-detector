@@ -10,9 +10,11 @@ import time
 import config
 from core.scan_state import (begin_scan, cancel_requested, end_scan,
                              publish_scan_progress, report_scan_progress)
-from core.scanner import fetch_online_metadata_with_deps, scan_video_file_with_deps
+from core.scanner import (cache_portrait_for, fetch_online_metadata_with_deps,
+                          fetch_portrait_for, scan_video_file_with_deps)
 from services import database
 from services.imdb_service import backfill_imdb_data, load_top250
+from services.poster_service import backfill_portraits
 from services.ratings_service import (RATINGS_QUERIED_KEY, get_ratings,
                                       verify_ratings_key)
 from services.tmdb_service import (backfill_tmdb_details, get_imdb_id,
@@ -92,6 +94,27 @@ def refresh_tmdb_details():
     )
 
 
+def refresh_portraits():
+    """
+    Give an existing library its upright covers.
+
+    Runs on a background thread at startup for the same reason as the other
+    backfills: a library scanned before the mobile app existed carries only the
+    16:9 backdrop, and cropping that to 2:3 loses most of the frame. Each entry
+    is looked up once - the key is written even when neither source has cover
+    art, so a title that genuinely has none is not asked again on every start.
+    """
+    try:
+        backfill_portraits(
+            database.scanned_files,
+            database.scan_lock,
+            lambda: database.save_database(config.DB_FILE),
+            fetch_portrait_for,
+            cache_portrait_for)
+    except Exception as e:
+        print(f"Error during portrait backfill: {e}")
+
+
 def refresh_video_codecs():
     """
     Read the video codec into entries scanned before it was recorded.
@@ -169,6 +192,11 @@ def start_background_tasks():
         # carry yet
         if config.TMDB_API_KEY:
             threading.Thread(target=refresh_tmdb_details, daemon=True).start()
+
+        # And for the upright cover the mobile app shows, which no entry
+        # scanned before it existed carries at all
+        if config.TMDB_API_KEY or config.FANART_API_KEY:
+            threading.Thread(target=refresh_portraits, daemon=True).start()
 
     # Retry entries whose metadata lookups failed, so they heal themselves
     # once the API is reachable again

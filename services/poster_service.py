@@ -21,21 +21,34 @@ except ImportError:
 
 
 def delete_cached_poster(file_info, poster_cache_dir):
-    """Delete cached poster file for a given file_info entry"""
-    poster_url = file_info.get('poster_url', '')
-    if poster_url and poster_url.startswith('/poster/'):
-        # Only the prefix - replace() would also strip a repeat of it further in
-        poster_filename = poster_url[len('/poster/'):]
-        backdrop_path = os.path.join(poster_cache_dir, poster_filename)
-        if os.path.exists(backdrop_path):
-            try:
-                os.remove(backdrop_path)
-                print(f"✗ Removed cached poster: {poster_filename}")
-            except Exception as e:
-                print(f"Error removing poster {poster_filename}: {e}")
+    """
+    Delete the cached images of an entry.
 
-        # The resized copies belong to that file, so they go with it
-        delete_poster_thumbnails(poster_filename)
+    Both of them: the 16:9 backdrop the web interface shows and the upright
+    poster the mobile app uses are separate files, and an entry that goes takes
+    each of them with it.
+    """
+    for field in ('poster_url', 'portrait_url'):
+        _delete_cached_image(file_info.get(field, ''), poster_cache_dir)
+
+
+def _delete_cached_image(image_url, poster_cache_dir):
+    """Delete one cached image and every resized copy of it."""
+    if not image_url or not image_url.startswith('/poster/'):
+        return
+
+    # Only the prefix - replace() would also strip a repeat of it further in
+    poster_filename = image_url[len('/poster/'):]
+    cached_path = os.path.join(poster_cache_dir, poster_filename)
+    if os.path.exists(cached_path):
+        try:
+            os.remove(cached_path)
+            print(f"✗ Removed cached poster: {poster_filename}")
+        except Exception as e:
+            print(f"Error removing poster {poster_filename}: {e}")
+
+    # The resized copies belong to that file, so they go with it
+    delete_poster_thumbnails(poster_filename)
 
 
 def download_and_cache_poster(poster_url, cache_filename, poster_cache_dir):
@@ -113,6 +126,96 @@ def get_cached_backdrop_path(tmdb_id, poster_url, poster_cache_dir):
     return download_and_cache_poster(poster_url, cache_filename, poster_cache_dir)
 
 
+def get_cached_portrait_path(tmdb_id, portrait_url, poster_cache_dir):
+    """
+    Cache the upright poster, under a name of its own.
+
+    The backdrop and the portrait of one title are two different images, so
+    they cannot share a cache name - hence the ``_portrait`` in it. Everything
+    else works exactly as it does for the backdrop, down to the SSRF check on
+    the source.
+    """
+    if not portrait_url:
+        return None
+
+    if tmdb_id:
+        if is_valid_fanart_url(portrait_url):
+            cache_filename = f"fanart_portrait_{tmdb_id}.jpg"
+        elif is_valid_tmdb_url(portrait_url):
+            cache_filename = f"tmdb_portrait_{tmdb_id}.jpg"
+        else:
+            url_hash = hashlib.md5(portrait_url.encode()).hexdigest()
+            cache_filename = f"portrait_{url_hash}.jpg"
+    else:
+        url_hash = hashlib.md5(portrait_url.encode()).hexdigest()
+        cache_filename = f"portrait_{url_hash}.jpg"
+
+    return download_and_cache_poster(portrait_url, cache_filename, poster_cache_dir)
+
+
+def fetch_portrait(tmdb_id, get_tmdb_portrait_func=None, get_fanart_portrait_func=None):
+    """
+    Find the upright poster for a title, wherever it can be had.
+
+    TMDB is asked first whatever ``IMAGE_SOURCE`` says, because its poster
+    coverage is the better of the two; Fanart.tv answers for the titles TMDB
+    has no cover art for. Returns the remote URL, or None when neither source
+    has one - which is a real answer, not a failure.
+    """
+    if not tmdb_id:
+        return None
+
+    for lookup in (get_tmdb_portrait_func, get_fanart_portrait_func):
+        if not lookup:
+            continue
+        for media_type in ('movie', 'tv'):
+            portrait_url = lookup(tmdb_id, media_type)
+            if portrait_url:
+                return portrait_url
+
+    return None
+
+
+def backfill_portraits(scanned_files, scan_lock, save_database_func,
+                       fetch_portrait_func, cache_portrait_func):
+    """
+    Give the entries of an existing library their upright poster.
+
+    Without this only newly scanned titles would have one, and a library built
+    before the mobile app existed would show nothing but backdrops cropped to
+    2:3. Entries are looked up once: the key is written even when neither
+    source has a poster, so a title that genuinely has none is not asked again
+    on every start.
+    """
+    if not REQUESTS_AVAILABLE or not fetch_portrait_func:
+        return 0
+
+    with scan_lock:
+        entries = [info for info in scanned_files.values()
+                   if info.get('tmdb_id') and 'portrait_url' not in info]
+
+    if not entries:
+        return 0
+
+    filled = 0
+    for file_info in entries:
+        tmdb_id = file_info.get('tmdb_id')
+        portrait_url = fetch_portrait_func(tmdb_id)
+        if portrait_url and cache_portrait_func:
+            portrait_url = cache_portrait_func(tmdb_id, portrait_url)
+
+        file_info['portrait_url'] = portrait_url
+        mark_updated(file_info)
+        if portrait_url:
+            filled += 1
+
+    with scan_lock:
+        save_database_func()
+    print(f"✓ Portrait posters updated - {filled} of {len(entries)} entr(ies)")
+
+    return filled
+
+
 def migrate_poster_urls_to_cache(scanned_files, scan_lock, save_database_func, poster_cache_dir):
     """Migrate existing TMDB and Fanart.tv poster URLs to cached versions"""
     if not REQUESTS_AVAILABLE:
@@ -121,17 +224,25 @@ def migrate_poster_urls_to_cache(scanned_files, scan_lock, save_database_func, p
     migrated_count = 0
     with scan_lock:
         for file_path, file_info in scanned_files.items():
-            poster_url = file_info.get('poster_url')
             tmdb_id = file_info.get('tmdb_id')
 
-            # Check if poster URL is a TMDB or Fanart.tv URL (not cached)
-            if poster_url and (is_valid_tmdb_url(poster_url) or is_valid_fanart_url(poster_url)):
+            # Both images take the same route: a URL still pointing at TMDB or
+            # Fanart.tv is one whose download did not happen or did not finish,
+            # and it gets another go here.
+            for field, cache in (('poster_url', get_cached_backdrop_path),
+                                 ('portrait_url', get_cached_portrait_path)):
+                image_url = file_info.get(field)
+                if not image_url:
+                    continue
+                if not (is_valid_tmdb_url(image_url) or is_valid_fanart_url(image_url)):
+                    continue
+
                 print(
-                    f"  [MIGRATION] Caching poster for: "
+                    f"  [MIGRATION] Caching {field} for: "
                     f"{file_info.get('filename')}")
-                cached_path = get_cached_backdrop_path(tmdb_id, poster_url, poster_cache_dir)
+                cached_path = cache(tmdb_id, image_url, poster_cache_dir)
                 if cached_path and cached_path.startswith('/poster/'):
-                    file_info['poster_url'] = cached_path
+                    file_info[field] = cached_path
                     mark_updated(file_info)
                     migrated_count += 1
 

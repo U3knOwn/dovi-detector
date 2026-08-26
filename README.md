@@ -388,10 +388,17 @@ An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
 `hdr_detail`, `el_type`, `resolution`, `resolution_class`, `video_codec`,
 `video_codec_profile`, `video_encoder`, `audio_codec`, `duration`,
 `video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
-`hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
-`tmdb_rating`, `tmdb_plot`, `tmdb_tagline`, `tmdb_directors`, `tmdb_cast`,
-`tmdb_genres`, `imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`,
-`rt_audience`, `trakt_rating`, `metacritic`.
+`hdr_metadata`, `poster_url`, `portrait_url`, `tmdb_id`, `tmdb_title`,
+`tmdb_year`, `tmdb_rating`, `tmdb_plot`, `tmdb_tagline`, `tmdb_directors`,
+`tmdb_cast`, `tmdb_genres`, `imdb_id`, `imdb_rating`, `imdb_top250`,
+`rt_rating`, `rt_audience`, `trakt_rating`, `metacritic`.
+
+**Two images, not one.** `poster_url` is the 16:9 backdrop the web interface is
+built around; `portrait_url` is the upright 2:3 cover art, which is what a grid
+of covers on a phone wants - a backdrop cropped to 2:3 loses most of the frame
+and usually the title with it. They are separate lookups cached under separate
+names, and an entry may carry either, both, or neither. A client that wants one
+and finds it empty should fall back to the other rather than show nothing.
 
 `resolution_class` is derived, not scanned: it is the step the resolution falls
 into (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`, or `Unknown`), measured off the long
@@ -490,9 +497,10 @@ fetches what it wants with `updated_since`.
 
 ### 7.7 Posters
 
-An entry's `poster_url` is `/poster/<name>.jpg` once the image has been cached.
-The same file is served inside the API at `/api/v1/posters/<name>.jpg`, so a
-consumer never has to leave the versioned surface:
+An entry's `poster_url` and `portrait_url` are each `/poster/<name>.jpg` once
+that image has been cached. Both are served inside the API at
+`/api/v1/posters/<name>.jpg`, so a consumer never has to leave the versioned
+surface:
 
 ```bash
 curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
@@ -501,7 +509,14 @@ curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
 ```
 
 An entry whose image could **not** be cached carries the remote URL instead -
-a `poster_url` beginning with `http` is fetched from its own host, not from here.
+a value beginning with `http` is fetched from its own host, not from here.
+
+The upright cover is asked of TMDB first and of Fanart.tv after, whatever
+`IMAGE_SOURCE` says: that setting picks where the *backdrop* comes from, and the
+two sources have different cover art coverage, so a title one has nothing for
+usually has one at the other. A library scanned before the field existed is
+filled in once at startup; a title neither source has cover art for is recorded
+as having none, so it is not looked up again on every start.
 
 `?w=` asks for a resized copy - `160`, `320`, `480` or `640` pixels wide, which
 is what a phone showing a grid of covers wants rather than the full-size image.
