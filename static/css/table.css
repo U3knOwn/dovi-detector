@@ -88,6 +88,7 @@ tbody tr:hover td {
 .hdr-badge,
 .el-badge,
 .resolution-badge,
+.codec-badge,
 .audio-badge {
     display: inline-flex;
     align-items: center;
@@ -153,6 +154,30 @@ tbody tr:hover td {
 
 .audio-codec {
     color: var(--text);
+}
+
+/* ---------- Video codec ----------
+   The second badge of the video column, below the resolution: the same shape,
+   drawn a step quieter so the pair reads as one answer with its detail rather
+   than as two competing labels. */
+
+.codec-badge {
+    /* Block-level rather than inline: the badge takes its own line under the
+       resolution whatever width the column ends up with, instead of sitting
+       beside it on a wide screen and wrapping on a narrow one. */
+    display: flex;
+    margin: 3px auto 0;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border-color: var(--border);
+    color: var(--text-muted);
+    opacity: 0.85;
+}
+
+tbody tr:hover .codec-badge {
+    border-color: var(--border-strong);
+    opacity: 1;
 }
 /* ============================================================
    Poster / Title Cell
@@ -322,11 +347,53 @@ tbody tr:hover td {
    ============================================================ */
 
 .controls.statsbar {
-    flex-direction: row;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+
+/* How much the library holds, and the language switcher - the two things that
+   are not counts, kept on their own line above them. */
+.statsbar-top {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
+}
+
+/* One row per question the chips answer. They share a line while they fit and
+   break onto their own as the library grows more varied. */
+.statsbar-groups {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+}
+
+.statsbar-groups:empty {
+    display: none;
+}
+
+.stat-group {
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* A group with nothing to count leaves no gap behind - .stats is a flex box,
+   which would otherwise outvote the hidden attribute. */
+.stat-group[hidden] {
+    display: none;
+}
+
+.stat-group-label {
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
 }
 
 .stats {
@@ -357,7 +424,9 @@ tbody tr:hover td {
     font-variant-numeric: tabular-nums;
 }
 
-#profileStats {
+#profileStats,
+#resolutionStats,
+#codecStats {
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;

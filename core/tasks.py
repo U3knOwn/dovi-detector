@@ -17,7 +17,9 @@ from services.ratings_service import (RATINGS_QUERIED_KEY, get_ratings,
                                       verify_ratings_key)
 from services.tmdb_service import (backfill_tmdb_details, get_imdb_id,
                                    get_tmdb_details)
-from services.video_scanner import background_scan_new_files, refresh_incomplete_entries
+from services.video_scanner import (backfill_video_codec,
+                                    background_scan_new_files,
+                                    refresh_incomplete_entries)
 
 
 def metadata_retry_loop():
@@ -90,6 +92,24 @@ def refresh_tmdb_details():
     )
 
 
+def refresh_video_codecs():
+    """
+    Read the video codec into entries scanned before it was recorded.
+
+    Runs on a background thread at startup for the same reason as the metadata
+    backfills - an existing library should show the new field without every
+    file having to be rescanned by hand. Unlike those it touches no network at
+    all: it re-probes each file that carries no codec yet, and nothing else.
+    """
+    try:
+        backfill_video_codec(
+            database.scanned_files,
+            database.scan_lock,
+            lambda: database.save_database(config.DB_FILE))
+    except Exception as e:
+        print(f"Error during video codec backfill: {e}")
+
+
 # Start initial scan automatically in background, reporting progress so the
 # UI shows the same bar as a manual scan - and can restore it after a reload
 def run_initial_scan():
@@ -157,6 +177,9 @@ def start_background_tasks():
         print(f"Metadata retry every {config.METADATA_RETRY_INTERVAL} min for incomplete entries")
     else:
         print("Metadata retry disabled (METADATA_RETRY_INTERVAL=0)")
+
+    # The codecs of an older library, read from the files themselves
+    threading.Thread(target=refresh_video_codecs, daemon=True).start()
 
     threading.Thread(target=run_initial_scan, daemon=True).start()
     print("Initial scan started...")

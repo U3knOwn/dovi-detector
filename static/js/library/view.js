@@ -160,26 +160,75 @@ export function updateFileCount() {
     fileCountElement.appendChild(span);
 }
 
-// Order the stat chips are shown in; only categories with at least one title
-// are rendered.
+// Order the HDR stat chips are shown in; only categories with at least one
+// title are rendered.
 const STAT_CHIP_ORDER = [
     'FEL', 'MEL', 'P8', 'P5', 'HDR10+', 'SL-HDR', 'HDR Vivid', 'HDR10', 'HLG', 'SDR'
 ];
 
-// Update profile statistics
-export function updateProfileStats() {
-    const profileStatsElement = document.getElementById('profileStats');
-    if (!profileStatsElement) return;
+// Resolution tiers, largest first - the order they read in, whatever a library
+// happens to be made up of.
+const RESOLUTION_CHIP_ORDER = ['8K', '4K', 'QHD', 'FHD', 'HD', 'SD'];
 
-    const stats = new Map();
+// Video codecs in the order a library is usually stepped through. Anything a
+// scan reported that is not listed here follows, alphabetically.
+const CODEC_CHIP_ORDER = [
+    'AV1', 'H.266', 'H.265', 'H.264', 'VC-1', 'VP9', 'VP8', 'MPEG-4', 'MPEG-2', 'MPEG-1'
+];
+
+// How many of the entries currently shown fall under each value of one key.
+function countBy(key) {
+    const counts = new Map();
     mediaVisible.forEach(item => {
-        if (item.statKey) stats.set(item.statKey, (stats.get(item.statKey) || 0) + 1);
+        const value = item[key];
+        if (value) counts.set(value, (counts.get(value) || 0) + 1);
     });
+    return counts;
+}
 
-    profileStatsElement.innerHTML = STAT_CHIP_ORDER
-        .filter(label => stats.get(label) > 0)
-        .map(label => `<span class="stat-chip">${label} <strong>${stats.get(label)}</strong></span>`)
+// The labels to render, in the fixed order where there is one and with
+// anything else appended alphabetically - a codec nobody planned for still
+// gets its chip rather than being dropped.
+function chipLabels(counts, order) {
+    const known = order.filter(label => counts.has(label));
+    const rest = [...counts.keys()].filter(label => !order.includes(label)).sort();
+    return known.concat(rest);
+}
+
+// One group of chips, hidden entirely while it has nothing to count - an
+// empty caption above an empty row reads as a bug.
+function renderStatGroup(elementId, counts, order) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    const labels = chipLabels(counts, order);
+    const group = element.closest('.stat-group') || element;
+    group.hidden = labels.length === 0;
+
+    element.innerHTML = labels
+        .map(label => `<span class="stat-chip">${escapeHtml(label)} <strong>${counts.get(label)}</strong></span>`)
         .join('');
+}
+
+// A codec name comes from a scan, not from this page - so it is escaped like
+// any other value before it is put into markup.
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+}
+
+/**
+ * The three chip rows below the table: HDR formats, resolutions and video
+ * codecs, each counting the entries currently shown.
+ *
+ * They count what is visible rather than the whole library, so narrowing the
+ * table with a search narrows the numbers with it.
+ */
+export function updateProfileStats() {
+    renderStatGroup('profileStats', countBy('statKey'), STAT_CHIP_ORDER);
+    renderStatGroup('resolutionStats', countBy('resolutionTier'), RESOLUTION_CHIP_ORDER);
+    renderStatGroup('codecStats', countBy('codecKey'), CODEC_CHIP_ORDER);
 }
 
 // Drop an entry from the table, e.g. after it was deleted or its file vanished.

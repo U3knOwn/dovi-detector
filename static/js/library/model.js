@@ -31,6 +31,9 @@ export function prepareMediaItem(raw) {
     item.hdr_detail = item.hdr_detail || '';
     item.el_type = item.el_type || '';
     item.resolution = item.resolution || '';
+    item.video_codec = item.video_codec || '';
+    item.video_codec_profile = item.video_codec_profile || '';
+    item.video_encoder = item.video_encoder || '';
     item.audio_codec = item.audio_codec || '';
 
     // The IMDb rating is what is shown; entries without one (no OMDb key,
@@ -54,6 +57,10 @@ export function prepareMediaItem(raw) {
 
     item.profileRank = getProfileRank(item.hdr_format, item.hdr_detail, item.el_type);
     item.statKey = getMediaStatKey(item);
+    // The two chip rows below the table count by these, so the counting itself
+    // stays a lookup per entry rather than a parse.
+    item.resolutionTier = getResolutionTier(item.resolution);
+    item.codecKey = item.video_codec && item.video_codec !== 'Unknown' ? item.video_codec : '';
     item.audioRank = getAudioRank(item.audio_codec);
     item.audioChannels = getChannelCount(item.audio_codec);
     item.audioKey = item.audio_codec.toLowerCase();
@@ -79,6 +86,8 @@ export function prepareMediaSearchText(item) {
         mediaTitleText(item),
         mediaHdrText(item),
         item.resolution,
+        item.resolutionTier,
+        mediaVideoCodecSearchText(item),
         mediaAudioText(item)
     ].join(' ').toLowerCase();
 }
@@ -114,6 +123,56 @@ export function mediaAudioText(item) {
         : item.audio_codec;
 }
 
+// Whether a scan determined the video codec at all. An entry from a database
+// written before codecs were recorded carries no field at all, which reads the
+// same as a stream that could not be identified: nothing to show.
+function hasVideoCodec(item) {
+    return Boolean(item.video_codec) && item.video_codec !== 'Unknown';
+}
+
+/**
+ * Label of the video codec badge.
+ *
+ * The codec under the name a library is labelled with ("H.265"), and behind it
+ * the encoder that produced the file where it still says so ("x265") - two
+ * releases of the same title differ by exactly that, which is why the encoder
+ * is on the badge rather than only in the dialog.
+ */
+export function mediaVideoCodecText(item) {
+    if (!hasVideoCodec(item)) return t('unknown');
+    return item.video_encoder
+        ? `${item.video_codec} (${item.video_encoder})`
+        : item.video_codec;
+}
+
+/**
+ * The codec as the details dialog spells it out: profile and encoder included,
+ * separated by middots, e.g. "H.265 · Main 10 · x265".
+ */
+export function mediaVideoCodecDetailText(item) {
+    if (!hasVideoCodec(item)) return t('unknown');
+    return [item.video_codec, item.video_codec_profile, item.video_encoder]
+        .filter(Boolean)
+        .join(' · ');
+}
+
+// Everything about the codec a search should match, the badge label included.
+function mediaVideoCodecSearchText(item) {
+    if (!hasVideoCodec(item)) return t('unknown');
+    return [item.video_codec, item.video_codec_profile, item.video_encoder]
+        .filter(Boolean)
+        .join(' ');
+}
+
+// CSS modifier of the codec badge, e.g. "H.265" -> "codec-h-265"
+export function mediaVideoCodecClass(item) {
+    if (!hasVideoCodec(item)) return 'codec-unknown';
+    return 'codec-' + item.video_codec
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
 // CSS modifier of the HDR badge, e.g. "HDR10+" -> "hdr-hdr10plus"
 export function mediaHdrClass(item) {
     return 'hdr-' + item.hdr_format.toLowerCase().replace(/ /g, '-').replace(/\+/g, 'plus');
@@ -123,6 +182,53 @@ export function mediaHdrClass(item) {
 const KNOWN_RESOLUTIONS = new Set([
     '4K (UHD)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '1440p', '8K (UHD)', '768p'
 ]);
+
+// Which tier a named resolution is counted under below the table. Mirrors
+// resolution_class() in core/library_ops.py, which answers the same question
+// for /api/v1/library/stats.
+const RESOLUTION_TIERS = {
+    '8K (UHD)': '8K',
+    '4K DCI': '4K',
+    '4K (UHD)': '4K',
+    '1440p': 'QHD',
+    '1080p (Full HD)': 'FHD',
+    '768p': 'HD',
+    '720p (HD)': 'HD',
+    '480p (SD)': 'SD'
+};
+
+// The smallest frame each tier starts at, largest first.
+const RESOLUTION_TIER_STEPS = [
+    [7680, '8K'], [3840, '4K'], [2560, 'QHD'], [1920, 'FHD'], [1280, 'HD'], [1, 'SD']
+];
+
+/**
+ * Which of SD / HD / FHD / QHD / 4K / 8K an entry's resolution counts as, or ""
+ * for one whose resolution was never determined.
+ *
+ * A frame size without a name of its own ("3840x1600") is measured by its long
+ * side, widened to what the frame would be at 16:9 - so a scope crop still
+ * counts as the tier it was mastered in, and an anamorphic 1440x1080 as FHD
+ * rather than HD.
+ */
+function getResolutionTier(resolution) {
+    const name = (resolution || '').trim();
+    if (!name || name === 'Unknown') return '';
+    if (RESOLUTION_TIERS[name]) return RESOLUTION_TIERS[name];
+
+    const frame = name.match(/^(\d+)\s*x\s*(\d+)$/);
+    if (!frame) return '';
+
+    const width = parseInt(frame[1], 10);
+    const height = parseInt(frame[2], 10);
+    if (!width || !height) return '';
+
+    const measure = Math.max(
+        Math.max(width, height),
+        Math.floor(Math.min(width, height) * 16 / 9));
+    const tier = RESOLUTION_TIER_STEPS.find(([minimum]) => measure >= minimum);
+    return tier ? tier[1] : '';
+}
 
 export function mediaResolutionClass(item) {
     const resolution = item.resolution;

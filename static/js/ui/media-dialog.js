@@ -7,6 +7,7 @@
 
 import { applyTranslations, t } from '../core/i18n.js';
 import { formatDuration, formatFileSize, formatLuminance, formatMbps, formatNits, formatOffset } from '../helpers/format.js';
+import { mediaVideoCodecDetailText } from '../library/model.js';
 import { removeFileFromTable } from '../library/view.js';
 import { getMediaBody } from '../library/virtual-table.js';
 import { refreshFileList } from './file-dialog.js';
@@ -249,6 +250,8 @@ export function showMediaDialog(item) {
     const dialogFileSize = document.getElementById('dialogFileSize');
     const dialogVideoBitrate = document.getElementById('dialogVideoBitrate');
     const dialogAudioBitrate = document.getElementById('dialogAudioBitrate');
+    const dialogVideoCodec = document.getElementById('dialogVideoCodec');
+    const dialogResolution = document.getElementById('dialogResolution');
     const dialogPoster = document.getElementById('dialogPoster');
     const dialogPosterImg = document.getElementById('dialogPosterImg');
     const dialogRatingBadge = document.getElementById('dialogRatingBadge');
@@ -407,6 +410,17 @@ export function showMediaDialog(item) {
         dialogAudioBitrate.textContent = `${audioBitrate} ${t('unit_Kb')}`;
     } else {
         dialogAudioBitrate.textContent = t('unknown');
+    }
+
+    // Set the video codec, spelled out with its profile and encoder
+    if (dialogVideoCodec) {
+        dialogVideoCodec.textContent = mediaVideoCodecDetailText(item);
+    }
+
+    // Set the resolution
+    if (dialogResolution) {
+        dialogResolution.textContent =
+            (item.resolution && item.resolution !== 'Unknown') ? item.resolution : t('unknown');
     }
 
     // Show the static HDR metadata rows that apply to this file's format

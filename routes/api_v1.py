@@ -105,7 +105,7 @@ def index():
         'version': API_VERSION,
         'endpoints': {
             'GET /api/v1/library': 'Every scanned entry; filter, sort and page with query parameters',
-            'GET /api/v1/library/stats': 'Counts per HDR format, resolution and audio codec',
+            'GET /api/v1/library/stats': 'Counts per HDR format, resolution, video codec and audio codec',
             'GET /api/v1/entries?file_path=...': 'One entry by its path',
             'GET /api/v1/files': 'Video files in the media directory with their scan state',
             'GET /api/v1/posters/<filename>': 'A cached poster image, as named by an entry\'s poster_url',
@@ -139,10 +139,10 @@ def library():
     Without parameters this is the whole library, as it always was. With them a
     caller can narrow it down server-side instead of downloading thousands of
     entries to find the handful it wants: ``hdr_format``, ``el_type``,
-    ``resolution`` and ``audio_codec`` filter, ``search`` matches the file name
-    or the title, ``sort``/``order`` order the result and ``limit``/``offset``
-    cut a window out of it. ``total`` always counts the matches before that
-    window, so a pager knows how far it has to go.
+    ``resolution``, ``video_codec`` and ``audio_codec`` filter, ``search``
+    matches the file name or the title, ``sort``/``order`` order the result and
+    ``limit``/``offset`` cut a window out of it. ``total`` always counts the
+    matches before that window, so a pager knows how far it has to go.
     """
     limit, failure = _int_arg('limit', minimum=1)
     if failure:

@@ -42,6 +42,8 @@ port `2367`.
 | **Enhancement layers** | MEL and FEL detection for every Dolby Vision profile |
 | **Full HDR metadata** | Mastering display luminance, MaxCLL/MaxFALL, RPU L5/L6, CM version |
 | **Blu-ray disc images** | `.iso` support - the main feature is found and analyzed in place |
+| **Video codec** | H.264, H.265, VC-1, AV1, MPEG-2 and the rest, with the stream's profile and the encoder that made it (x264, x265) |
+| **Library at a glance** | Counts below the table per HDR format, per resolution (SD, HD, FHD, QHD, 4K, 8K) and per video codec |
 | **Web interface** | Dark-theme dashboard on port `2367`, virtualized for large libraries |
 | **Posters & ratings** | TMDB or Fanart.tv artwork, all ratings from MDBList - IMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic - with TMDB fallback and an IMDb Top 250 badge |
 | **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
@@ -119,8 +121,12 @@ If automatic detection missed a file:
 |--------|-------------|
 | **Filename** | Name of the media file (or its poster, once artwork is available) |
 | **HDR Format** | Detected format - SDR, HDR10, HDR10+, HLG, Dolby Vision with profile |
-| **Resolution** | Video resolution, e.g. `3840x2160` |
 | **Audio Codec** | Audio codec information, e.g. `Dolby TrueHD Atmos` |
+| **Resolution / Codec** | The frame size (`4K (UHD)`, `1080p (Full HD)`, `3840x1600`) and below it the video codec with the encoder that produced it - `H.265`, `H.264 (x264)`, `VC-1`, `AV1 (SVT-AV1)`. The full line including the stream profile is on the badge's tooltip and in the details dialog |
+
+Below the table, three rows of chips count what the library is made of - by HDR
+format, by resolution (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`) and by video codec.
+They count what is on screen, so a search narrows the numbers with it.
 
 On top of the table: a dark theme, auto-refresh every 10 seconds, live status
 while a scan is running, and a search box plus sort controls that work on the
@@ -343,7 +349,7 @@ headers; prefer a header everywhere else, as URLs end up in logs and history.
 |--------|----------|-------------|
 | `GET` | `/api/v1` | Version, the list of endpoints and the query options `/library` accepts |
 | `GET` | `/api/v1/library` | Scanned entries: `{success, count, total, offset, limit, files:[…]}`. Filter, sort and page it - see [7.5](#75-narrowing-the-library-down) |
-| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution and audio codec, plus the total size - without shipping the library |
+| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution (exact and by class), video codec and audio codec, plus the total size - without shipping the library |
 | `GET` | `/api/v1/entries?file_path=…` | One entry by its path, without pulling the whole library |
 | `GET` | `/api/v1/files` | Video files in the media directory: `{name, path, scanned}` |
 | `GET` | `/api/v1/posters/<filename>` | The cached poster image an entry's `poster_url` names |
@@ -365,7 +371,8 @@ running one at `/scan/status` or stop it at `/scan/cancel`.
 ### 7.4 Entry Fields
 
 An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
-`hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
+`hdr_detail`, `el_type`, `resolution`, `video_codec`, `video_codec_profile`,
+`video_encoder`, `audio_codec`, `duration`,
 `video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
 `hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
 `tmdb_rating`, `tmdb_plot`, `tmdb_tagline`, `tmdb_directors`, `tmdb_cast`,
@@ -380,7 +387,7 @@ handful:
 
 | Parameter | Meaning |
 |-----------|---------|
-| `hdr_format`, `el_type`, `resolution`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`) |
+| `hdr_format`, `el_type`, `resolution`, `video_codec`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`, `video_codec=h.265`) |
 | `search` | Substring of the file name or the TMDB title |
 | `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
 | `order` | `asc` (default) or `desc` |
@@ -469,6 +476,14 @@ API=http://host:2367/api/v1
 # How many titles, by HDR format - the cheap call for a dashboard
 curl -s -H "X-API-Token: $TOKEN" $API/library/stats | jq '.hdr_formats'
 
+# How much of the library is 4K, how much is still 1080p, and by which codec
+curl -s -H "X-API-Token: $TOKEN" $API/library/stats \
+  | jq '{resolution_classes, video_codecs}'
+
+# Everything still encoded in H.264, oldest first - the rip-again list
+curl -s -H "X-API-Token: $TOKEN" "$API/library?video_codec=h.264&sort=mtime" \
+  | jq '.files[].filename'
+
 # Every Dolby Vision FEL title - filtered by the server, not by jq
 curl -s -H "X-API-Token: $TOKEN" "$API/library?el_type=FEL" | jq '.files[].filename'
 
@@ -506,9 +521,27 @@ curl -s -X POST -H "X-API-Token: $TOKEN" -H "Content-Type: application/json" \
    Dolby Vision (profile, EL type, CM version) along with the static HDR
    metadata - mastering display luminance, MaxCLL/MaxFALL, the RPU's L6 values
    and L5 active area
-3. **MediaInfo** extracts resolution, duration, audio codec and bitrate
+3. **MediaInfo** extracts resolution, duration, the video codec with its
+   profile and encoder, and the audio codec and bitrate (for a disc image
+   the codec comes from hdrprobe, which read the main feature itself)
 4. **Online lookups** add poster, title, plot, cast and ratings
 5. **Results** are written to the JSON database in batches
+
+### Existing Libraries
+
+A library scanned before the video codec was recorded does not need a rescan.
+At startup the entries that carry no codec yet are read once more - MediaInfo
+for a regular file, hdrprobe for a disc image - and only the codec, its profile
+and the encoder are written back:
+
+```
+[CODEC] 812 entr(ies) without a video codec - reading them
+✓ Read the video codec of 812 entr(ies)
+```
+
+It runs in the background, touches no network and leaves everything else about
+an entry alone, so the codecs and the counts below the table fill themselves in
+while the interface is already usable.
 
 ### Web Interface Rendering
 

@@ -9,7 +9,8 @@ import { t } from '../core/i18n.js';
 import { makeElement } from '../helpers/dom.js';
 import {
     mediaAudioClass, mediaAudioText, mediaHdrClass, mediaHdrDetailText,
-    mediaResolutionClass, mediaTitleText
+    mediaResolutionClass, mediaTitleText, mediaVideoCodecClass,
+    mediaVideoCodecDetailText, mediaVideoCodecText
 } from './model.js';
 import { POSTER_PLACEHOLDER_SVG, RATING_STAR_SVG } from '../ui/icons.js';
 import { applyCoverGradient } from '../ui/cover-gradient.js';
@@ -101,10 +102,19 @@ export function buildMediaRow(item) {
     audioCell.appendChild(makeElement('span', `audio-badge ${mediaAudioClass(item)}`, mediaAudioText(item)));
     row.appendChild(audioCell);
 
-    const resolutionCell = makeCell('table_header_resolution');
-    resolutionCell.appendChild(makeElement(
+    // Resolution and codec are the two halves of one answer - how the picture
+    // was stored - so they share a column, stacked the way the HDR badge and
+    // its enhancement layer are.
+    const videoCell = makeCell('table_header_video', 'video-cell');
+    videoCell.appendChild(makeElement(
         'span', `resolution-badge ${mediaResolutionClass(item)}`, item.resolution));
-    row.appendChild(resolutionCell);
+
+    const codecBadge = makeElement(
+        'span', `codec-badge ${mediaVideoCodecClass(item)}`, mediaVideoCodecText(item));
+    // The profile is what the badge leaves out, so the full line is on hover
+    codecBadge.title = mediaVideoCodecDetailText(item);
+    videoCell.appendChild(codecBadge);
+    row.appendChild(videoCell);
 
     // The dialog reads the entry straight off the row it was opened from
     row.mediaItem = item;

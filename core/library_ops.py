@@ -9,6 +9,7 @@ the API goes through exactly the same steps as one deleted in the browser.
 """
 import json
 import os
+import re
 import threading
 
 import config
@@ -24,6 +25,7 @@ from services.video_scanner import bulk_scan_files, scan_directory
 # it is not shipped to every caller either.
 LIBRARY_FIELDS = (
     'filename', 'path', 'hdr_format', 'hdr_detail', 'el_type', 'resolution',
+    'video_codec', 'video_codec_profile', 'video_encoder',
     'audio_codec', 'duration', 'video_bitrate', 'audio_bitrate', 'file_size',
     'mtime', 'dv_cm_version', 'hdr_metadata', 'tmdb_id', 'poster_url',
     'tmdb_title', 'tmdb_year', 'tmdb_rating', 'tmdb_plot', 'tmdb_tagline',
@@ -34,11 +36,75 @@ LIBRARY_FIELDS = (
 # The fields a caller may narrow the library down by. Compared case-insensitively
 # against the value stored in the entry, so ``hdr_format=dolby vision`` matches
 # every Dolby Vision title and ``el_type=FEL`` picks its enhancement layer.
-LIBRARY_FILTERS = ('hdr_format', 'el_type', 'resolution', 'audio_codec')
+LIBRARY_FILTERS = ('hdr_format', 'el_type', 'resolution', 'video_codec',
+                   'audio_codec')
 
 # Where a text search looks. Both, because an entry may carry a title that the
 # file name does not and the other way round.
 SEARCH_FIELDS = ('filename', 'tmdb_title')
+
+
+# The class a resolution belongs to, for the counts below the table. A library
+# is browsed in these four or five steps, not in the dozen exact frame sizes a
+# scan can report.
+RESOLUTION_CLASSES = {
+    '8K (UHD)': '8K',
+    '4K DCI': '4K',
+    '4K (UHD)': '4K',
+    '1440p': 'QHD',
+    '1080p (Full HD)': 'FHD',
+    '768p': 'HD',
+    '720p (HD)': 'HD',
+    '480p (SD)': 'SD',
+}
+
+# The smallest frame each class starts at, largest first.
+RESOLUTION_CLASS_STEPS = (
+    (7680, '8K'),
+    (3840, '4K'),
+    (2560, 'QHD'),
+    (1920, 'FHD'),
+    (1280, 'HD'),
+    (1, 'SD'),
+)
+
+# The order the classes are shown in, best first.
+RESOLUTION_CLASS_ORDER = ('8K', '4K', 'QHD', 'FHD', 'HD', 'SD', 'Unknown')
+
+_FRAME_SIZE = re.compile(r'^(\d+)\s*x\s*(\d+)$')
+
+
+def resolution_class(resolution):
+    """
+    Which of SD / HD / FHD / QHD / 4K / 8K a resolution counts as.
+
+    Named resolutions map straight to their class. A frame size without a name
+    of its own ("3840x1600") is measured by its long side, widened to what the
+    frame would be at 16:9 - so a scope crop still counts as the class it was
+    mastered in, and an anamorphic 1440x1080 as FHD rather than HD. Returns
+    "Unknown" for an entry whose resolution was never determined.
+    """
+    name = str(resolution or '').strip()
+    if not name or name == 'Unknown':
+        return 'Unknown'
+
+    known = RESOLUTION_CLASSES.get(name)
+    if known:
+        return known
+
+    match = _FRAME_SIZE.match(name)
+    if not match:
+        return 'Unknown'
+
+    width, height = int(match.group(1)), int(match.group(2))
+    if not width or not height:
+        return 'Unknown'
+    measure = max(max(width, height), min(width, height) * 16 // 9)
+
+    for minimum, label in RESOLUTION_CLASS_STEPS:
+        if measure >= minimum:
+            return label
+    return 'Unknown'
 
 
 def _text(value):
@@ -173,7 +239,12 @@ def entry_count():
 
 def library_summary():
     """
-    Counts per HDR format, resolution and audio codec plus the total.
+    Counts per HDR format, resolution, video codec and audio codec plus the
+    total.
+
+    Resolutions are counted twice over: once per exact frame size, and once per
+    class (SD / HD / FHD / QHD / 4K / 8K) - the latter is what the interface
+    shows below the table, and what a dashboard usually wants as well.
 
     This is what a dashboard wants: the numbers without the megabytes of the
     full library behind them.
@@ -183,6 +254,8 @@ def library_summary():
 
     formats = {}
     resolutions = {}
+    resolution_classes = {}
+    video = {}
     audio = {}
     total_size = 0
 
@@ -197,6 +270,12 @@ def library_summary():
 
         resolution = file_info.get('resolution') or 'Unknown'
         resolutions[resolution] = resolutions.get(resolution, 0) + 1
+
+        size_class = resolution_class(resolution)
+        resolution_classes[size_class] = resolution_classes.get(size_class, 0) + 1
+
+        video_codec = file_info.get('video_codec') or 'Unknown'
+        video[video_codec] = video.get(video_codec, 0) + 1
 
         codec = file_info.get('audio_codec') or 'Unknown'
         audio[codec] = audio.get(codec, 0) + 1
@@ -214,6 +293,13 @@ def library_summary():
         'total_size': total_size,
         'hdr_formats': by_count(formats),
         'resolutions': by_count(resolutions),
+        # Best first rather than by count, so the classes always read in the
+        # same order however a library happens to be made up.
+        'resolution_classes': {
+            label: resolution_classes[label]
+            for label in RESOLUTION_CLASS_ORDER if label in resolution_classes
+        },
+        'video_codecs': by_count(video),
         'audio_codecs': by_count(audio),
     }
 

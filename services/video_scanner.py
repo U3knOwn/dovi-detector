@@ -598,6 +598,131 @@ def get_video_resolution(tracks):
     return resolution_name(width, height)
 
 
+# ============================================================
+# Video codec
+# ============================================================
+
+# MediaInfo names a video format the way the standard does ("AVC", "HEVC"),
+# which is not how a library is labelled. These are the names shown on the
+# badge; anything not listed keeps whatever MediaInfo reported.
+MEDIAINFO_VIDEO_CODECS = {
+    'AVC': 'H.264',
+    'HEVC': 'H.265',
+    'VVC': 'H.266',
+    'VC-1': 'VC-1',
+    'AV1': 'AV1',
+    'VP8': 'VP8',
+    'VP9': 'VP9',
+    'MPEG-4 VISUAL': 'MPEG-4',
+    'PRORES': 'ProRes',
+    'THEORA': 'Theora',
+    'JPEG': 'MJPEG',
+    'M-JPEG': 'MJPEG',
+    'DIRAC': 'Dirac',
+}
+
+# The same for hdrprobe, which reports its own set of codec names (see its
+# SCHEMA.md) and is the only source for a disc image whose stream MediaInfo
+# could not be pointed at.
+HDRPROBE_VIDEO_CODECS = {
+    'HEVC': 'H.265',
+    'AVC': 'H.264',
+    'AV1': 'AV1',
+    'VP9': 'VP9',
+    'VC-1': 'VC-1',
+    'PRORES': 'ProRes',
+    'MPEG-1 VIDEO': 'MPEG-1',
+    'MPEG-2 VIDEO': 'MPEG-2',
+    'MPEG-4 VISUAL': 'MPEG-4',
+    'THEORA': 'Theora',
+    'MJPEG': 'MJPEG',
+}
+
+# Encoder names as they are written by the projects themselves, keyed by what
+# MediaInfo puts in Encoded_Library_Name. An encoder outside this list is shown
+# with the spelling MediaInfo reported.
+ENCODER_NAMES = {
+    'X264': 'x264',
+    'X265': 'x265',
+    'XVID': 'XviD',
+    'DIVX': 'DivX',
+    'DIVX 5': 'DivX',
+    'LAVC': 'FFmpeg',
+    'LIBAOM': 'libaom',
+    'SVT-AV1': 'SVT-AV1',
+    'RAV1E': 'rav1e',
+    'VP8': 'libvpx',
+    'VP9': 'libvpx',
+}
+
+
+def _short_codec_profile(profile):
+    """
+    The profile of a video stream, cut down to the part worth showing.
+
+    Both sources spell a profile out with the tier and level appended -
+    MediaInfo as "Main 10@L5.1@High", hdrprobe as "Main 10, High tier @ L5.1".
+    Only the leading profile name ("Main 10", "High") tells two encodes of the
+    same codec apart, so that is what is kept.
+    """
+    name = str(profile or '').strip()
+    if not name:
+        return ''
+    return name.split('@')[0].split(',')[0].strip()
+
+
+def get_video_codec(tracks):
+    """
+    Get the video codec of a file from its MediaInfo tracks.
+
+    Returns ``(codec, profile, encoder)``: the codec under the name a library
+    labels it with ("H.265", not "HEVC"), the stream's profile where it carries
+    one ("Main 10"), and the encoder that produced it ("x265") where the file
+    still says so. Every part is "" / "Unknown" when the file does not tell.
+    """
+    video = get_video_track(tracks)
+    if not video:
+        return 'Unknown', '', ''
+
+    fmt = (video.get('Format') or '').strip()
+    codec = MEDIAINFO_VIDEO_CODECS.get(fmt.upper())
+    if not codec and fmt.upper() == 'MPEG VIDEO':
+        # The one format whose name alone is ambiguous: MPEG-1 and MPEG-2 are
+        # both "MPEG Video" to MediaInfo, told apart by the version field.
+        version = (video.get('Format_Version') or '').strip()
+        codec = 'MPEG-1' if '1' in version else 'MPEG-2'
+    if not codec:
+        codec = fmt or 'Unknown'
+
+    profile = _short_codec_profile(video.get('Format_Profile'))
+
+    # Encoded_Library_Name is the bare name ("x265"); older files only carry
+    # the full version banner ("x264 - core 148 r2795"), whose first word is
+    # the same name.
+    library = (video.get('Encoded_Library_Name') or '').strip()
+    if not library:
+        library = (video.get('Encoded_Library') or '').strip().split(' ')[0]
+    encoder = ENCODER_NAMES.get(library.upper(), library)
+
+    return codec, profile, encoder
+
+
+def get_hdrprobe_video_codec(report):
+    """
+    Get ``(codec, profile)`` of the main feature from an hdrprobe report.
+
+    Used for disc images, where MediaInfo only ever sees a reconstructed
+    sample - and as the fallback for a file it could not read at all.
+    """
+    track = get_hdrprobe_video_track(report)
+    if not track:
+        return 'Unknown', ''
+
+    raw = (track.get('codec') or track.get('codec_id') or '').strip()
+    codec = HDRPROBE_VIDEO_CODECS.get(raw.upper(), raw) or 'Unknown'
+    return codec, _short_codec_profile(track.get('codec_profile'))
+
+
 def get_hdrprobe_video_track(report):
     """Get the first video track dict from an hdrprobe report"""
     tracks = (report or {}).get('video_tracks') or []
@@ -1118,6 +1243,18 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         audio_codec = get_audio_codec(tracks)
         audio_bitrate = get_audio_bitrate(tracks)
 
+        # For a disc image MediaInfo only ever sees the reconstructed sample,
+        # so hdrprobe - which read the main feature itself - is asked first;
+        # for a regular file it is the fallback for a stream MediaInfo could
+        # not identify. The encoder is MediaInfo's alone: hdrprobe does not
+        # report the encoding library.
+        video_codec, video_codec_profile, video_encoder = get_video_codec(tracks)
+        if is_iso or video_codec == 'Unknown':
+            probe_codec, probe_profile = get_hdrprobe_video_codec(hdr_report)
+            if probe_codec != 'Unknown':
+                video_codec = probe_codec
+                video_codec_profile = video_codec_profile or probe_profile
+
         if is_iso:
             # The stream is only a prefix of the clip, so its duration and
             # overall bitrate are not representative - take those from
@@ -1151,6 +1288,9 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         'profile': hdr_info.get('profile'),
         'el_type': hdr_info.get('el_type'),
         'resolution': resolution,
+        'video_codec': video_codec,
+        'video_codec_profile': video_codec_profile,
+        'video_encoder': video_encoder,
         'audio_codec': audio_codec,
         'duration': duration,
         'video_bitrate': video_bitrate,
@@ -1428,6 +1568,78 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
         with scan_lock:
             save_database_func()
         print(f"✓ Refreshed {updated} previously incomplete entr(ies)")
+
+    return updated
+
+
+def backfill_video_codec(scanned_files, scan_lock, save_database_func, batch_size=25):
+    """
+    Fill the video codec into entries scanned before it was recorded.
+
+    Only the entries that carry no codec yet are probed, and only for the codec:
+    a regular file is read by MediaInfo, a disc image by hdrprobe (which picks
+    the main feature itself, where MediaInfo would have to have a stream
+    reconstructed for it first). Nothing else about an entry is touched, and
+    nothing goes over the network - so an existing library shows its codecs
+    without every file having to be rescanned by hand.
+
+    The database is written every ``batch_size`` entries rather than after each
+    one: a large library is several megabytes of JSON, and the run must not
+    rewrite all of it thousands of times.
+
+    Returns the number of entries that gained a codec.
+    """
+    with scan_lock:
+        candidates = [path for path, info in scanned_files.items()
+                      if not (info.get('video_codec') or '').strip()]
+
+    if not candidates:
+        return 0
+
+    print(f"[CODEC] {len(candidates)} entr(ies) without a video codec - reading them")
+    updated = 0
+    pending = 0
+
+    for file_path in candidates:
+        if not os.path.exists(file_path):
+            continue  # cleanup_database removes it on the next pass
+
+        try:
+            if os.path.splitext(file_path)[1].lower() == '.iso':
+                codec, profile = get_hdrprobe_video_codec(run_hdrprobe(file_path))
+                encoder = ''
+            else:
+                codec, profile, encoder = get_video_codec(get_media_info(file_path))
+                if codec == 'Unknown':
+                    codec, profile = get_hdrprobe_video_codec(run_hdrprobe(file_path))
+        except Exception as e:
+            print(f"[CODEC] Could not read {os.path.basename(file_path)}: {e}")
+            continue
+
+        if codec == 'Unknown':
+            continue
+
+        with scan_lock:
+            current = scanned_files.get(file_path)
+            if current is None:
+                continue  # entry was removed while we were probing
+            current['video_codec'] = codec
+            current['video_codec_profile'] = profile
+            current['video_encoder'] = encoder
+
+        updated += 1
+        pending += 1
+        if pending >= batch_size:
+            with scan_lock:
+                save_database_func()
+            pending = 0
+
+    if pending:
+        with scan_lock:
+            save_database_func()
+
+    if updated:
+        print(f"✓ Read the video codec of {updated} entr(ies)")
 
     return updated
 
