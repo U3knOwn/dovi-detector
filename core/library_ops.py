@@ -30,7 +30,10 @@ LIBRARY_FIELDS = (
     'resolution_class', 'video_codec', 'video_codec_profile', 'video_encoder',
     'audio_codec', 'duration', 'video_bitrate', 'audio_bitrate', 'file_size',
     'mtime', 'updated_at', 'dv_cm_version', 'hdr_metadata', 'tmdb_id',
-    'poster_url',
+    # Two images: the 16:9 backdrop the web interface shows, and the upright
+    # 2:3 cover a phone's grid wants. A client picks the one its layout is
+    # built for; an entry may carry either, both, or neither.
+    'poster_url', 'portrait_url',
     'tmdb_title', 'tmdb_year', 'tmdb_rating', 'tmdb_plot', 'tmdb_tagline',
     'tmdb_directors', 'tmdb_cast', 'tmdb_genres', 'imdb_id', 'imdb_rating',
     'rt_rating', 'rt_audience', 'trakt_rating', 'metacritic', 'imdb_top250',

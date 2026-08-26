@@ -83,6 +83,71 @@ def _languages(content_language):
     return (content_language, 'en')
 
 
+# The width the upright poster is fetched at. TMDB serves the same artwork at
+# a dozen sizes; w780 is the largest that is still a sensible download, and the
+# API resizes from it for the widths a phone asks for anyway.
+TMDB_PORTRAIT_WIDTH = 'w780'
+
+
+def _portrait_url(record):
+    """
+    The upright 2:3 poster of a TMDB record, or None when it carries none.
+
+    Deliberately not the backdrop: that is the 16:9 artwork the web interface
+    is built around, and it is what ``_poster_details`` returns. A phone showing
+    a grid of covers wants the poster instead - a backdrop cropped to 2:3 loses
+    most of the frame and usually the title with it.
+    """
+    poster_path = record.get('poster_path')
+    return f'https://image.tmdb.org/t/p/{TMDB_PORTRAIT_WIDTH}{poster_path}' if poster_path else None
+
+
+def get_tmdb_portrait_by_id(tmdb_id, media_type, tmdb_api_key, content_language):
+    """
+    The upright poster for a TMDB id, or None.
+
+    A lookup of its own rather than another value out of ``_poster_details``:
+    the two artworks are wanted independently - a library configured for
+    Fanart.tv takes its backdrop from there, while TMDB is still the better
+    source for the poster - and an entry that already has a backdrop only needs
+    this one filled in.
+
+    Returns None both for "no such title" and for "this title has no poster";
+    the caller cannot act on the difference, and a title without one does not
+    grow a poster by being asked twice.
+    """
+    if not tmdb_api_key or not REQUESTS_AVAILABLE:
+        return None
+
+    if not tmdb_id or not isinstance(tmdb_id, (str, int)) or not str(tmdb_id).isdigit():
+        print(f"Invalid TMDB ID: {tmdb_id}")
+        return None
+
+    try:
+        url = f'https://api.themoviedb.org/3/{media_type}/{tmdb_id}'
+
+        for language in _languages(content_language):
+            response = requests.get(
+                url, params={'api_key': tmdb_api_key, 'language': language}, timeout=10)
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                print(f"TMDB portrait API error for ID {tmdb_id}: HTTP {response.status_code}")
+                return None
+
+            portrait = _portrait_url(response.json())
+            if portrait:
+                return portrait
+    except requests.exceptions.Timeout:
+        print(f"TMDB portrait API timeout for ID {tmdb_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"TMDB portrait API request error for ID {tmdb_id}: {e}")
+    except Exception as e:
+        print(f"Error fetching TMDB portrait for ID {tmdb_id}: {e}")
+
+    return None
+
+
 def _poster_details(record, media_type):
     """
     The five values one TMDB record yields, or None when it has no backdrop.

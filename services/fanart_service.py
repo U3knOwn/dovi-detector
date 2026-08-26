@@ -57,8 +57,15 @@ def _most_liked_url(thumbs, language=None):
     return max(thumbs, key=_thumb_likes).get('url')
 
 
-def get_fanart_poster_by_id(tmdb_id, media_type, fanart_api_key, content_language):
-    """Fetch thumb poster URL from Fanart.tv API by TMDB ID"""
+def _artwork_by_id(tmdb_id, media_type, fanart_api_key, content_language, kind, label):
+    """
+    One kind of artwork for a TMDB id, most-liked first.
+
+    ``kind`` is the key Fanart.tv files the images under - ``moviethumb`` for
+    the 16:9 thumb the web interface shows, ``movieposter`` for the upright 2:3
+    poster. The language preference is the same for both: the configured one,
+    then English, then whatever is most liked regardless of language.
+    """
     if not fanart_api_key or not REQUESTS_AVAILABLE:
         return None
 
@@ -80,22 +87,22 @@ def get_fanart_poster_by_id(tmdb_id, media_type, fanart_api_key, content_languag
         response = requests.get(url, params=params, timeout=10)
 
         if response.status_code == 200:
-            thumbs = response.json().get('moviethumb', [])
+            images = response.json().get(kind, [])
 
             # The configured language first, then English, then whatever has
             # the most likes regardless of language.
             languages = ('en',) if content_language == 'en' else (content_language, 'en')
             for index, language in enumerate(languages):
-                thumb_url = _most_liked_url(thumbs, language)
-                if thumb_url:
+                image_url = _most_liked_url(images, language)
+                if image_url:
                     note = ' (fallback)' if index else ''
-                    print(f"  [FANART] Thumb poster found in {language}{note}: {thumb_url}")
-                    return thumb_url
+                    print(f"  [FANART] {label} found in {language}{note}: {image_url}")
+                    return image_url
 
-            thumb_url = _most_liked_url(thumbs)
-            if thumb_url:
-                print(f"  [FANART] Thumb poster found (any language): {thumb_url}")
-                return thumb_url
+            image_url = _most_liked_url(images)
+            if image_url:
+                print(f"  [FANART] {label} found (any language): {image_url}")
+                return image_url
 
         if response.status_code not in [200, 404]:
             print(
@@ -106,9 +113,26 @@ def get_fanart_poster_by_id(tmdb_id, media_type, fanart_api_key, content_languag
     except requests.exceptions.RequestException as e:
         print(f"Fanart.tv API request error for ID {tmdb_id}: {e}")
     except Exception as e:
-        print(f"Error fetching Fanart.tv poster by ID {tmdb_id}: {e}")
+        print(f"Error fetching Fanart.tv {label.lower()} by ID {tmdb_id}: {e}")
 
     return None
+
+
+def get_fanart_poster_by_id(tmdb_id, media_type, fanart_api_key, content_language):
+    """Fetch the 16:9 thumb poster URL from Fanart.tv API by TMDB ID"""
+    return _artwork_by_id(tmdb_id, media_type, fanart_api_key, content_language,
+                          'moviethumb', 'Thumb poster')
+
+
+def get_fanart_portrait_by_id(tmdb_id, media_type, fanart_api_key, content_language):
+    """
+    Fetch the upright 2:3 poster from Fanart.tv API by TMDB ID.
+
+    A different image entirely from the thumb above: ``movieposter`` is the
+    cover art, which is what a grid of covers on a phone wants.
+    """
+    return _artwork_by_id(tmdb_id, media_type, fanart_api_key, content_language,
+                          'movieposter', 'Portrait poster')
 
 
 def get_fanart_poster(filename, fanart_api_key, content_language):

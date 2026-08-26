@@ -1173,6 +1173,7 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
                     get_tmdb_credits_func, get_cached_backdrop_path_func,
                     get_imdb_id_func=None, get_ratings_func=None,
                     get_top250_rank_func=None, get_tmdb_details_func=None,
+                    fetch_portrait_func=None, get_cached_portrait_path_func=None,
                     defer_save=False):
     """
     Scan a video file and extract all metadata.
@@ -1279,7 +1280,8 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
         filename, get_fanart_poster_func, get_tmdb_poster_func,
         get_tmdb_poster_by_id_func, get_tmdb_credits_func,
         get_cached_backdrop_path_func, get_imdb_id_func,
-        get_ratings_func, get_top250_rank_func, get_tmdb_details_func)
+        get_ratings_func, get_top250_rank_func, get_tmdb_details_func,
+        fetch_portrait_func, get_cached_portrait_path_func)
 
     file_info = {
         'filename': filename,
@@ -1323,12 +1325,18 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
                           get_tmdb_poster_by_id_func, get_tmdb_credits_func,
                           get_cached_backdrop_path_func, get_imdb_id_func=None,
                           get_ratings_func=None, get_top250_rank_func=None,
-                          get_tmdb_details_func=None):
+                          get_tmdb_details_func=None, fetch_portrait_func=None,
+                          get_cached_portrait_path_func=None):
     """
     Fetch everything about a title that comes from the network: poster, TMDB
     metadata, credits, genres and tagline, the IMDb id with its external
     ratings, and the Top 250 rank. Returns the fields as they are stored in the
     database.
+
+    Two images, not one. ``poster_url`` is the 16:9 backdrop the web interface
+    is built around; ``portrait_url`` is the upright 2:3 cover, which is what a
+    grid of covers on a phone wants and what a cropped backdrop cannot stand in
+    for. They come from separate lookups and are cached under separate names.
 
     Kept separate from the file probing so an entry whose lookups failed - an
     API that was down, a key added later - can be refreshed without reading
@@ -1427,9 +1435,17 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
                 if imdb_top250:
                     print(f"  [IMDb] Top 250 rank: #{imdb_top250}")
 
+    # The upright cover, looked up wherever it can be had and cached under its
+    # own name. Written even when there is none, so a title that genuinely has
+    # no cover art is not asked for one again on every retry.
+    portrait_url = fetch_portrait_func(tmdb_id) if fetch_portrait_func else None
+    if portrait_url and get_cached_portrait_path_func:
+        portrait_url = get_cached_portrait_path_func(tmdb_id, portrait_url) or portrait_url
+
     metadata = {
         'tmdb_id': tmdb_id,
         'poster_url': cached_backdrop_path if cached_backdrop_path else poster_url,
+        'portrait_url': portrait_url,
         'tmdb_title': tmdb_title,
         'tmdb_year': tmdb_year,
         'tmdb_rating': tmdb_rating,
