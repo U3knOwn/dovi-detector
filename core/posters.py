@@ -12,6 +12,17 @@ import re
 
 import config
 
+# Pillow is optional: without it a poster is served at its own size, which is
+# what happened before thumbnails existed. Only the sizes below are produced,
+# so the cache cannot grow a variant per pixel a caller thinks of.
+try:
+    from PIL import Image
+    THUMBNAILS_AVAILABLE = True
+except ImportError:
+    THUMBNAILS_AVAILABLE = False
+
+POSTER_WIDTHS = (160, 320, 480, 640)
+
 # A cached poster is named by the scanner itself - a TMDB id or a URL hash, plus
 # the extension. Anything else is not a poster name, and in particular cannot be
 # a path.
@@ -50,3 +61,56 @@ def poster_name_from_url(poster_url):
     if not isinstance(poster_url, str) or not poster_url.startswith('/poster/'):
         return None
     return poster_url[len('/poster/'):]
+
+
+def _thumbnail_path(filename, width):
+    """Where the resized copy of a poster lives."""
+    return os.path.join(config.POSTER_CACHE_DIR, 'thumbs', str(width), filename)
+
+
+def poster_path_at_width(filename, width):
+    """
+    A cached poster at the requested width, resized on first use.
+
+    Returns the original's path when no width is asked for, when the width is
+    not one this produces, when Pillow is not installed, or when the resize
+    fails - a list that renders slightly heavier pictures beats a list with
+    holes in it. Returns None when the name is not a poster name at all.
+    """
+    original = cached_poster_path(filename)
+    if original is None or not width:
+        return original
+
+    if not THUMBNAILS_AVAILABLE or width not in POSTER_WIDTHS:
+        return original
+
+    thumbnail = _thumbnail_path(filename, width)
+    if os.path.exists(thumbnail):
+        return thumbnail
+
+    if not os.path.exists(original):
+        return original
+
+    try:
+        os.makedirs(os.path.dirname(thumbnail), exist_ok=True)
+        with Image.open(original) as image:
+            # Already smaller than asked for: nothing to gain from a copy.
+            if image.width <= width:
+                return original
+            height = round(image.height * width / image.width)
+            image.convert('RGB').resize((width, height), Image.LANCZOS).save(
+                thumbnail, 'JPEG', quality=82, optimize=True)
+    except Exception as e:
+        print(f"Could not resize poster {filename} to {width}px: {e}")
+        return original
+
+    return thumbnail
+
+
+def delete_poster_thumbnails(filename):
+    """Drop every resized copy of a poster, e.g. when the entry goes."""
+    for width in POSTER_WIDTHS:
+        try:
+            os.unlink(_thumbnail_path(filename, width))
+        except OSError:
+            pass

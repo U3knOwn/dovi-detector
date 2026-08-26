@@ -17,6 +17,8 @@ import re
 import threading
 import time
 
+from services.database import mark_updated
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -256,6 +258,7 @@ def backfill_imdb_data(scanned_files, scan_lock, save_database_func,
         entries = list(scanned_files.values())
 
     for file_info in entries:
+        before = len(file_info), file_info.get('imdb_top250')
         tmdb_id = file_info.get('tmdb_id')
         imdb_id = file_info.get('imdb_id')
 
@@ -286,6 +289,11 @@ def backfill_imdb_data(scanned_files, scan_lock, save_database_func,
         if file_info.get('imdb_top250') != new_rank:
             file_info['imdb_top250'] = new_rank
             rank_changed += 1
+
+        # Stamped only when this entry actually gained something, so a run that
+        # changes nothing does not make every client re-download the library.
+        if (len(file_info), file_info.get('imdb_top250')) != before:
+            mark_updated(file_info)
 
     if resolved or rated or rank_changed:
         with scan_lock:

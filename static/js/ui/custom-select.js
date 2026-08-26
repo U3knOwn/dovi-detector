@@ -34,6 +34,8 @@ const SORT_OPTIONS = [
     { value: 'profile_audiobitrate', i18n: 'sort_by_profile_audiobitrate', icon: 'film' },
     { value: 'audio',                i18n: 'sort_by_audio',                icon: 'volume' },
     { value: 'audio_audiobitrate',   i18n: 'sort_by_audio_audiobitrate',   icon: 'volume' },
+    { value: 'resolution',           i18n: 'sort_by_resolution',           icon: 'frame' },
+    { value: 'codec',                i18n: 'sort_by_codec',                icon: 'cpu' },
     { value: 'videobitrate',         i18n: 'sort_by_videobitrate',         icon: 'monitor' },
     { value: 'audiobitrate',         i18n: 'sort_by_audiobitrate',         icon: 'volume' },
     { value: 'cm_version',           i18n: 'sort_by_cm_version',           icon: 'target' }

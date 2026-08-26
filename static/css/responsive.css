@@ -265,14 +265,30 @@
     /* ---------- Stats / footer ---------- */
 
     .controls.statsbar {
+        align-items: stretch;
+    }
+
+    .statsbar-top {
         flex-direction: column;
-        align-items: center;
+        width: 100%;
     }
 
     .stats {
         width: 100%;
         justify-content: center;
         text-align: center;
+    }
+
+    /* The bars keep their full width; only their headings and legends centre
+       with the rest of the stacked layout. */
+    .stat-group-label,
+    .stat-legend {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .stat-legend {
+        gap: 6px 12px;
     }
 
     .language-switcher {

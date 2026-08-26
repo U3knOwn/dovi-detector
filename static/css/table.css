@@ -322,11 +322,121 @@ tbody tr:hover td {
    ============================================================ */
 
 .controls.statsbar {
-    flex-direction: row;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+
+/* How much the library holds, and the language switcher - the two things that
+   are not counts, kept on their own line above them. */
+.statsbar-top {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
+}
+
+/* One bar per question, stacked: resolution, HDR format, video codec. Each
+   spans the full width, so the three are read against each other. */
+.statsbar-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.statsbar-groups[hidden] {
+    display: none;
+}
+
+.stat-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+/* A bar with nothing to count leaves no gap behind. */
+.stat-group[hidden] {
+    display: none;
+}
+
+.stat-group-label {
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+}
+
+/* ---------- Distribution bars ---------- */
+
+.stat-meter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.stat-meter-track {
+    display: flex;
+    height: 12px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+}
+
+/* A category that holds a single title out of thousands is still worth a
+   mark: without a floor its share rounds away to nothing. */
+.stat-meter-track i {
+    display: block;
+    min-width: 4px;
+    border-right: 1px solid var(--surface-2);
+}
+
+/* Both the track segments and their legend swatches take their colour from
+   where they sit on the ramp, which the renderer hands over as --step. The
+   plain background first is what a browser without color-mix() keeps. */
+.stat-meter-track i,
+.stat-legend-item i {
+    background: var(--meter-from);
+    background: color-mix(in oklab,
+        var(--meter-to) calc(var(--step, 0) * 100%), var(--meter-from));
+}
+
+.stat-meter-track i:last-child {
+    border-right: 0;
+}
+
+.stat-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.stat-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+}
+
+.stat-legend-item i {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    flex: none;
+}
+
+
+.stat-legend-item strong {
+    color: var(--text);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
 .stats {
@@ -354,33 +464,6 @@ tbody tr:hover td {
     border-radius: var(--radius-pill);
     font-size: 0.85rem;
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-#profileStats {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    padding: 5px 12px;
-    border-radius: var(--radius-pill);
-    font-size: 0.8rem;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.stat-chip strong {
-    color: var(--text);
-    font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
 

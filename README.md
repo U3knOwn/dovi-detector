@@ -42,11 +42,13 @@ port `2367`.
 | **Enhancement layers** | MEL and FEL detection for every Dolby Vision profile |
 | **Full HDR metadata** | Mastering display luminance, MaxCLL/MaxFALL, RPU L5/L6, CM version |
 | **Blu-ray disc images** | `.iso` support - the main feature is found and analyzed in place |
+| **Video codec** | H.264, H.265, VC-1, AV1, MPEG-2 and the rest, with the stream's profile and the encoder that made it (x264, x265) |
+| **Library at a glance** | Three distribution bars below the table - by resolution (SD, HD, FHD, QHD, 4K, 8K), by HDR format and by video codec |
 | **Web interface** | Dark-theme dashboard on port `2367`, virtualized for large libraries |
 | **Posters & ratings** | TMDB or Fanart.tv artwork, all ratings from MDBList - IMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic - with TMDB fallback and an IMDb Top 250 badge |
-| **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
+| **Sorting & filtering** | Sort by resolution, video codec, HDR format, audio, bitrate, size, year, runtime - and separately by IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
 | **Title details** | Tagline above the plot, genres beside the directors, plot folded to five lines and expandable |
-| **API** | Token-protected `/api/v1` - read the library filtered/sorted/paged, drive scans, follow progress live |
+| **API** | Token-protected `/api/v1` - read the library filtered/searched/sorted/paged in every order the interface offers, with range filters on every number, ETags and `updated_since` for cheap syncing, resized posters, drive scans, follow progress live |
 | **Docker-based** | One `docker-compose up -d` away |
 
 ---
@@ -119,12 +121,30 @@ If automatic detection missed a file:
 |--------|-------------|
 | **Filename** | Name of the media file (or its poster, once artwork is available) |
 | **HDR Format** | Detected format - SDR, HDR10, HDR10+, HLG, Dolby Vision with profile |
-| **Resolution** | Video resolution, e.g. `3840x2160` |
 | **Audio Codec** | Audio codec information, e.g. `Dolby TrueHD Atmos` |
+| **Resolution** | Video resolution, e.g. `4K (UHD)` |
+
+The video codec is in the details dialog of an entry, spelled out with the
+stream's profile and the encoder that produced it - `H.265 · Main 10 · x265`.
+
+Below the table, three distribution bars show what the library is made of - by
+resolution (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`), by HDR format and by video
+codec. Each bar is split by share and names its parts with their actual counts
+below it, best first. They measure what is on screen, so a search narrows the
+bars with it, and a bar with nothing to count hides itself.
 
 On top of the table: a dark theme, auto-refresh every 10 seconds, live status
 while a scan is running, and a search box plus sort controls that work on the
-whole library.
+whole library. **Resolution** sorts by tier before frame size, so every 4K
+title stands together whatever its exact crop; **video codec** sorts by how
+current the codec is, newest first.
+
+The search matches the title, the file name, the HDR format, the resolution and
+the video and audio codec - including the stream profile and the encoder, so
+`x265` finds every x265 encode and `Main 10` every 10-bit stream. A term that
+names a resolution tier (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`) is answered by
+that tier alone rather than by a substring match, which would otherwise return
+every `SDR` title for `SD`.
 
 ---
 
@@ -317,7 +337,7 @@ it a token.
 ```yaml
 environment:
   - API_TOKEN=a-long-random-secret        # required, the API is off without it
-  - API_CORS_ORIGINS=https://dash.local   # only for browser apps, see 7.8
+  - API_CORS_ORIGINS=https://dash.local   # only for browser apps, see 7.10
 ```
 
 Generate a token with `openssl rand -hex 32`. Without `API_TOKEN` every
@@ -343,12 +363,12 @@ headers; prefer a header everywhere else, as URLs end up in logs and history.
 |--------|----------|-------------|
 | `GET` | `/api/v1` | Version, the list of endpoints and the query options `/library` accepts |
 | `GET` | `/api/v1/library` | Scanned entries: `{success, count, total, offset, limit, files:[…]}`. Filter, sort and page it - see [7.5](#75-narrowing-the-library-down) |
-| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution and audio codec, plus the total size - without shipping the library |
+| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution (exact and by class), video codec and audio codec, plus the total size - without shipping the library. The counts are objects, so read them by key; JSON key order carries no meaning |
 | `GET` | `/api/v1/entries?file_path=…` | One entry by its path, without pulling the whole library |
 | `GET` | `/api/v1/files` | Video files in the media directory: `{name, path, scanned}` |
-| `GET` | `/api/v1/posters/<filename>` | The cached poster image an entry's `poster_url` names |
+| `GET` | `/api/v1/posters/<filename>` | The cached poster image an entry's `poster_url` names; `?w=160/320/480/640` for a resized copy |
 | `GET` | `/api/v1/scan/status` | `{running, scan:{…}}` - progress of the running scan |
-| `GET` | `/api/v1/events` | Server-Sent Events: `scan_state`, `scan_progress`, `file_deleted` |
+| `GET` | `/api/v1/events` | Server-Sent Events: `scan_state`, `scan_progress`, `entry_updated`, `file_deleted` |
 | `POST` | `/api/v1/scan` | Scan everything that is not in the library yet (returns `202`, runs in the background) |
 | `POST` | `/api/v1/scan/files` | Scan `{"file_paths": ["/media/a.mkv", …]}` (`202`) |
 | `POST` | `/api/v1/scan/cancel` | Stop the running scan (`202`); what it already scanned stays |
@@ -365,12 +385,24 @@ running one at `/scan/status` or stop it at `/scan/cancel`.
 ### 7.4 Entry Fields
 
 An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
-`hdr_detail`, `el_type`, `resolution`, `audio_codec`, `duration`,
+`hdr_detail`, `el_type`, `resolution`, `resolution_class`, `video_codec`,
+`video_codec_profile`, `video_encoder`, `audio_codec`, `duration`,
 `video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
 `hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
 `tmdb_rating`, `tmdb_plot`, `tmdb_tagline`, `tmdb_directors`, `tmdb_cast`,
 `tmdb_genres`, `imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`,
 `rt_audience`, `trakt_rating`, `metacritic`.
+
+`resolution_class` is derived, not scanned: it is the step the resolution falls
+into (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`, or `Unknown`), measured off the long
+edge widened to 16:9 - so a scope-cropped `3840x1600` still counts as `4K` and an
+anamorphic `1440x1080` as `FHD`.
+
+`updated_at` is when the entry was last written, as seconds since the epoch -
+stamped by every change, whether a scan, a rescan or a backfill filling in a
+poster or a rating. `mtime` cannot answer that: adding a rating never touches
+the file. Entries from a database written before stamps existed report their
+`mtime` instead, so a first sync sees everything rather than nothing.
 
 ### 7.5 Narrowing the Library Down
 
@@ -380,16 +412,83 @@ handful:
 
 | Parameter | Meaning |
 |-----------|---------|
-| `hdr_format`, `el_type`, `resolution`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`) |
-| `search` | Substring of the file name or the TMDB title |
-| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
+| `hdr_format`, `hdr_detail`, `el_type`, `dv_cm_version`, `resolution`, `resolution_class`, `video_codec`, `video_encoder`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`, `resolution_class=4K`, `video_codec=h.265`, `video_encoder=x265`) |
+| `min_<field>`, `max_<field>` | Both ends inclusive, for `duration`, `file_size`, `video_bitrate`, `audio_bitrate`, `mtime`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` and `imdb_top250` |
+| `search` | Substring of what an entry is called and what it is: file name, TMDB title, HDR detail, resolution, video codec with its profile and encoder, audio codec |
+| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `resolution`, `video_codec`, `video_bitrate`, `audio_bitrate`, `hdr_format`, `audio_codec`, `dv_cm_version`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
 | `order` | `asc` (default) or `desc` |
 | `limit`, `offset` | The window to return; `total` always counts every match before it |
+| `fields` | The subset of an entry to return, comma-separated. `path` is always included - a list a client cannot act on is not worth sending |
+| `updated_since` | Only entries written after this epoch time; the same thing as `min_updated_at`, spelled the way a syncing client reaches for it |
 
-An unknown `sort`, a non-numeric `limit` and the like are refused with
-`400 invalid_parameter` rather than quietly ignored.
+An unknown `sort`, a non-numeric `limit` or `min_…`, and the like are refused
+with `400 invalid_parameter` rather than quietly ignored.
 
-### 7.6 Posters
+**Every order the web interface offers is available here, ranked the same way.**
+`sort` may name several fields separated by commas: it sorts by the first and
+settles ties with the next, which is how the interface's combined modes are put.
+`order=desc` is "best first" throughout - the largest frame, the newest codec,
+the richest HDR grade, the best audio track:
+
+| In the interface | Over the API |
+|------------------|--------------|
+| Auflösung | `sort=resolution&order=desc` - class before frame size |
+| Videocodec | `sort=video_codec&order=desc` - `H.266 > H.265 > AV1 > H.264 > VC-1 > VP9 > VP8 > MPEG-4 > MPEG-2 > MPEG-1` |
+| HDR-Typ | `sort=hdr_format&order=desc` - DV FEL > MEL > P8 > P5 > HDR10+ > SL-HDR > HDR Vivid > HDR10/HLG > SDR |
+| HDR-Typ + Tonspur | `sort=hdr_format,audio_codec&order=desc` |
+| HDR-Typ + Videobitrate | `sort=hdr_format,video_bitrate&order=desc` |
+| HDR-Typ + Audiobitrate | `sort=hdr_format,audio_bitrate&order=desc` |
+| Tonspur | `sort=audio_codec&order=desc` - TrueHD Atmos > DTS:X > TrueHD > DTS-HD MA > … , wider mixes first within a codec |
+| Tonspur + Audiobitrate | `sort=audio_codec,audio_bitrate&order=desc` |
+| CM Version | `sort=dv_cm_version&order=desc` |
+
+A ranged field an entry does not carry is dropped rather than read as zero, so
+`min_video_bitrate=60000` never returns the files whose bitrate could not be
+determined, and `max_imdb_top250=250` means "in the chart" rather than
+"everything".
+
+### 7.6 Syncing a Client
+
+An app that keeps its own copy - a phone, a dashboard, a script - should not
+pull the whole library every time it opens. Two things make that unnecessary.
+
+**The ETag.** `/api/v1/library` answers with one, and a request that sends it
+back as `If-None-Match` gets `304 Not Modified` and no body when nothing has
+changed. The tag covers the library's revision *and* the query, so two different
+questions never share an answer:
+
+```bash
+ETAG=$(curl -sD - -o /dev/null -H "X-API-Token: $TOKEN" $API/library \
+  | awk 'tolower($1)=="etag:"{print $2}' | tr -d '\r')
+
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "X-API-Token: $TOKEN" -H "If-None-Match: $ETAG" $API/library   # 304
+```
+
+**`updated_since`.** When something *has* changed, ask for just that:
+
+```bash
+# Everything written since the client's last successful sync
+curl -s -H "X-API-Token: $TOKEN" "$API/library?updated_since=1750000000"
+
+# The list view of a large library: a dozen fields instead of thirty-odd
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?fields=path,filename,poster_url,tmdb_title,tmdb_year,resolution,hdr_detail,video_codec,audio_codec,imdb_rating"
+```
+
+For a realistic entry that is the difference between ~1.7 kB and ~0.5 kB, so a
+library of 2000 titles is 0.9 MB rather than 3.3 MB before compression.
+
+**Deletions** do not appear in `updated_since` - a gone entry has nothing to
+report. They arrive live as the `file_deleted` event, and a client that was
+offline reconciles cheaply by asking for `?fields=path` and diffing.
+
+**Live changes.** `/api/v1/events` streams `entry_updated` with the path and the
+new stamp whenever an entry is scanned or re-read - not the record itself, so a
+scan of thousands of files does not push megabytes at every listener. The client
+fetches what it wants with `updated_since`.
+
+### 7.7 Posters
 
 An entry's `poster_url` is `/poster/<name>.jpg` once the image has been cached.
 The same file is served inside the API at `/api/v1/posters/<name>.jpg`, so a
@@ -404,13 +503,31 @@ curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
 An entry whose image could **not** be cached carries the remote URL instead -
 a `poster_url` beginning with `http` is fetched from its own host, not from here.
 
-### 7.7 Following Along Live
+`?w=` asks for a resized copy - `160`, `320`, `480` or `640` pixels wide, which
+is what a phone showing a grid of covers wants rather than the full-size image.
+A 1000x1500 poster of 24 kB comes back as 1.2 kB at `w=320`. The resized copy is
+made on first use and kept beside the original, and the response is marked
+cacheable for a week: a cached poster never changes under its name, the scanner
+writes a new name instead. Only those four widths are produced, so the cache
+cannot grow a variant per pixel a caller thinks of; anything else is refused
+with `400`. Without Pillow installed the endpoint serves the original.
+
+The token may also be passed as `?token=…` here, so an image loader that cannot
+set headers - Android's Coil and Glide, an `<img>` tag - can fetch posters
+directly.
+
+### 7.8 Following Along Live
 
 `/api/v1/events` is a Server-Sent Events stream. It opens with a `scan_state`
 event carrying the current state (so a client that connects mid-scan is not left
-guessing until the next file finishes), then delivers `scan_progress` and
-`file_deleted` as they happen. A scan reports `status` `scanning`, then `done`,
-`cancelled` or `error`.
+guessing until the next file finishes), then delivers `scan_progress`,
+`entry_updated` and `file_deleted` as they happen. A scan reports `status`
+`scanning`, then `done`, `cancelled` or `error`.
+
+`entry_updated` fires whenever one entry is written - scanned, re-read - and
+carries `{"file_path": …, "updated_at": …}` rather than the record itself, so a
+scan of thousands of files does not push megabytes at every listener. A client
+that wants the new content asks for it with `updated_since`.
 
 Every event carries an `id`. A client that reconnects with `Last-Event-ID` - the
 browser's `EventSource` sends it by itself, others may pass
@@ -419,7 +536,7 @@ after it. The stream also asks clients to wait 3 seconds before reconnecting,
 and sends a comment every 30 seconds so an idle connection is not dropped as
 dead.
 
-### 7.8 Errors
+### 7.9 Errors
 
 Every answer carries `success`, **including the errors the framework itself
 produces**: a path that does not exist, a method that is not allowed for one, or
@@ -444,14 +561,14 @@ an unhandled failure are JSON here, not HTML. A failure adds a human-readable
 | `media_unreadable` | `500` | The media directory could not be walked |
 | `internal_error` | `500` | Unhandled failure - the reason is logged, not returned |
 
-### 7.9 Browser Apps (CORS)
+### 7.10 Browser Apps (CORS)
 
 `curl`, scripts and server-side dashboards are never subject to CORS and need
 nothing beyond the token. A web app served from **another** origin does: list
 its origin in `API_CORS_ORIGINS` (comma-separated, or `*` for any). Left empty,
 no CORS headers are sent and only same-origin requests work.
 
-### 7.10 What the Token Does and Does Not Protect
+### 7.11 What the Token Does and Does Not Protect
 
 The token guards `/api/v1`. The endpoints the web interface itself uses
 (`/api/library`, `/get_files`, `/scan`, `/delete_entry`, …) stay open, because
@@ -460,7 +577,7 @@ these things. So the token keeps automation honest and stable; it is not a lock
 on the instance. To actually restrict access, put the whole thing behind a
 reverse proxy with authentication, or keep the port on your LAN.
 
-### 7.11 Examples
+### 7.12 Examples
 
 ```bash
 TOKEN=a-long-random-secret
@@ -468,6 +585,41 @@ API=http://host:2367/api/v1
 
 # How many titles, by HDR format - the cheap call for a dashboard
 curl -s -H "X-API-Token: $TOKEN" $API/library/stats | jq '.hdr_formats'
+
+# How much of the library is 4K, how much is still 1080p, and by which codec
+curl -s -H "X-API-Token: $TOKEN" $API/library/stats \
+  | jq '{resolution_classes, video_codecs}'
+
+# Everything still encoded in H.264, oldest first - the rip-again list
+curl -s -H "X-API-Token: $TOKEN" "$API/library?video_codec=h.264&sort=mtime" \
+  | jq '.files[].filename'
+
+# Everything below 4K, biggest frame first
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?sort=resolution&order=desc&resolution_class=FHD" \
+  | jq '.files[] | {filename, resolution}'
+
+# The library by codec, newest first - the same order the dashboard shows
+curl -s -H "X-API-Token: $TOKEN" "$API/library?sort=video_codec&order=desc" \
+  | jq -r '.files[] | "\(.video_codec)\t\(.filename)"'
+
+# Every x265 encode, found by what the file says rather than by a filter
+curl -s -H "X-API-Token: $TOKEN" "$API/library?search=x265" | jq '.files[].filename'
+
+# The bandwidth hogs: over 60 Mb/s, biggest file first
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?min_video_bitrate=60000&sort=file_size&order=desc" \
+  | jq -r '.files[] | "\(.video_bitrate) kb/s\t\(.filename)"'
+
+# The Top 250 titles in the library, best rank first
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?max_imdb_top250=250&sort=imdb_rating&order=desc" \
+  | jq -r '.files[] | "#\(.imdb_top250)\t\(.filename)"'
+
+# What the dashboard's "HDR format + audio codec" mode shows
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?sort=hdr_format,audio_codec&order=desc" \
+  | jq -r '.files[] | "\(.hdr_detail)\t\(.audio_codec)"'
 
 # Every Dolby Vision FEL title - filtered by the server, not by jq
 curl -s -H "X-API-Token: $TOKEN" "$API/library?el_type=FEL" | jq '.files[].filename'
@@ -506,9 +658,27 @@ curl -s -X POST -H "X-API-Token: $TOKEN" -H "Content-Type: application/json" \
    Dolby Vision (profile, EL type, CM version) along with the static HDR
    metadata - mastering display luminance, MaxCLL/MaxFALL, the RPU's L6 values
    and L5 active area
-3. **MediaInfo** extracts resolution, duration, audio codec and bitrate
+3. **MediaInfo** extracts resolution, duration, the video codec with its
+   profile and encoder, and the audio codec and bitrate (for a disc image
+   the codec comes from hdrprobe, which read the main feature itself)
 4. **Online lookups** add poster, title, plot, cast and ratings
 5. **Results** are written to the JSON database in batches
+
+### Existing Libraries
+
+A library scanned before the video codec was recorded does not need a rescan.
+At startup the entries that carry no codec yet are read once more - MediaInfo
+for a regular file, hdrprobe for a disc image - and only the codec, its profile
+and the encoder are written back:
+
+```
+[CODEC] 812 entr(ies) without a video codec - reading them
+✓ Read the video codec of 812 entr(ies)
+```
+
+It runs in the background, touches no network and leaves everything else about
+an entry alone, so the codec bar below the table fills itself in while the
+interface is already usable.
 
 ### Web Interface Rendering
 

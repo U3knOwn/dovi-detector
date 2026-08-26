@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 /**
- * Quality ranking of HDR profiles, audio codecs and CM versions.
+ * Quality ranking of HDR profiles, video and audio codecs and CM versions.
  *
  * Pure functions - they only look at the strings a scan produced, which is what
  * both the sorting and the statistics order by.
@@ -72,6 +72,27 @@ export function getCmStructureKey(cmVersion) {
     // Extract the structure abbreviation, e.g. "CMv4.0 (ST-DL)" -> "st-dl"
     const m = (cmVersion || '').toLowerCase().match(/\(([^)]+)\)/);
     return m ? m[1].trim() : '';
+}
+
+/* Video codecs, most current first.
+ *
+ * Not a quality order - a codec says how efficiently a title was stored, not
+ * how good it looks - but it is the order a library is stepped through, and
+ * the one the codec bar below the table and the codec sort both use. Anything
+ * a scan reports that is not listed here ranks behind all of them and is then
+ * ordered by name, so a codec nobody planned for still lands somewhere sensible.
+ *
+ * AV1 sits between H.265 and H.264 rather than at the front: a library is read
+ * along the line the discs took, and there AV1 is what streaming brought in
+ * beside H.265, not what came after it.
+ */
+export const VIDEO_CODEC_ORDER = [
+    'H.266', 'H.265', 'AV1', 'H.264', 'VC-1', 'VP9', 'VP8', 'MPEG-4', 'MPEG-2', 'MPEG-1'
+];
+
+export function getVideoCodecRank(videoCodec) {
+    const index = VIDEO_CODEC_ORDER.indexOf((videoCodec || '').trim());
+    return index === -1 ? VIDEO_CODEC_ORDER.length : index;
 }
 
 export function getAudioRank(audioCodec) {

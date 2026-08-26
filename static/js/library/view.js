@@ -8,7 +8,8 @@
 import { fetchLibrary } from '../core/api.js';
 import { onLanguageChange, t } from '../core/i18n.js';
 import { debounce, makeElement } from '../helpers/dom.js';
-import { prepareMediaItem, prepareMediaSearchText } from './model.js';
+import { VIDEO_CODEC_ORDER } from '../helpers/ranking.js';
+import { RESOLUTION_TIER_ORDER, prepareMediaItem, prepareMediaSearchText } from './model.js';
 import { applySort } from './sorting.js';
 import {
     mediaItems, mediaLoaded, mediaSearchTerm, mediaVisible,
@@ -41,11 +42,26 @@ export function loadMediaLibrary(request) {
         });
 }
 
+/* Terms that name a resolution tier, which are answered by that tier alone.
+ *
+ * They are too short to be looked for anywhere in an entry: "SD" sits inside
+ * "SDR", "HD" inside both "HDR" and "DTS-HD", so a substring match would hand
+ * back mostly the wrong titles - searching "SD" for the standard-definition
+ * ones would return every SDR title in the library. Every other term - a
+ * codec, an encoder, a title, a frame size - keeps matching anywhere. */
+const TIER_TERMS = new Set(RESOLUTION_TIER_ORDER.map(tier => tier.toLowerCase()));
+
+function matchesSearch(item, term) {
+    return TIER_TERMS.has(term)
+        ? item.resolutionTier.toLowerCase() === term
+        : item.searchText.includes(term);
+}
+
 // Recompute what is shown and put it on screen. Every change to the data, the
 // sort order or the search term ends here.
 export function applyMediaFilter() {
     setMediaVisible(mediaSearchTerm
-        ? mediaItems.filter(item => item.searchText.includes(mediaSearchTerm))
+        ? mediaItems.filter(item => matchesSearch(item, mediaSearchTerm))
         : mediaItems);
 
     updateMediaChrome();
@@ -160,26 +176,113 @@ export function updateFileCount() {
     fileCountElement.appendChild(span);
 }
 
-// Order the stat chips are shown in; only categories with at least one title
-// are rendered.
-const STAT_CHIP_ORDER = [
+// Order the HDR segments are shown in; only categories with at least one
+// title are rendered.
+const HDR_SEGMENT_ORDER = [
     'FEL', 'MEL', 'P8', 'P5', 'HDR10+', 'SL-HDR', 'HDR Vivid', 'HDR10', 'HLG', 'SDR'
 ];
 
-// Update profile statistics
-export function updateProfileStats() {
-    const profileStatsElement = document.getElementById('profileStats');
-    if (!profileStatsElement) return;
+/* How far along the ramp a segment sits, from 0 (the first) to 1 (the last).
+ *
+ * All three bars order their segments best-first - the largest resolution, the
+ * richest HDR format, the newest codec - so what they show is a scale, not a
+ * set of unrelated categories. One hue stepped from light to deep says exactly
+ * that, where a colour per category would only have looked busy. The two ends
+ * are the theme's (--meter-from / --meter-to in tokens.css) and the step is
+ * spread over however many segments there are, so a bar with two of them takes
+ * the two ends rather than two neighbours. */
+function meterStep(index, count) {
+    return count < 2 ? 0 : index / (count - 1);
+}
 
-    const stats = new Map();
+// How many of the entries currently shown fall under each value of one key.
+function countBy(key) {
+    const counts = new Map();
     mediaVisible.forEach(item => {
-        if (item.statKey) stats.set(item.statKey, (stats.get(item.statKey) || 0) + 1);
+        const value = item[key];
+        if (value) counts.set(value, (counts.get(value) || 0) + 1);
     });
+    return counts;
+}
 
-    profileStatsElement.innerHTML = STAT_CHIP_ORDER
-        .filter(label => stats.get(label) > 0)
-        .map(label => `<span class="stat-chip">${label} <strong>${stats.get(label)}</strong></span>`)
-        .join('');
+// The labels to render, in the fixed order where there is one and with
+// anything else appended alphabetically - a codec nobody planned for still
+// gets its segment rather than being dropped.
+function orderedLabels(counts, order) {
+    const known = order.filter(label => counts.has(label));
+    const rest = [...counts.keys()].filter(label => !order.includes(label)).sort();
+    return known.concat(rest);
+}
+
+/**
+ * One bar: a track split by share, and below it the legend that names the
+ * segments and gives their actual numbers.
+ *
+ * The track carries no text of its own, so it is hidden from screen readers -
+ * the legend below already says everything it shows. The bar is hidden
+ * entirely while it has nothing to count; an empty track under a heading reads
+ * as a bug.
+ */
+function renderStatMeter(elementId, counts, order) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    const labels = orderedLabels(counts, order);
+    const group = element.closest('.stat-group') || element;
+    group.hidden = labels.length === 0;
+    if (!labels.length) {
+        element.innerHTML = '';
+        return;
+    }
+
+    const total = labels.reduce((sum, label) => sum + counts.get(label), 0);
+    const parts = labels.map((label, index) => ({
+        label,
+        count: counts.get(label),
+        share: counts.get(label) / total * 100,
+        step: meterStep(index, labels.length).toFixed(3)
+    }));
+
+    const track = parts.map(part =>
+        `<i style="width:${part.share.toFixed(2)}%;--step:${part.step}" ` +
+        `title="${escapeHtml(part.label)} - ${part.count}"></i>`).join('');
+
+    const legend = parts.map(part =>
+        `<span class="stat-legend-item"><i style="--step:${part.step}"></i>` +
+        `${escapeHtml(part.label)} <strong>${part.count}</strong></span>`).join('');
+
+    element.innerHTML =
+        `<div class="stat-meter-track" aria-hidden="true">${track}</div>` +
+        `<div class="stat-legend">${legend}</div>`;
+}
+
+// A codec name comes from a scan, not from this page - so it is escaped like
+// any other value before it is put into markup.
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+}
+
+/**
+ * The three bars below the table: how the library breaks down by resolution,
+ * by HDR format and by video codec.
+ *
+ * They measure what is currently shown rather than the whole library, so
+ * narrowing the table with a search narrows the bars with it.
+ */
+export function updateProfileStats() {
+    renderStatMeter('resolutionStats', countBy('resolutionTier'), RESOLUTION_TIER_ORDER);
+    renderStatMeter('profileStats', countBy('statKey'), HDR_SEGMENT_ORDER);
+    renderStatMeter('codecStats', countBy('codecKey'), VIDEO_CODEC_ORDER);
+
+    // With every bar hidden - a search that matched nothing, a library still
+    // being scanned - the container would keep taking up the bar's row gap
+    // below the counter.
+    const groups = document.querySelector('.statsbar-groups');
+    if (groups) {
+        groups.hidden = !groups.querySelector('.stat-group:not([hidden])');
+    }
 }
 
 // Drop an entry from the table, e.g. after it was deleted or its file vanished.

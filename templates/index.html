@@ -215,20 +215,40 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
             <p data-i18n-html="empty_description"></p>
         </div>
 
+        {# The bar below the table: how much the library holds, and how it is
+           made up - one chip row per question (HDR format, resolution, video
+           codec). A row with nothing to count hides itself. #}
         <div class="controls statsbar">
-            <div class="stats">
-                <strong id="fileCount">{{ file_count }} <span data-i18n="media_count"></span></strong>
+            <div class="statsbar-top">
+                <div class="stats">
+                    <strong id="fileCount">{{ file_count }} <span data-i18n="media_count"></span></strong>
+                </div>
+                <div class="language-switcher">
+                    <div class="custom-select lang-select" id="languageWrap">
+                        <button type="button" class="custom-select-trigger" id="languageTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+                            <span class="custom-select-current" id="languageCurrent"></span>
+                            <svg class="custom-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <ul class="custom-select-menu" id="languageMenu" role="listbox" tabindex="-1"></ul>
+                    </div>
+                </div>
             </div>
-            <div class="stats">
-                <span id="profileStats"></span>
-            </div>
-            <div class="language-switcher">
-                <div class="custom-select lang-select" id="languageWrap">
-                    <button type="button" class="custom-select-trigger" id="languageTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
-                        <span class="custom-select-current" id="languageCurrent"></span>
-                        <svg class="custom-select-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                    </button>
-                    <ul class="custom-select-menu" id="languageMenu" role="listbox" tabindex="-1"></ul>
+            {# One bar per question, in the order a library is usually read:
+               how big, how it is graded, how it is encoded. Each is filled by
+               updateProfileStats() and hides itself while it has nothing to
+               count. #}
+            <div class="statsbar-groups">
+                <div class="stat-group">
+                    <span class="stat-group-label" data-i18n="stats_group_resolution"></span>
+                    <div class="stat-meter" id="resolutionStats"></div>
+                </div>
+                <div class="stat-group">
+                    <span class="stat-group-label" data-i18n="stats_group_hdr"></span>
+                    <div class="stat-meter" id="profileStats"></div>
+                </div>
+                <div class="stat-group">
+                    <span class="stat-group-label" data-i18n="stats_group_codec"></span>
+                    <div class="stat-meter" id="codecStats"></div>
                 </div>
             </div>
         </div>
@@ -398,6 +418,19 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                         <div class="dialog-info-item dialog-info-right">
                             <span class="dialog-label" data-i18n="dialog_audio_bitrate"></span>
                             <span class="dialog-value" id="dialogAudioBitrate"></span>
+                        </div>
+                    </div>
+                    <div class="dialog-info-row">
+                        {# The codec spelled out in full here - profile and
+                           encoder included, which the badge leaves off. #}
+                        <div class="dialog-info-item dialog-info-left">
+                            <span class="dialog-label" data-i18n="dialog_video_codec"></span>
+                            <span class="dialog-value" id="dialogVideoCodec"></span>
+                        </div>
+
+                        <div class="dialog-info-item dialog-info-right">
+                            <span class="dialog-label" data-i18n="dialog_resolution"></span>
+                            <span class="dialog-value" id="dialogResolution"></span>
                         </div>
                     </div>
                     <div class="dialog-info-row">

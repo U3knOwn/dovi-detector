@@ -12,6 +12,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import config
 
+from services.database import bump_revision, mark_updated
+
 # Maximum time to wait for a new file to finish copying (seconds)
 FILE_STABLE_TIMEOUT = 3600
 
@@ -107,6 +109,7 @@ class MediaFileHandler(FileSystemEventHandler):
                     and os.path.basename(src_path) == os.path.basename(dest_path)):
                 # Same filename, new location: keep all metadata
                 file_info['path'] = dest_path
+                mark_updated(file_info)
                 self.scanned_files[dest_path] = file_info
                 self.scanned_paths.add(dest_path)
                 self.save_database_func()
@@ -152,6 +155,7 @@ class MediaFileHandler(FileSystemEventHandler):
                     self.delete_cached_poster_func(file_info)
 
                     del self.scanned_files[file_path]
+                    bump_revision()
                     self.scanned_paths.discard(file_path)
                     self.save_database_func()
                     print(f"✗ Removed from database: {file_path}")
