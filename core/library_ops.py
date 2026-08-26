@@ -18,14 +18,15 @@ from core.scan_state import (begin_scan, cancel_requested, end_scan,
                              publish_scan_progress, report_scan_progress)
 from core.scanner import delete_cached_poster_for, scan_video_file_with_deps
 from services import database
-from services.video_scanner import bulk_scan_files, scan_directory
+from services.video_scanner import (RESOLUTION_NAMES, bulk_scan_files,
+                                    scan_directory)
 
 # The fields the library view and the API hand out. Everything else an entry
 # carries (the raw DV profile, the IMDb vote count) is not shown anywhere, so
 # it is not shipped to every caller either.
 LIBRARY_FIELDS = (
     'filename', 'path', 'hdr_format', 'hdr_detail', 'el_type', 'resolution',
-    'video_codec', 'video_codec_profile', 'video_encoder',
+    'resolution_class', 'video_codec', 'video_codec_profile', 'video_encoder',
     'audio_codec', 'duration', 'video_bitrate', 'audio_bitrate', 'file_size',
     'mtime', 'dv_cm_version', 'hdr_metadata', 'tmdb_id', 'poster_url',
     'tmdb_title', 'tmdb_year', 'tmdb_rating', 'tmdb_plot', 'tmdb_tagline',
@@ -36,8 +37,8 @@ LIBRARY_FIELDS = (
 # The fields a caller may narrow the library down by. Compared case-insensitively
 # against the value stored in the entry, so ``hdr_format=dolby vision`` matches
 # every Dolby Vision title and ``el_type=FEL`` picks its enhancement layer.
-LIBRARY_FILTERS = ('hdr_format', 'el_type', 'resolution', 'video_codec',
-                   'audio_codec')
+LIBRARY_FILTERS = ('hdr_format', 'el_type', 'resolution', 'resolution_class',
+                   'video_codec', 'video_encoder', 'audio_codec')
 
 # Where a text search looks. Both, because an entry may carry a title that the
 # file name does not and the other way round.
@@ -72,6 +73,44 @@ RESOLUTION_CLASS_STEPS = (
 RESOLUTION_CLASS_ORDER = ('8K', '4K', 'QHD', 'FHD', 'HD', 'SD', 'Unknown')
 
 _FRAME_SIZE = re.compile(r'^(\d+)\s*x\s*(\d+)$')
+
+# Video codecs, most current first - the same rank the interface sorts by, so a
+# caller can ask for the order it sees on screen. Mirrors VIDEO_CODEC_ORDER in
+# static/js/helpers/ranking.js; the two have to agree.
+VIDEO_CODEC_ORDER = (
+    'H.266', 'H.265', 'AV1', 'H.264', 'VC-1', 'VP9', 'VP8',
+    'MPEG-4', 'MPEG-2', 'MPEG-1',
+)
+
+# How many pixels each named resolution holds, for ordering two entries of the
+# same class. Read off the names the scanner produced rather than written out
+# again; where two frames share a name (480p), the larger one stands for it.
+RESOLUTION_PIXELS = {}
+for (_width, _height), _name in RESOLUTION_NAMES.items():
+    RESOLUTION_PIXELS[_name] = max(RESOLUTION_PIXELS.get(_name, 0), _width * _height)
+
+
+def resolution_pixels(resolution):
+    """
+    The frame a resolution stands for, in pixels - 0 when it is not a frame.
+
+    A named resolution is looked up, a bare ``1920x800`` is multiplied out.
+    """
+    name = str(resolution or '').strip()
+    if name in RESOLUTION_PIXELS:
+        return RESOLUTION_PIXELS[name]
+
+    match = _FRAME_SIZE.match(name)
+    return int(match.group(1)) * int(match.group(2)) if match else 0
+
+
+def video_codec_rank(video_codec):
+    """
+    Where a codec sits in VIDEO_CODEC_ORDER; anything unlisted ranks behind
+    all of them.
+    """
+    name = str(video_codec or '').strip()
+    return VIDEO_CODEC_ORDER.index(name) if name in VIDEO_CODEC_ORDER else len(VIDEO_CODEC_ORDER)
 
 
 def resolution_class(resolution):
@@ -137,12 +176,27 @@ SORT_KEYS = {
     'rt_audience': lambda entry: _as_float(entry.get('rt_audience')),
     'trakt_rating': lambda entry: _as_float(entry.get('trakt_rating')),
     'metacritic': lambda entry: _as_float(entry.get('metacritic')),
+    # Class before frame, so ``desc`` puts every 4K title together whatever its
+    # crop and a scope-cropped 3840x1600 does not land between two plain UHD -
+    # exactly the order the interface shows. Negated because the class list runs
+    # best-first while a sort key has to grow with the value: ``asc`` then
+    # starts at the entries whose resolution was never determined.
+    'resolution': lambda entry: (
+        -RESOLUTION_CLASS_ORDER.index(resolution_class(entry.get('resolution'))),
+        resolution_pixels(entry.get('resolution'))),
+    # Same idea for the codec: ``desc`` is the newest first, ``asc`` the oldest.
+    'video_codec': lambda entry: -video_codec_rank(entry.get('video_codec')),
 }
 
 
 def _as_entry(file_info):
     """One database record as its consumers see it: a compact, fixed shape."""
     entry = {field: file_info.get(field) for field in LIBRARY_FIELDS}
+
+    # Derived rather than stored: the class follows from the resolution, and a
+    # caller that wants "everything still below 4K" should not have to know
+    # which frame sizes that covers.
+    entry['resolution_class'] = resolution_class(entry.get('resolution'))
 
     # Modification time for the "recently added" sort. Scanning records it,
     # so only entries from an older database still need a stat call here -
@@ -293,8 +347,10 @@ def library_summary():
         'total_size': total_size,
         'hdr_formats': by_count(formats),
         'resolutions': by_count(resolutions),
-        # Best first rather than by count, so the classes always read in the
-        # same order however a library happens to be made up.
+        # Best first rather than by count, so the classes read in the same
+        # order however a library happens to be made up. Only a caller using
+        # this function directly sees that: Flask sorts the keys of a JSON
+        # object on the way out, so nothing over HTTP may rely on it.
         'resolution_classes': {
             label: resolution_classes[label]
             for label in RESOLUTION_CLASS_ORDER if label in resolution_classes

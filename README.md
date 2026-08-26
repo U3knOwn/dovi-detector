@@ -363,7 +363,7 @@ headers; prefer a header everywhere else, as URLs end up in logs and history.
 |--------|----------|-------------|
 | `GET` | `/api/v1` | Version, the list of endpoints and the query options `/library` accepts |
 | `GET` | `/api/v1/library` | Scanned entries: `{success, count, total, offset, limit, files:[…]}`. Filter, sort and page it - see [7.5](#75-narrowing-the-library-down) |
-| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution (exact and by class), video codec and audio codec, plus the total size - without shipping the library |
+| `GET` | `/api/v1/library/stats` | Counts per HDR format, resolution (exact and by class), video codec and audio codec, plus the total size - without shipping the library. The counts are objects, so read them by key; JSON key order carries no meaning |
 | `GET` | `/api/v1/entries?file_path=…` | One entry by its path, without pulling the whole library |
 | `GET` | `/api/v1/files` | Video files in the media directory: `{name, path, scanned}` |
 | `GET` | `/api/v1/posters/<filename>` | The cached poster image an entry's `poster_url` names |
@@ -385,13 +385,18 @@ running one at `/scan/status` or stop it at `/scan/cancel`.
 ### 7.4 Entry Fields
 
 An entry in `/api/v1/library` holds: `filename`, `path`, `hdr_format`,
-`hdr_detail`, `el_type`, `resolution`, `video_codec`, `video_codec_profile`,
-`video_encoder`, `audio_codec`, `duration`,
+`hdr_detail`, `el_type`, `resolution`, `resolution_class`, `video_codec`,
+`video_codec_profile`, `video_encoder`, `audio_codec`, `duration`,
 `video_bitrate`, `audio_bitrate`, `file_size`, `mtime`, `dv_cm_version`,
 `hdr_metadata`, `poster_url`, `tmdb_id`, `tmdb_title`, `tmdb_year`,
 `tmdb_rating`, `tmdb_plot`, `tmdb_tagline`, `tmdb_directors`, `tmdb_cast`,
 `tmdb_genres`, `imdb_id`, `imdb_rating`, `imdb_top250`, `rt_rating`,
 `rt_audience`, `trakt_rating`, `metacritic`.
+
+`resolution_class` is derived, not scanned: it is the step the resolution falls
+into (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`, or `Unknown`), measured off the long
+edge widened to 16:9 - so a scope-cropped `3840x1600` still counts as `4K` and an
+anamorphic `1440x1080` as `FHD`.
 
 ### 7.5 Narrowing the Library Down
 
@@ -401,9 +406,10 @@ handful:
 
 | Parameter | Meaning |
 |-----------|---------|
-| `hdr_format`, `el_type`, `resolution`, `video_codec`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`, `video_codec=h.265`) |
+| `hdr_format`, `el_type`, `resolution`, `resolution_class`, `video_codec`, `video_encoder`, `audio_codec` | Keep only entries whose field matches, compared case-insensitively (`hdr_format=dolby vision`, `el_type=FEL`, `resolution_class=4K`, `video_codec=h.265`, `video_encoder=x265`) |
 | `search` | Substring of the file name or the TMDB title |
-| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
+| `sort` | `filename`, `tmdb_title`, `mtime`, `file_size`, `duration`, `resolution`, `video_codec`, `tmdb_year`, `tmdb_rating`, `imdb_rating`, `rt_rating`, `rt_audience`, `trakt_rating`, `metacritic` (default `filename`) |
+| | `resolution` and `video_codec` are the orders the web interface offers: `order=desc` puts the largest frame / the newest codec first, class before frame size and `H.266 > H.265 > AV1 > H.264 > VC-1 > VP9 > VP8 > MPEG-4 > MPEG-2 > MPEG-1` |
 | `order` | `asc` (default) or `desc` |
 | `limit`, `offset` | The window to return; `total` always counts every match before it |
 
@@ -497,6 +503,15 @@ curl -s -H "X-API-Token: $TOKEN" $API/library/stats \
 # Everything still encoded in H.264, oldest first - the rip-again list
 curl -s -H "X-API-Token: $TOKEN" "$API/library?video_codec=h.264&sort=mtime" \
   | jq '.files[].filename'
+
+# Everything below 4K, biggest frame first
+curl -s -H "X-API-Token: $TOKEN" \
+  "$API/library?sort=resolution&order=desc&resolution_class=FHD" \
+  | jq '.files[] | {filename, resolution}'
+
+# The library by codec, newest first - the same order the dashboard shows
+curl -s -H "X-API-Token: $TOKEN" "$API/library?sort=video_codec&order=desc" \
+  | jq -r '.files[] | "\(.video_codec)\t\(.filename)"'
 
 # Every Dolby Vision FEL title - filtered by the server, not by jq
 curl -s -H "X-API-Token: $TOKEN" "$API/library?el_type=FEL" | jq '.files[].filename'

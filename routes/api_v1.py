@@ -139,10 +139,15 @@ def library():
     Without parameters this is the whole library, as it always was. With them a
     caller can narrow it down server-side instead of downloading thousands of
     entries to find the handful it wants: ``hdr_format``, ``el_type``,
-    ``resolution``, ``video_codec`` and ``audio_codec`` filter, ``search``
-    matches the file name or the title, ``sort``/``order`` order the result and
-    ``limit``/``offset`` cut a window out of it. ``total`` always counts the
-    matches before that window, so a pager knows how far it has to go.
+    ``resolution``, ``resolution_class``, ``video_codec``, ``video_encoder`` and
+    ``audio_codec`` filter, ``search`` matches the file name or the title,
+    ``sort``/``order`` order the result and ``limit``/``offset`` cut a window out
+    of it. ``total`` always counts the matches before that window, so a pager
+    knows how far it has to go.
+
+    ``sort=resolution`` and ``sort=video_codec`` are the two orders the web
+    interface offers as well, so a consumer can ask for what it sees on screen:
+    ``order=desc`` is the largest frame / the newest codec first.
     """
     limit, failure = _int_arg('limit', minimum=1)
     if failure:
