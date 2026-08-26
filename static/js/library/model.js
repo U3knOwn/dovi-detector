@@ -7,7 +7,10 @@
  */
 
 import { t } from '../core/i18n.js';
-import { getAudioRank, getChannelCount, getCmStructureKey, getCmVersionRank, getProfileRank } from '../helpers/ranking.js';
+import {
+    getAudioRank, getChannelCount, getCmStructureKey, getCmVersionRank,
+    getProfileRank, getVideoCodecRank
+} from '../helpers/ranking.js';
 
 // Numeric field of an entry, 0 when absent - which is how every comparator
 // treats a missing value.
@@ -61,6 +64,15 @@ export function prepareMediaItem(raw) {
     // stays a lookup per entry rather than a parse.
     item.resolutionTier = getResolutionTier(item.resolution);
     item.codecKey = item.video_codec && item.video_codec !== 'Unknown' ? item.video_codec : '';
+
+    // What the resolution and codec sorts order by: the tier first, so the
+    // badges of one step stay together, then the frame itself - and for the
+    // codec, how current it is. An entry the scan could not read sorts last.
+    item.resolutionRank = item.resolutionTier
+        ? RESOLUTION_TIER_ORDER.indexOf(item.resolutionTier)
+        : RESOLUTION_TIER_ORDER.length;
+    item.resolutionPixels = getResolutionPixels(item.resolution);
+    item.codecRank = getVideoCodecRank(item.codecKey);
     item.audioRank = getAudioRank(item.audio_codec);
     item.audioChannels = getChannelCount(item.audio_codec);
     item.audioKey = item.audio_codec.toLowerCase();
@@ -178,6 +190,35 @@ const RESOLUTION_TIERS = {
 const RESOLUTION_TIER_STEPS = [
     [7680, '8K'], [3840, '4K'], [2560, 'QHD'], [1920, 'FHD'], [1280, 'HD'], [1, 'SD']
 ];
+
+// The tiers alone, best first - the order the bar below the table shows them
+// in, and the order the resolution sort groups by. Read off the steps rather
+// than written out again, so the two can never drift apart.
+export const RESOLUTION_TIER_ORDER = RESOLUTION_TIER_STEPS.map(([, tier]) => tier);
+
+// Pixel dimensions of the resolutions that carry a name of their own. Mirrors
+// RESOLUTION_NAMES in services/video_scanner.py, which is where the names come
+// from; the sort needs the frame back that the name stands for.
+const RESOLUTION_PIXELS = {
+    '8K (UHD)': 7680 * 4320,
+    '4K DCI': 4096 * 2160,
+    '4K (UHD)': 3840 * 2160,
+    '1440p': 2560 * 1440,
+    '1080p (Full HD)': 1920 * 1080,
+    '768p': 1366 * 768,
+    '720p (HD)': 1280 * 720,
+    '480p (SD)': 854 * 480
+};
+
+// How many pixels a frame holds, for ordering two entries of the same tier -
+// 0 for a resolution that was never determined, which sorts them last.
+function getResolutionPixels(resolution) {
+    const name = (resolution || '').trim();
+    if (RESOLUTION_PIXELS[name]) return RESOLUTION_PIXELS[name];
+
+    const frame = name.match(/^(\d+)\s*x\s*(\d+)$/);
+    return frame ? parseInt(frame[1], 10) * parseInt(frame[2], 10) : 0;
+}
 
 /**
  * Which of SD / HD / FHD / QHD / 4K / 8K an entry's resolution counts as, or ""

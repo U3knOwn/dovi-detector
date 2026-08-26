@@ -8,7 +8,8 @@
 import { fetchLibrary } from '../core/api.js';
 import { onLanguageChange, t } from '../core/i18n.js';
 import { debounce, makeElement } from '../helpers/dom.js';
-import { prepareMediaItem, prepareMediaSearchText } from './model.js';
+import { VIDEO_CODEC_ORDER } from '../helpers/ranking.js';
+import { RESOLUTION_TIER_ORDER, prepareMediaItem, prepareMediaSearchText } from './model.js';
 import { applySort } from './sorting.js';
 import {
     mediaItems, mediaLoaded, mediaSearchTerm, mediaVisible,
@@ -41,11 +42,26 @@ export function loadMediaLibrary(request) {
         });
 }
 
+/* Terms that name a resolution tier, which are answered by that tier alone.
+ *
+ * They are too short to be looked for anywhere in an entry: "SD" sits inside
+ * "SDR", "HD" inside both "HDR" and "DTS-HD", so a substring match would hand
+ * back mostly the wrong titles - searching "SD" for the standard-definition
+ * ones would return every SDR title in the library. Every other term - a
+ * codec, an encoder, a title, a frame size - keeps matching anywhere. */
+const TIER_TERMS = new Set(RESOLUTION_TIER_ORDER.map(tier => tier.toLowerCase()));
+
+function matchesSearch(item, term) {
+    return TIER_TERMS.has(term)
+        ? item.resolutionTier.toLowerCase() === term
+        : item.searchText.includes(term);
+}
+
 // Recompute what is shown and put it on screen. Every change to the data, the
 // sort order or the search term ends here.
 export function applyMediaFilter() {
     setMediaVisible(mediaSearchTerm
-        ? mediaItems.filter(item => item.searchText.includes(mediaSearchTerm))
+        ? mediaItems.filter(item => matchesSearch(item, mediaSearchTerm))
         : mediaItems);
 
     updateMediaChrome();
@@ -166,16 +182,6 @@ const HDR_SEGMENT_ORDER = [
     'FEL', 'MEL', 'P8', 'P5', 'HDR10+', 'SL-HDR', 'HDR Vivid', 'HDR10', 'HLG', 'SDR'
 ];
 
-// Resolution tiers, largest first - the order they read in, whatever a library
-// happens to be made up of.
-const RESOLUTION_SEGMENT_ORDER = ['8K', '4K', 'QHD', 'FHD', 'HD', 'SD'];
-
-// Video codecs in the order a library is usually stepped through. Anything a
-// scan reported that is not listed here follows, alphabetically.
-const CODEC_SEGMENT_ORDER = [
-    'AV1', 'H.266', 'H.265', 'H.264', 'VC-1', 'VP9', 'VP8', 'MPEG-4', 'MPEG-2', 'MPEG-1'
-];
-
 /* How far along the ramp a segment sits, from 0 (the first) to 1 (the last).
  *
  * All three bars order their segments best-first - the largest resolution, the
@@ -266,9 +272,9 @@ function escapeHtml(value) {
  * narrowing the table with a search narrows the bars with it.
  */
 export function updateProfileStats() {
-    renderStatMeter('resolutionStats', countBy('resolutionTier'), RESOLUTION_SEGMENT_ORDER);
+    renderStatMeter('resolutionStats', countBy('resolutionTier'), RESOLUTION_TIER_ORDER);
     renderStatMeter('profileStats', countBy('statKey'), HDR_SEGMENT_ORDER);
-    renderStatMeter('codecStats', countBy('codecKey'), CODEC_SEGMENT_ORDER);
+    renderStatMeter('codecStats', countBy('codecKey'), VIDEO_CODEC_ORDER);
 
     // With every bar hidden - a search that matched nothing, a library still
     // being scanned - the container would keep taking up the bar's row gap

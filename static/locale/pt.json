@@ -24,6 +24,8 @@
   "sort_by_profile_audiobitrate": "Formato HDR + Taxa de áudio",
   "sort_by_audio": "Codec de áudio",
   "sort_by_audio_audiobitrate": "Codec de áudio + Taxa de áudio",
+  "sort_by_resolution": "Resolução",
+  "sort_by_codec": "Codec de vídeo",
   "sort_by_rating": "IMDb",
   "sort_by_rating_tmdb": "TMDb",
   "sort_by_rating_rt": "Rotten Tomatoes",

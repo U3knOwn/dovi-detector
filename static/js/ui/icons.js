@@ -32,6 +32,10 @@ export const SORT_ICONS = {
     film:     `<svg viewBox="0 0 24 24" ${SVG_ATTR}><rect x="2.5" y="3" width="19" height="18" rx="2"/><line x1="7" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="17" y2="21"/><line x1="2.5" y1="12" x2="21.5" y2="12"/><line x1="2.5" y1="7.5" x2="7" y2="7.5"/><line x1="17" y1="7.5" x2="21.5" y2="7.5"/><line x1="2.5" y1="16.5" x2="7" y2="16.5"/><line x1="17" y1="16.5" x2="21.5" y2="16.5"/></svg>`,
     volume:   `<svg viewBox="0 0 24 24" ${SVG_ATTR}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`,
     monitor:  `<svg viewBox="0 0 24 24" ${SVG_ATTR}><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+    // The frame itself, drawn as the corner marks a crop is set with
+    frame:    `<svg viewBox="0 0 24 24" ${SVG_ATTR}><path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/></svg>`,
+    // What did the encoding: a chip
+    cpu:      `<svg viewBox="0 0 24 24" ${SVG_ATTR}><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>`,
     target:   `<svg viewBox="0 0 24 24" ${SVG_ATTR}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>`,
     // The six rating sources are identified by their own marks (the same ones
     // the dialog shows under the cover), so they are filled, not stroked.

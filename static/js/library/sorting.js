@@ -136,6 +136,32 @@ function sortTableByAudioAudioBitrate() {
         compareByFilename(a, b));
 }
 
+/**
+ * Largest frame first.
+ *
+ * By tier before frame, so every 4K title stands together whatever its exact
+ * crop, and a scope-cropped 3840x1600 does not push itself between two plain
+ * UHD ones. Within a tier the bigger frame wins; entries whose resolution was
+ * never determined sort last.
+ */
+function sortTableByResolution() {
+    sortMedia((a, b) =>
+        (a.resolutionRank - b.resolutionRank) ||
+        (b.resolutionPixels - a.resolutionPixels) ||
+        compareByFilename(a, b));
+}
+
+// Most current codec first, then alphabetically within one rank - which only
+// happens for codecs the ranking does not list.
+function sortTableByCodec() {
+    sortMedia((a, b) => {
+        if (a.codecRank !== b.codecRank) return a.codecRank - b.codecRank;
+        if (a.codecKey < b.codecKey) return -1;
+        if (a.codecKey > b.codecKey) return 1;
+        return compareByFilename(a, b);
+    });
+}
+
 function sortTableByCmVersion() {
     sortMedia((a, b) => {
         if (a.cmRank !== b.cmRank) return a.cmRank - b.cmRank;
@@ -232,6 +258,8 @@ const SORT_HANDLERS = {
     profile_audiobitrate: sortTableByProfileAudioBitrate,
     audio:                sortTableByAudio,
     audio_audiobitrate:   sortTableByAudioAudioBitrate,
+    resolution:           sortTableByResolution,
+    codec:                sortTableByCodec,
     rating:               sortTableByRating,
     rating_tmdb:          sortTableByTmdbRating,
     rating_rt:            sortTableByRtRating,

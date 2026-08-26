@@ -46,7 +46,7 @@ port `2367`.
 | **Library at a glance** | Three distribution bars below the table - by resolution (SD, HD, FHD, QHD, 4K, 8K), by HDR format and by video codec |
 | **Web interface** | Dark-theme dashboard on port `2367`, virtualized for large libraries |
 | **Posters & ratings** | TMDB or Fanart.tv artwork, all ratings from MDBList - IMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic - with TMDB fallback and an IMDb Top 250 badge |
-| **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
+| **Sorting & filtering** | Sort by resolution, video codec, HDR format, audio, bitrate, size, year, runtime - and separately by IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
 | **Title details** | Tagline above the plot, genres beside the directors, plot folded to five lines and expandable |
 | **API** | Token-protected `/api/v1` - read the library filtered/sorted/paged, drive scans, follow progress live |
 | **Docker-based** | One `docker-compose up -d` away |
@@ -135,7 +135,16 @@ bars with it, and a bar with nothing to count hides itself.
 
 On top of the table: a dark theme, auto-refresh every 10 seconds, live status
 while a scan is running, and a search box plus sort controls that work on the
-whole library.
+whole library. **Resolution** sorts by tier before frame size, so every 4K
+title stands together whatever its exact crop; **video codec** sorts by how
+current the codec is, newest first.
+
+The search matches the title, the file name, the HDR format, the resolution and
+the video and audio codec - including the stream profile and the encoder, so
+`x265` finds every x265 encode and `Main 10` every 10-bit stream. A term that
+names a resolution tier (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`) is answered by
+that tier alone rather than by a substring match, which would otherwise return
+every `SDR` title for `SD`.
 
 ---
 
