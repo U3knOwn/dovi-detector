@@ -81,9 +81,13 @@ export function getCmStructureKey(cmVersion) {
  * the one the codec bar below the table and the codec sort both use. Anything
  * a scan reports that is not listed here ranks behind all of them and is then
  * ordered by name, so a codec nobody planned for still lands somewhere sensible.
+ *
+ * AV1 sits between H.265 and H.264 rather than at the front: a library is read
+ * along the line the discs took, and there AV1 is what streaming brought in
+ * beside H.265, not what came after it.
  */
 export const VIDEO_CODEC_ORDER = [
-    'AV1', 'H.266', 'H.265', 'H.264', 'VC-1', 'VP9', 'VP8', 'MPEG-4', 'MPEG-2', 'MPEG-1'
+    'H.266', 'H.265', 'AV1', 'H.264', 'VC-1', 'VP9', 'VP8', 'MPEG-4', 'MPEG-2', 'MPEG-1'
 ];
 
 export function getVideoCodecRank(videoCodec) {
