@@ -88,7 +88,6 @@ tbody tr:hover td {
 .hdr-badge,
 .el-badge,
 .resolution-badge,
-.codec-badge,
 .audio-badge {
     display: inline-flex;
     align-items: center;
@@ -154,30 +153,6 @@ tbody tr:hover td {
 
 .audio-codec {
     color: var(--text);
-}
-
-/* ---------- Video codec ----------
-   The second badge of the video column, below the resolution: the same shape,
-   drawn a step quieter so the pair reads as one answer with its detail rather
-   than as two competing labels. */
-
-.codec-badge {
-    /* Block-level rather than inline: the badge takes its own line under the
-       resolution whatever width the column ends up with, instead of sitting
-       beside it on a wide screen and wrapping on a narrow one. */
-    display: flex;
-    margin: 3px auto 0;
-    padding: 6px 10px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    border-color: var(--border);
-    color: var(--text-muted);
-    opacity: 0.85;
-}
-
-tbody tr:hover .codec-badge {
-    border-color: var(--border-strong);
-    opacity: 1;
 }
 /* ============================================================
    Poster / Title Cell
@@ -362,27 +337,26 @@ tbody tr:hover .codec-badge {
     gap: 12px;
 }
 
-/* One row per question the chips answer. They share a line while they fit and
-   break onto their own as the library grows more varied. */
+/* One bar per question, stacked: resolution, HDR format, video codec. Each
+   spans the full width, so the three are read against each other. */
 .statsbar-groups {
     display: flex;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 10px 22px;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.statsbar-groups:empty {
+.statsbar-groups[hidden] {
     display: none;
 }
 
 .stat-group {
-    align-items: center;
-    gap: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
     min-width: 0;
 }
 
-/* A group with nothing to count leaves no gap behind - .stats is a flex box,
-   which would otherwise outvote the hidden attribute. */
+/* A bar with nothing to count leaves no gap behind. */
 .stat-group[hidden] {
     display: none;
 }
@@ -394,6 +368,75 @@ tbody tr:hover .codec-badge {
     text-transform: uppercase;
     letter-spacing: 0.1em;
     white-space: nowrap;
+}
+
+/* ---------- Distribution bars ---------- */
+
+.stat-meter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.stat-meter-track {
+    display: flex;
+    height: 12px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+}
+
+/* A category that holds a single title out of thousands is still worth a
+   mark: without a floor its share rounds away to nothing. */
+.stat-meter-track i {
+    display: block;
+    min-width: 4px;
+    border-right: 1px solid var(--surface-2);
+}
+
+/* Both the track segments and their legend swatches take their colour from
+   where they sit on the ramp, which the renderer hands over as --step. The
+   plain background first is what a browser without color-mix() keeps. */
+.stat-meter-track i,
+.stat-legend-item i {
+    background: var(--meter-from);
+    background: color-mix(in oklab,
+        var(--meter-to) calc(var(--step, 0) * 100%), var(--meter-from));
+}
+
+.stat-meter-track i:last-child {
+    border-right: 0;
+}
+
+.stat-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.stat-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+}
+
+.stat-legend-item i {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    flex: none;
+}
+
+
+.stat-legend-item strong {
+    color: var(--text);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
 .stats {
@@ -421,35 +464,6 @@ tbody tr:hover .codec-badge {
     border-radius: var(--radius-pill);
     font-size: 0.85rem;
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-#profileStats,
-#resolutionStats,
-#codecStats {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    padding: 5px 12px;
-    border-radius: var(--radius-pill);
-    font-size: 0.8rem;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.stat-chip strong {
-    color: var(--text);
-    font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
 

@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Изменить порядок сортировки",
   "table_header_poster": "Постер / Имя файла",
   "table_header_hdr": "Формат HDR",
-  "table_header_video": "Разрешение / Кодек",
+  "table_header_resolution": "Разрешение",
   "table_header_audio": "Аудиокодек",
   "empty_title": "Медиафайлы не найдены",
   "empty_description": "Поместите видеофайлы в папку <code>media/</code>, чтобы они сканировались автоматически.",

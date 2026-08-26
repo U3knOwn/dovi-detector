@@ -205,7 +205,7 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     <th data-i18n="table_header_poster"></th>
                     <th data-i18n="table_header_hdr"></th>
                     <th data-i18n="table_header_audio"></th>
-                    <th data-i18n="table_header_video"></th>
+                    <th data-i18n="table_header_resolution"></th>
                 </tr>
             </thead>
             <tbody id="collapsed_button"></tbody>
@@ -233,18 +233,22 @@ Licensed under the MIT License. See LICENSE file in the project root for full li
                     </div>
                 </div>
             </div>
+            {# One bar per question, in the order a library is usually read:
+               how big, how it is graded, how it is encoded. Each is filled by
+               updateProfileStats() and hides itself while it has nothing to
+               count. #}
             <div class="statsbar-groups">
-                <div class="stats stat-group">
-                    <span class="stat-group-label" data-i18n="stats_group_hdr"></span>
-                    <span id="profileStats"></span>
-                </div>
-                <div class="stats stat-group">
+                <div class="stat-group">
                     <span class="stat-group-label" data-i18n="stats_group_resolution"></span>
-                    <span id="resolutionStats"></span>
+                    <div class="stat-meter" id="resolutionStats"></div>
                 </div>
-                <div class="stats stat-group">
+                <div class="stat-group">
+                    <span class="stat-group-label" data-i18n="stats_group_hdr"></span>
+                    <div class="stat-meter" id="profileStats"></div>
+                </div>
+                <div class="stat-group">
                     <span class="stat-group-label" data-i18n="stats_group_codec"></span>
-                    <span id="codecStats"></span>
+                    <div class="stat-meter" id="codecStats"></div>
                 </div>
             </div>
         </div>

@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Sortierreihenfolge umschalten",
   "table_header_poster": "Poster / Dateiname",
   "table_header_hdr": "HDR Format",
-  "table_header_video": "Auflösung / Codec",
+  "table_header_resolution": "Auflösung",
   "table_header_audio": "Audiocodec",
   "empty_title": "Keine Medien gefunden",
   "empty_description": "Lege Videodateien in den Ordner <code>media/</code>, um sie automatisch scannen zu lassen.",

@@ -55,6 +55,11 @@
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
     --progress-track: rgba(255, 255, 255, 0.08);
     --accent-soft: #a5b4fc;
+    /* The two ends of the distribution bars below the table. Every segment is
+       mixed between them by its rank, so the bars stay in the theme's own hue
+       and the last segment still stands clear of the track it sits in. */
+    --meter-from: #c7d2fe;
+    --meter-to: #4f46e5;
     --bg-glow-1: rgba(99, 102, 241, 0.13);
     --bg-glow-2: rgba(236, 72, 153, 0.08);
     --font: 'Inter', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -95,6 +100,8 @@
     --scrollbar-thumb-hover: rgba(147, 197, 253, 0.24);
     --progress-track: rgba(147, 197, 253, 0.08);
     --accent-soft: #93c5fd;
+    --meter-from: #bfdbfe;
+    --meter-to: #2563eb;
     --bg-glow-1: rgba(59, 130, 246, 0.16);
     --bg-glow-2: rgba(99, 102, 241, 0.1);
 }

@@ -24,7 +24,6 @@
     .hdr-badge,
     .el-badge,
     .resolution-badge,
-    .codec-badge,
     .audio-badge {
         width: 180px;
         padding: 7px 8px;
@@ -192,7 +191,7 @@
     }
 
     td[data-label-i18n="table_header_hdr"]:before,
-    td[data-label-i18n="table_header_video"]:before,
+    td[data-label-i18n="table_header_resolution"]:before,
     td[data-label-i18n="table_header_audio"]:before {
         display: none;
     }
@@ -201,7 +200,7 @@
        stay exactly as wide as each other without ballooning on wider
        portrait screens (tablets, large phones). */
     td[data-label-i18n="table_header_hdr"],
-    td[data-label-i18n="table_header_video"],
+    td[data-label-i18n="table_header_resolution"],
     td[data-label-i18n="table_header_audio"] {
         text-align: center;
         padding-left: 0;
@@ -254,7 +253,6 @@
     .hdr-badge,
     .el-badge,
     .resolution-badge,
-    .codec-badge,
     .audio-badge {
         width: 100%;
         min-width: 0;
@@ -267,19 +265,12 @@
     /* ---------- Stats / footer ---------- */
 
     .controls.statsbar {
-        align-items: center;
+        align-items: stretch;
     }
 
     .statsbar-top {
         flex-direction: column;
         width: 100%;
-    }
-
-    .statsbar-groups {
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        gap: 10px;
     }
 
     .stats {
@@ -288,9 +279,16 @@
         text-align: center;
     }
 
-    .stat-group {
-        flex-direction: column;
-        gap: 6px;
+    /* The bars keep their full width; only their headings and legends centre
+       with the rest of the stacked layout. */
+    .stat-group-label,
+    .stat-legend {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .stat-legend {
+        gap: 6px 12px;
     }
 
     .language-switcher {

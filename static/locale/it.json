@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Inverti l'ordine di ordinamento",
   "table_header_poster": "Locandina / Nome file",
   "table_header_hdr": "Formato HDR",
-  "table_header_video": "Risoluzione / Codec",
+  "table_header_resolution": "Risoluzione",
   "table_header_audio": "Codec audio",
   "empty_title": "Nessun contenuto trovato",
   "empty_description": "Inserisci i file video nella cartella <code>media/</code> per farli scansionare automaticamente.",

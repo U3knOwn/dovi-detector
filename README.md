@@ -43,7 +43,7 @@ port `2367`.
 | **Full HDR metadata** | Mastering display luminance, MaxCLL/MaxFALL, RPU L5/L6, CM version |
 | **Blu-ray disc images** | `.iso` support - the main feature is found and analyzed in place |
 | **Video codec** | H.264, H.265, VC-1, AV1, MPEG-2 and the rest, with the stream's profile and the encoder that made it (x264, x265) |
-| **Library at a glance** | Counts below the table per HDR format, per resolution (SD, HD, FHD, QHD, 4K, 8K) and per video codec |
+| **Library at a glance** | Three distribution bars below the table - by resolution (SD, HD, FHD, QHD, 4K, 8K), by HDR format and by video codec |
 | **Web interface** | Dark-theme dashboard on port `2367`, virtualized for large libraries |
 | **Posters & ratings** | TMDB or Fanart.tv artwork, all ratings from MDBList - IMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic - with TMDB fallback and an IMDb Top 250 badge |
 | **Sorting & filtering** | Separate sort modes for IMDb, TMDb, Rotten Tomatoes (Tomatometer and Audience), Trakt and Metacritic, with a persistent direction toggle |
@@ -122,11 +122,16 @@ If automatic detection missed a file:
 | **Filename** | Name of the media file (or its poster, once artwork is available) |
 | **HDR Format** | Detected format - SDR, HDR10, HDR10+, HLG, Dolby Vision with profile |
 | **Audio Codec** | Audio codec information, e.g. `Dolby TrueHD Atmos` |
-| **Resolution / Codec** | The frame size (`4K (UHD)`, `1080p (Full HD)`, `3840x1600`) and below it the video codec with the encoder that produced it - `H.265`, `H.264 (x264)`, `VC-1`, `AV1 (SVT-AV1)`. The full line including the stream profile is on the badge's tooltip and in the details dialog |
+| **Resolution** | Video resolution, e.g. `4K (UHD)` |
 
-Below the table, three rows of chips count what the library is made of - by HDR
-format, by resolution (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`) and by video codec.
-They count what is on screen, so a search narrows the numbers with it.
+The video codec is in the details dialog of an entry, spelled out with the
+stream's profile and the encoder that produced it - `H.265 · Main 10 · x265`.
+
+Below the table, three distribution bars show what the library is made of - by
+resolution (`SD`, `HD`, `FHD`, `QHD`, `4K`, `8K`), by HDR format and by video
+codec. Each bar is split by share and names its parts with their actual counts
+below it, best first. They measure what is on screen, so a search narrows the
+bars with it, and a bar with nothing to count hides itself.
 
 On top of the table: a dark theme, auto-refresh every 10 seconds, live status
 while a scan is running, and a search box plus sort controls that work on the
@@ -540,8 +545,8 @@ and the encoder are written back:
 ```
 
 It runs in the background, touches no network and leaves everything else about
-an entry alone, so the codecs and the counts below the table fill themselves in
-while the interface is already usable.
+an entry alone, so the codec bar below the table fills itself in while the
+interface is already usable.
 
 ### Web Interface Rendering
 

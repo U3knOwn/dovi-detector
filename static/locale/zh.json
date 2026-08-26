@@ -43,7 +43,7 @@
   "sort_direction_toggle": "切换排序顺序",
   "table_header_poster": "海报 / 文件名",
   "table_header_hdr": "HDR 格式",
-  "table_header_video": "分辨率 / 编解码器",
+  "table_header_resolution": "分辨率",
   "table_header_audio": "音频编解码器",
   "empty_title": "未找到媒体",
   "empty_description": "将视频文件放入 <code>media/</code> 文件夹，即可自动扫描。",

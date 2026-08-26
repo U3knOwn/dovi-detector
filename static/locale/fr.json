@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Inverser l'ordre de tri",
   "table_header_poster": "Affiche / Nom du fichier",
   "table_header_hdr": "Format HDR",
-  "table_header_video": "Résolution / Codec",
+  "table_header_resolution": "Résolution",
   "table_header_audio": "Codec audio",
   "empty_title": "Aucun média trouvé",
   "empty_description": "Placez des fichiers vidéo dans le dossier <code>media/</code> pour qu'ils soient analysés automatiquement.",

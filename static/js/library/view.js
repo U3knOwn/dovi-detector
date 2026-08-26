@@ -160,21 +160,34 @@ export function updateFileCount() {
     fileCountElement.appendChild(span);
 }
 
-// Order the HDR stat chips are shown in; only categories with at least one
+// Order the HDR segments are shown in; only categories with at least one
 // title are rendered.
-const STAT_CHIP_ORDER = [
+const HDR_SEGMENT_ORDER = [
     'FEL', 'MEL', 'P8', 'P5', 'HDR10+', 'SL-HDR', 'HDR Vivid', 'HDR10', 'HLG', 'SDR'
 ];
 
 // Resolution tiers, largest first - the order they read in, whatever a library
 // happens to be made up of.
-const RESOLUTION_CHIP_ORDER = ['8K', '4K', 'QHD', 'FHD', 'HD', 'SD'];
+const RESOLUTION_SEGMENT_ORDER = ['8K', '4K', 'QHD', 'FHD', 'HD', 'SD'];
 
 // Video codecs in the order a library is usually stepped through. Anything a
 // scan reported that is not listed here follows, alphabetically.
-const CODEC_CHIP_ORDER = [
+const CODEC_SEGMENT_ORDER = [
     'AV1', 'H.266', 'H.265', 'H.264', 'VC-1', 'VP9', 'VP8', 'MPEG-4', 'MPEG-2', 'MPEG-1'
 ];
+
+/* How far along the ramp a segment sits, from 0 (the first) to 1 (the last).
+ *
+ * All three bars order their segments best-first - the largest resolution, the
+ * richest HDR format, the newest codec - so what they show is a scale, not a
+ * set of unrelated categories. One hue stepped from light to deep says exactly
+ * that, where a colour per category would only have looked busy. The two ends
+ * are the theme's (--meter-from / --meter-to in tokens.css) and the step is
+ * spread over however many segments there are, so a bar with two of them takes
+ * the two ends rather than two neighbours. */
+function meterStep(index, count) {
+    return count < 2 ? 0 : index / (count - 1);
+}
 
 // How many of the entries currently shown fall under each value of one key.
 function countBy(key) {
@@ -188,26 +201,53 @@ function countBy(key) {
 
 // The labels to render, in the fixed order where there is one and with
 // anything else appended alphabetically - a codec nobody planned for still
-// gets its chip rather than being dropped.
-function chipLabels(counts, order) {
+// gets its segment rather than being dropped.
+function orderedLabels(counts, order) {
     const known = order.filter(label => counts.has(label));
     const rest = [...counts.keys()].filter(label => !order.includes(label)).sort();
     return known.concat(rest);
 }
 
-// One group of chips, hidden entirely while it has nothing to count - an
-// empty caption above an empty row reads as a bug.
-function renderStatGroup(elementId, counts, order) {
+/**
+ * One bar: a track split by share, and below it the legend that names the
+ * segments and gives their actual numbers.
+ *
+ * The track carries no text of its own, so it is hidden from screen readers -
+ * the legend below already says everything it shows. The bar is hidden
+ * entirely while it has nothing to count; an empty track under a heading reads
+ * as a bug.
+ */
+function renderStatMeter(elementId, counts, order) {
     const element = document.getElementById(elementId);
     if (!element) return;
 
-    const labels = chipLabels(counts, order);
+    const labels = orderedLabels(counts, order);
     const group = element.closest('.stat-group') || element;
     group.hidden = labels.length === 0;
+    if (!labels.length) {
+        element.innerHTML = '';
+        return;
+    }
 
-    element.innerHTML = labels
-        .map(label => `<span class="stat-chip">${escapeHtml(label)} <strong>${counts.get(label)}</strong></span>`)
-        .join('');
+    const total = labels.reduce((sum, label) => sum + counts.get(label), 0);
+    const parts = labels.map((label, index) => ({
+        label,
+        count: counts.get(label),
+        share: counts.get(label) / total * 100,
+        step: meterStep(index, labels.length).toFixed(3)
+    }));
+
+    const track = parts.map(part =>
+        `<i style="width:${part.share.toFixed(2)}%;--step:${part.step}" ` +
+        `title="${escapeHtml(part.label)} - ${part.count}"></i>`).join('');
+
+    const legend = parts.map(part =>
+        `<span class="stat-legend-item"><i style="--step:${part.step}"></i>` +
+        `${escapeHtml(part.label)} <strong>${part.count}</strong></span>`).join('');
+
+    element.innerHTML =
+        `<div class="stat-meter-track" aria-hidden="true">${track}</div>` +
+        `<div class="stat-legend">${legend}</div>`;
 }
 
 // A codec name comes from a scan, not from this page - so it is escaped like
@@ -219,16 +259,24 @@ function escapeHtml(value) {
 }
 
 /**
- * The three chip rows below the table: HDR formats, resolutions and video
- * codecs, each counting the entries currently shown.
+ * The three bars below the table: how the library breaks down by resolution,
+ * by HDR format and by video codec.
  *
- * They count what is visible rather than the whole library, so narrowing the
- * table with a search narrows the numbers with it.
+ * They measure what is currently shown rather than the whole library, so
+ * narrowing the table with a search narrows the bars with it.
  */
 export function updateProfileStats() {
-    renderStatGroup('profileStats', countBy('statKey'), STAT_CHIP_ORDER);
-    renderStatGroup('resolutionStats', countBy('resolutionTier'), RESOLUTION_CHIP_ORDER);
-    renderStatGroup('codecStats', countBy('codecKey'), CODEC_CHIP_ORDER);
+    renderStatMeter('resolutionStats', countBy('resolutionTier'), RESOLUTION_SEGMENT_ORDER);
+    renderStatMeter('profileStats', countBy('statKey'), HDR_SEGMENT_ORDER);
+    renderStatMeter('codecStats', countBy('codecKey'), CODEC_SEGMENT_ORDER);
+
+    // With every bar hidden - a search that matched nothing, a library still
+    // being scanned - the container would keep taking up the bar's row gap
+    // below the counter.
+    const groups = document.querySelector('.statsbar-groups');
+    if (groups) {
+        groups.hidden = !groups.querySelector('.stat-group:not([hidden])');
+    }
 }
 
 // Drop an entry from the table, e.g. after it was deleted or its file vanished.

@@ -131,23 +131,9 @@ function hasVideoCodec(item) {
 }
 
 /**
- * Label of the video codec badge.
- *
- * The codec under the name a library is labelled with ("H.265"), and behind it
- * the encoder that produced the file where it still says so ("x265") - two
- * releases of the same title differ by exactly that, which is why the encoder
- * is on the badge rather than only in the dialog.
- */
-export function mediaVideoCodecText(item) {
-    if (!hasVideoCodec(item)) return t('unknown');
-    return item.video_encoder
-        ? `${item.video_codec} (${item.video_encoder})`
-        : item.video_codec;
-}
-
-/**
- * The codec as the details dialog spells it out: profile and encoder included,
- * separated by middots, e.g. "H.265 · Main 10 · x265".
+ * The codec as the details dialog spells it out: the name a library labels it
+ * with ("H.265", not "HEVC"), then the stream's profile and the encoder that
+ * produced it, separated by middots - "H.265 · Main 10 · x265".
  */
 export function mediaVideoCodecDetailText(item) {
     if (!hasVideoCodec(item)) return t('unknown');
@@ -162,15 +148,6 @@ function mediaVideoCodecSearchText(item) {
     return [item.video_codec, item.video_codec_profile, item.video_encoder]
         .filter(Boolean)
         .join(' ');
-}
-
-// CSS modifier of the codec badge, e.g. "H.265" -> "codec-h-265"
-export function mediaVideoCodecClass(item) {
-    if (!hasVideoCodec(item)) return 'codec-unknown';
-    return 'codec-' + item.video_codec
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
 }
 
 // CSS modifier of the HDR badge, e.g. "HDR10+" -> "hdr-hdr10plus"

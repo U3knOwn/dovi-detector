@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Toggle sort order",
   "table_header_poster": "Poster / Filename",
   "table_header_hdr": "HDR Format",
-  "table_header_video": "Resolution / Codec",
+  "table_header_resolution": "Resolution",
   "table_header_audio": "Audio codec",
   "empty_title": "No media found",
   "empty_description": "Place video files in the <code>media/</code> folder to have them scanned automatically.",

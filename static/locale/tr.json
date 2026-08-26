@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Sıralama yönünü değiştir",
   "table_header_poster": "Poster / Dosya adı",
   "table_header_hdr": "HDR biçimi",
-  "table_header_video": "Çözünürlük / Codec",
+  "table_header_resolution": "Çözünürlük",
   "table_header_audio": "Ses codec'i",
   "empty_title": "Medya bulunamadı",
   "empty_description": "Otomatik olarak taranmaları için video dosyalarını <code>media/</code> klasörüne yerleştirin.",

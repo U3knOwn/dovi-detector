@@ -43,7 +43,7 @@
   "sort_direction_toggle": "Cambiar el orden de clasificación",
   "table_header_poster": "Póster / Nombre de archivo",
   "table_header_hdr": "Formato HDR",
-  "table_header_video": "Resolución / Códec",
+  "table_header_resolution": "Resolución",
   "table_header_audio": "Códec de audio",
   "empty_title": "No se encontraron medios",
   "empty_description": "Coloca archivos de vídeo en la carpeta <code>media/</code> para que se escaneen automáticamente.",
