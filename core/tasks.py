@@ -101,8 +101,10 @@ def refresh_portraits():
     Runs on a background thread at startup for the same reason as the other
     backfills: a library scanned before the mobile app existed carries only the
     16:9 backdrop, and cropping that to 2:3 loses most of the frame. Each entry
-    is looked up once - the key is written even when neither source has cover
-    art, so a title that genuinely has none is not asked again on every start.
+    is looked up once per ``IMAGE_SOURCE`` preference - the key is written even
+    when no source has cover art, so a title that genuinely has none is not
+    asked again on every start, while changing the preference does move the
+    existing covers over to the newly preferred source.
     """
     try:
         backfill_portraits(
@@ -110,7 +112,8 @@ def refresh_portraits():
             database.scan_lock,
             lambda: database.save_database(config.DB_FILE),
             fetch_portrait_for,
-            cache_portrait_for)
+            cache_portrait_for,
+            config.image_source_order()[0])
     except Exception as e:
         print(f"Error during portrait backfill: {e}")
 

@@ -34,6 +34,19 @@ MDBLIST_API_KEY = os.environ.get('MDBLIST_API_KEY', '')
 IMAGE_SOURCE = os.environ.get('IMAGE_SOURCE', 'tmdb').lower()
 CONTENT_LANGUAGE = os.environ.get('CONTENT_LANGUAGE', 'en').lower()
 
+
+def image_source_order():
+    """
+    The two artwork sources in the order they are asked, preferred one first.
+
+    ``IMAGE_SOURCE`` picks the preference, not the only source there is: a
+    title the preferred one has no artwork for is looked up at the other one
+    rather than left without a picture. Only when neither has anything does an
+    entry stay without artwork, and the interface shows its placeholder.
+    """
+    return ('fanart', 'tmdb') if IMAGE_SOURCE == 'fanart' else ('tmdb', 'fanart')
+
+
 # Language code mapping from ISO 639-1 to various formats used by MediaInfo
 LANGUAGE_CODE_MAP = {
     'en': ['eng', 'en', 'english'],

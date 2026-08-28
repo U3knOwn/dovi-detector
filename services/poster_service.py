@@ -153,19 +153,21 @@ def get_cached_portrait_path(tmdb_id, portrait_url, poster_cache_dir):
     return download_and_cache_poster(portrait_url, cache_filename, poster_cache_dir)
 
 
-def fetch_portrait(tmdb_id, get_tmdb_portrait_func=None, get_fanart_portrait_func=None):
+def fetch_portrait(tmdb_id, *lookups):
     """
     Find the upright poster for a title, wherever it can be had.
 
-    TMDB is asked first whatever ``IMAGE_SOURCE`` says, because its poster
-    coverage is the better of the two; Fanart.tv answers for the titles TMDB
-    has no cover art for. Returns the remote URL, or None when neither source
-    has one - which is a real answer, not a failure.
+    The ``lookups`` are asked in the order they are given, and that order is the
+    configured ``IMAGE_SOURCE`` preference: a library set to Fanart.tv asks
+    Fanart.tv first and only falls back to TMDB for the titles Fanart.tv has no
+    cover art for, and the other way round. Returns the remote URL, or None when
+    no source has one - which is a real answer, not a failure, and leaves the
+    entry showing its placeholder.
     """
     if not tmdb_id:
         return None
 
-    for lookup in (get_tmdb_portrait_func, get_fanart_portrait_func):
+    for lookup in lookups:
         if not lookup:
             continue
         for media_type in ('movie', 'tv'):
@@ -176,23 +178,49 @@ def fetch_portrait(tmdb_id, get_tmdb_portrait_func=None, get_fanart_portrait_fun
     return None
 
 
+# The ``IMAGE_SOURCE`` preference an entry's cover was last resolved under.
+# Not the source the cover actually came from: a title Fanart.tv has no cover
+# for is answered by TMDB and still counts as resolved under 'fanart', so it is
+# not asked again on every start. What it does catch is the preference itself
+# changing - see _portrait_needs_lookup below.
+PORTRAIT_SOURCE_KEY = 'portrait_source'
+
+
+def _portrait_needs_lookup(file_info, source_pref):
+    """
+    True when an entry's upright cover still has to be looked up.
+
+    Two cases. It was never looked up at all - a library scanned before the
+    field existed. Or it was resolved under a different ``IMAGE_SOURCE`` than
+    the one now configured: switching the preference has to move the covers
+    with it, or a library switched to Fanart.tv would keep the TMDB covers it
+    was first scanned with forever.
+    """
+    if 'portrait_url' not in file_info:
+        return True
+
+    return source_pref is not None and file_info.get(PORTRAIT_SOURCE_KEY) != source_pref
+
+
 def backfill_portraits(scanned_files, scan_lock, save_database_func,
-                       fetch_portrait_func, cache_portrait_func):
+                       fetch_portrait_func, cache_portrait_func,
+                       source_pref=None):
     """
     Give the entries of an existing library their upright poster.
 
     Without this only newly scanned titles would have one, and a library built
     before the mobile app existed would show nothing but backdrops cropped to
-    2:3. Entries are looked up once: the key is written even when neither
-    source has a poster, so a title that genuinely has none is not asked again
-    on every start.
+    2:3. Entries are looked up once per ``source_pref``: the key is written
+    even when no source has a poster, so a title that genuinely has none is not
+    asked again on every start, and a run only repeats itself after the
+    ``IMAGE_SOURCE`` preference has actually changed.
     """
     if not REQUESTS_AVAILABLE or not fetch_portrait_func:
         return 0
 
     with scan_lock:
         entries = [info for info in scanned_files.values()
-                   if info.get('tmdb_id') and 'portrait_url' not in info]
+                   if info.get('tmdb_id') and _portrait_needs_lookup(info, source_pref)]
 
     if not entries:
         return 0
@@ -205,6 +233,7 @@ def backfill_portraits(scanned_files, scan_lock, save_database_func,
             portrait_url = cache_portrait_func(tmdb_id, portrait_url)
 
         file_info['portrait_url'] = portrait_url
+        file_info[PORTRAIT_SOURCE_KEY] = source_pref
         mark_updated(file_info)
         if portrait_url:
             filled += 1
