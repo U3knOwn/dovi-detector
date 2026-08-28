@@ -92,19 +92,22 @@ def _report_configuration():
     if not config.REQUESTS_AVAILABLE:
         return
 
-    print(f"Image source: {config.IMAGE_SOURCE.upper()}")
-    if config.IMAGE_SOURCE == 'fanart':
-        if config.FANART_API_KEY:
-            print("✓ Fanart.tv API key configured")
+    preferred, fallback = config.image_source_order()
+    if config.IMAGE_SOURCE not in ('tmdb', 'fanart'):
+        print(f"⚠ Warning: Unknown IMAGE_SOURCE '{config.IMAGE_SOURCE}' - defaulting to TMDB")
+    print(f"Image source: {preferred.upper()} (fallback: {fallback.upper()})")
+
+    keys = {'tmdb': config.TMDB_API_KEY, 'fanart': config.FANART_API_KEY}
+    names = {'tmdb': 'TMDB', 'fanart': 'Fanart.tv'}
+    for role, source in (('preferred', preferred), ('fallback', fallback)):
+        if keys[source]:
+            print(f"✓ {names[source]} API key configured ({role} image source)")
+        elif role == 'preferred':
+            print(f"⚠ Warning: {names[source]} selected but its API key is not "
+                  f"configured - artwork comes from {names[fallback]} only")
         else:
-            print("⚠ Warning: Fanart.tv selected but FANART_API_KEY not configured - no posters will be fetched")
-    else:
-        if config.IMAGE_SOURCE != 'tmdb':
-            print(f"⚠ Warning: Unknown IMAGE_SOURCE '{config.IMAGE_SOURCE}' - defaulting to TMDB")
-        if config.TMDB_API_KEY:
-            print("✓ TMDB API key configured")
-        else:
-            print("⚠ Warning: TMDB selected but TMDB_API_KEY not configured - no posters will be fetched")
+            print(f"⚠ Warning: {names[source]} API key not configured - titles "
+                  f"{names[preferred]} has no artwork for stay without a picture")
 
     if config.MDBLIST_API_KEY:
         print("✓ MDBList API key configured - IMDb, Rotten Tomatoes (Tomatometer "

@@ -12,9 +12,11 @@ import shutil
 import subprocess
 import tempfile
 
+from services.poster_service import PORTRAIT_SOURCE_KEY
 from services.ratings_service import (
     RATING_FIELDS, RATINGS_QUERIED_KEY, complete_ratings, empty_ratings
 )
+from services.tmdb_service import extract_tmdb_id
 from utils.media_utils import (
     get_channel_format, parse_bitrate_string,
     parse_mediainfo_int, parse_mediainfo_float
@@ -1321,6 +1323,74 @@ def scan_video_file(file_path, scanned_paths, scanned_files, scan_lock, save_dat
     }
 
 
+def _backdrop_from_fanart(filename, get_fanart_poster_func, get_tmdb_poster_by_id_func):
+    """
+    The 16:9 thumb Fanart.tv has for a file, with its TMDB text alongside.
+
+    Returns None when Fanart.tv has no thumb for the title, which is what makes
+    the caller move on to TMDB. Fanart.tv itself carries no title, year, rating
+    or plot, so those are read from TMDB by the id the filename carried.
+    """
+    tmdb_id, poster_url = get_fanart_poster_func(filename)
+    if not poster_url:
+        return None
+
+    tmdb_title = tmdb_year = tmdb_rating = tmdb_plot = None
+    if tmdb_id and config.TMDB_API_KEY:
+        print("  [TMDB] Fetching title/year/rating/plot for Fanart.tv poster...")
+        # Try movie first - use get_tmdb_poster_by_id to get rating and plot too
+        _, tmdb_title, tmdb_year, tmdb_rating, tmdb_plot = get_tmdb_poster_by_id_func(tmdb_id, 'movie')
+        if not tmdb_title:
+            # Try TV show
+            _, tmdb_title, tmdb_year, tmdb_rating, tmdb_plot = get_tmdb_poster_by_id_func(tmdb_id, 'tv')
+        if tmdb_title:
+            print(f"  [TMDB] Title/year/rating found: {tmdb_title} ({tmdb_year}) - Rating: {tmdb_rating}")
+
+    return tmdb_id, poster_url, tmdb_title, tmdb_year, tmdb_rating, tmdb_plot
+
+
+def _backdrop_from_tmdb(filename, get_tmdb_poster_func):
+    """
+    The 16:9 backdrop TMDB has for a file, with everything that comes with it.
+
+    Returns None when TMDB has no backdrop, so that a library preferring TMDB
+    still ends up with the Fanart.tv thumb rather than with no picture at all.
+    """
+    result = get_tmdb_poster_func(filename)
+    return result if result[1] else None
+
+
+def _fetch_backdrop(filename, get_fanart_poster_func, get_tmdb_poster_func,
+                    get_tmdb_poster_by_id_func):
+    """
+    The backdrop for a file, from the preferred source or from the other one.
+
+    ``IMAGE_SOURCE`` picks which is asked first; the other is the fallback, so a
+    title the preferred source has no artwork for still gets a picture. Only
+    when neither has one does the entry stay without a backdrop and the
+    interface shows its placeholder - and even then the TMDB id from the
+    filename is kept, so the title, the ratings and the cover are still looked
+    up.
+    """
+    lookups = {
+        'fanart': lambda: _backdrop_from_fanart(
+            filename, get_fanart_poster_func, get_tmdb_poster_by_id_func),
+        'tmdb': lambda: _backdrop_from_tmdb(filename, get_tmdb_poster_func),
+    }
+
+    for index, source in enumerate(config.image_source_order()):
+        found = lookups[source]()
+        if found:
+            if index:
+                print(f"  [IMAGE] {source.upper()} used as fallback for: {filename}")
+            return found
+
+    print(f"  [IMAGE] No artwork from either source for: {filename}")
+    # No picture anywhere, but an id in the filename is still an id: without it
+    # the entry would lose its title, its ratings and its cover as well.
+    return extract_tmdb_id(filename), None, None, None, None, None
+
+
 def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func,
                           get_tmdb_poster_by_id_func, get_tmdb_credits_func,
                           get_cached_backdrop_path_func, get_imdb_id_func=None,
@@ -1338,33 +1408,19 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
     grid of covers on a phone wants and what a cropped backdrop cannot stand in
     for. They come from separate lookups and are cached under separate names.
 
+    Both follow the same rule about where they come from: ``IMAGE_SOURCE`` is a
+    preference, not the only source there is. The preferred one is asked first
+    and the other one answers for the titles it has no artwork for; an entry
+    ends up without a picture only when neither has one.
+
     Kept separate from the file probing so an entry whose lookups failed - an
     API that was down, a key added later - can be refreshed without reading
     the video again.
     """
-    tmdb_id = None
-    poster_url = None
-    tmdb_title = None
-    tmdb_year = None
-    tmdb_rating = None
-    tmdb_plot = None
-
-    if config.IMAGE_SOURCE == 'fanart':
-        # Use Fanart.tv for poster
-        tmdb_id, poster_url = get_fanart_poster_func(filename)
-        # Fetch title, year, rating, and plot from TMDB if we have a TMDB ID and API key
-        if tmdb_id and config.TMDB_API_KEY:
-            print("  [TMDB] Fetching title/year/rating/plot for Fanart.tv poster...")
-            # Try movie first - use get_tmdb_poster_by_id to get rating and plot too
-            _, tmdb_title, tmdb_year, tmdb_rating, tmdb_plot = get_tmdb_poster_by_id_func(tmdb_id, 'movie')
-            if not tmdb_title:
-                # Try TV show
-                _, tmdb_title, tmdb_year, tmdb_rating, tmdb_plot = get_tmdb_poster_by_id_func(tmdb_id, 'tv')
-            if tmdb_title:
-                print(f"  [TMDB] Title/year/rating found: {tmdb_title} ({tmdb_year}) - Rating: {tmdb_rating}")
-    else:
-        # Use TMDB (default)
-        tmdb_id, poster_url, tmdb_title, tmdb_year, tmdb_rating, tmdb_plot = get_tmdb_poster_func(filename)
+    (tmdb_id, poster_url, tmdb_title, tmdb_year,
+     tmdb_rating, tmdb_plot) = _fetch_backdrop(
+        filename, get_fanart_poster_func, get_tmdb_poster_func,
+        get_tmdb_poster_by_id_func)
 
     # Cache the poster if we got a URL
     cached_backdrop_path = None
@@ -1446,6 +1502,10 @@ def fetch_online_metadata(filename, get_fanart_poster_func, get_tmdb_poster_func
         'tmdb_id': tmdb_id,
         'poster_url': cached_backdrop_path if cached_backdrop_path else poster_url,
         'portrait_url': portrait_url,
+        # Which preference this cover was resolved under, so the startup
+        # backfill knows to look it up again after IMAGE_SOURCE changes - and
+        # not to look it up again while it has not.
+        PORTRAIT_SOURCE_KEY: config.image_source_order()[0],
         'tmdb_title': tmdb_title,
         'tmdb_year': tmdb_year,
         'tmdb_rating': tmdb_rating,
@@ -1570,6 +1630,15 @@ def refresh_incomplete_entries(scanned_files, scan_lock, save_database_func,
             for field in RATING_FIELDS:
                 if field in fresh and field not in file_info:
                     gained.setdefault(field, fresh[field])
+
+        # The cover and the stamp saying which IMAGE_SOURCE preference it was
+        # resolved under move together or not at all. On its own the stamp would
+        # mark a cover fetched under the previous preference as current, and the
+        # startup backfill would then never move it over to the new one.
+        if 'portrait_url' in gained:
+            gained[PORTRAIT_SOURCE_KEY] = (fresh or {}).get(PORTRAIT_SOURCE_KEY)
+        else:
+            gained.pop(PORTRAIT_SOURCE_KEY, None)
 
         if not gained:
             continue

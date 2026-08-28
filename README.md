@@ -171,7 +171,7 @@ Everything is configured through environment variables in `docker-compose.yml`
 | `TMDB_API_KEY` | *(empty)* | [TMDB](https://www.themoviedb.org/settings/api) key for posters and movie details (optional) |
 | `FANART_API_KEY` | *(empty)* | [Fanart.tv](https://fanart.tv/get-an-api-key/) key for thumb posters (optional) |
 | `MDBLIST_API_KEY` | *(empty)* | [MDBList](https://mdblist.com/preferences/) key for every rating - IMDb, Rotten Tomatoes Tomatometer and Audience, Trakt and Metacritic (optional - without it the TMDB rating is shown) |
-| `IMAGE_SOURCE` | `tmdb` | Image source: `tmdb` or `fanart` |
+| `IMAGE_SOURCE` | `tmdb` | Preferred image source: `tmdb` or `fanart`. The other one is the fallback for titles the preferred one has no artwork for |
 | `CONTENT_LANGUAGE` | `en` | Preferred content language (ISO 639-1) for TMDB/Fanart.tv content and audio track selection |
 | `METADATA_RETRY_INTERVAL` | `30` | Minutes between retries for entries whose online lookups came back incomplete (API down, rate limit, key added later). They fill themselves in without a rescan. `0` disables the retries |
 | `METADATA_RETRY_BATCH` | `250` | Incomplete entries one retry run looks up. Keeps a large library from firing thousands of requests every interval; the run rotates, so every entry still gets its turn. `0` retries all of them |
@@ -244,6 +244,7 @@ migrated into the cache at startup.
 ```yaml
 environment:
   - FANART_API_KEY=your_api_key_here
+  - TMDB_API_KEY=your_api_key_here  # fallback for titles Fanart.tv has nothing for
   - IMAGE_SOURCE=fanart
 ```
 
@@ -251,8 +252,18 @@ Notes:
 
 - Fanart.tv **requires** a TMDB ID in the filename: `{tmdb-12345}`
 - Only movies are supported (TV shows would need a TVDB ID, which is not extracted)
-- There is no fallback between sources - only the selected one is used
-- Both keys may be configured, but only `IMAGE_SOURCE` decides which is used
+- `IMAGE_SOURCE` is a **preference, not an exclusive choice**: the selected
+  source is asked first, and the other one answers for every title it has no
+  artwork for. With `IMAGE_SOURCE=fanart` and both keys configured, a movie
+  Fanart.tv has nothing for gets its TMDB artwork instead of no picture
+- This applies to both images independently - the 16:9 backdrop and the upright
+  cover - so a title can end up with a Fanart.tv backdrop and a TMDB cover
+- Only when **neither** source has artwork does an entry stay without a picture,
+  and the interface shows its placeholder
+- Configure both keys to get the fallback; with only one key configured there is
+  nothing to fall back to
+- Changing `IMAGE_SOURCE` moves an existing library's covers over to the newly
+  preferred source: each entry is looked up once more at the next start
 
 ### MDBList (all ratings)
 
@@ -511,12 +522,13 @@ curl -s -H "X-API-Token: $TOKEN" "$API/library?limit=1" \
 An entry whose image could **not** be cached carries the remote URL instead -
 a value beginning with `http` is fetched from its own host, not from here.
 
-The upright cover is asked of TMDB first and of Fanart.tv after, whatever
-`IMAGE_SOURCE` says: that setting picks where the *backdrop* comes from, and the
-two sources have different cover art coverage, so a title one has nothing for
-usually has one at the other. A library scanned before the field existed is
-filled in once at startup; a title neither source has cover art for is recorded
-as having none, so it is not looked up again on every start.
+The upright cover follows `IMAGE_SOURCE` exactly as the backdrop does: the
+preferred source is asked first and the other one answers for the titles it has
+no cover art for, which is a lot of them - the two have quite different
+coverage. A library scanned before the field existed is filled in once at
+startup, and so is one whose `IMAGE_SOURCE` has changed since; a title neither
+source has cover art for is recorded as having none, so it is not looked up
+again on every start and its entry shows the placeholder instead.
 
 `?w=` asks for a resized copy - `160`, `320`, `480` or `640` pixels wide, which
 is what a phone showing a grid of covers wants rather than the full-size image.

@@ -24,19 +24,22 @@ from services.video_scanner import fetch_online_metadata, scan_video_file
 
 def fetch_portrait_for(tmdb_id):
     """
-    The upright cover for a TMDB id, from whichever source has one.
+    The upright cover for a TMDB id, preferred source first.
 
-    Both sources are offered whatever ``IMAGE_SOURCE`` says: that setting picks
-    where the 16:9 backdrop comes from, and the cover is a separate image with
-    separate coverage - a title Fanart.tv has no cover for usually has one on
-    TMDB, and the other way round.
+    ``IMAGE_SOURCE`` decides the order here exactly as it does for the backdrop:
+    a library set to Fanart.tv gets the Fanart.tv cover, and TMDB answers only
+    for the titles Fanart.tv has no cover art for - which is a lot of them, as
+    the two have quite different coverage. A title neither has one for keeps no
+    cover at all and shows the placeholder.
     """
-    return fetch_portrait(
-        tmdb_id,
-        lambda id_, media_type: get_tmdb_portrait_by_id(
+    lookups = {
+        'tmdb': lambda id_, media_type: get_tmdb_portrait_by_id(
             id_, media_type, config.TMDB_API_KEY, config.CONTENT_LANGUAGE),
-        lambda id_, media_type: get_fanart_portrait_by_id(
-            id_, media_type, config.FANART_API_KEY, config.CONTENT_LANGUAGE))
+        'fanart': lambda id_, media_type: get_fanart_portrait_by_id(
+            id_, media_type, config.FANART_API_KEY, config.CONTENT_LANGUAGE),
+    }
+    return fetch_portrait(
+        tmdb_id, *(lookups[source] for source in config.image_source_order()))
 
 
 def cache_portrait_for(tmdb_id, portrait_url):
